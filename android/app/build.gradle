@@ -1,0 +1,28 @@
+plugins { id 'com.android.application' }
+
+def run = (System.getenv("GITHUB_RUN_NUMBER") ?: "1").toInteger()
+
+android {
+  namespace 'com.weather.app'
+  compileSdk 34
+  defaultConfig {
+    applicationId 'com.weather.app'
+    minSdk 24
+    targetSdk 34
+    versionCode run
+    versionName "1.0.${run}"
+  }
+  // A fixed signing key so each new build installs as an update over the last one.
+  signingConfigs {
+    release {
+      storeFile file('weather.keystore')
+      storePassword 'weatherapp'
+      keyAlias 'weather'
+      keyPassword 'weatherapp'
+    }
+  }
+  buildTypes {
+    release { minifyEnabled false; signingConfig signingConfigs.release }
+  }
+  compileOptions { sourceCompatibility JavaVersion.VERSION_1_8; targetCompatibility JavaVersion.VERSION_1_8 }
+}
