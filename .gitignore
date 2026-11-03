@@ -2,3 +2,6 @@
 build/
 android/app/build/
 local.properties
+*.keystore
+*.jks
+*.p12

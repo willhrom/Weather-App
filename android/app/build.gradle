@@ -12,13 +12,18 @@ android {
     versionCode run
     versionName "1.0.${run}"
   }
-  // A fixed signing key so each new build installs as an update over the last one.
+  // The signing key lives in GitHub secrets, never in the repo. The build workflow writes it
+  // to a temporary file and passes its location and password in environment variables.
   signingConfigs {
     release {
-      storeFile file('weather.keystore')
-      storePassword 'weatherapp'
-      keyAlias 'weather'
-      keyPassword 'weatherapp'
+      def ks = System.getenv("ANDROID_KEYSTORE_PATH")
+      if (ks) {
+        storeFile file(ks)
+        storeType "pkcs12"
+        storePassword System.getenv("ANDROID_KEYSTORE_PASSWORD")
+        keyAlias "weather"
+        keyPassword System.getenv("ANDROID_KEYSTORE_PASSWORD")
+      }
     }
   }
   buildTypes {

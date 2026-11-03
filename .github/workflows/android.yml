@@ -29,8 +29,20 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: "8.9"
+      - name: Load the signing key from secrets
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
+        run: |
+          if [ -z "$KEYSTORE_B64" ]; then echo "::error::Add the ANDROID_KEYSTORE_B64 and ANDROID_KEYSTORE_PASSWORD repository secrets first."; exit 1; fi
+          echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/release.p12"
+          echo "ANDROID_KEYSTORE_PATH=$RUNNER_TEMP/release.p12" >> "$GITHUB_ENV"
       - name: Build the app
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
         run: gradle -p android assembleRelease --no-daemon
+      - name: Remove the key file
+        if: always()
+        run: rm -f "$RUNNER_TEMP/release.p12"
       - name: Name the file
         run: cp android/app/build/outputs/apk/release/app-release.apk weather.apk
       # Always published to the same "android" release, so the download link never changes.

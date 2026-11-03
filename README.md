@@ -38,4 +38,4 @@ Change `web/index.html` and push. Cloudflare publishes it in about a minute and 
 
 All free, no keys: Open-Meteo (forecast, rain totals), NWS (alerts), AviationWeather.gov (METAR/TAF, G-AIRMET, SIGMET, CWA, PIREP), NOAA (tides), Iowa State Mesonet (NEXRAD radar, GOES satellite, MRMS rain totals; RainViewer outside the US), OpenFreeMap dark map. Moon is calculated on the phone.
 
-`android/app/weather.keystore` just lets each build install over the last one. It isn't a secret.
+The app's signing key is stored only in the `ANDROID_KEYSTORE_B64` and `ANDROID_KEYSTORE_PASSWORD` repository secrets, never in the code.
