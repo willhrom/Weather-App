@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
 <meta name="theme-color" content="#0f2a4a">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://unpkg.com; style-src 'self' 'unsafe-inline' https://unpkg.com https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob: https:; worker-src blob:; child-src blob:; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'; connect-src 'self' blob: data: wxr: https://tiles.openfreemap.org https://*.open-meteo.com https://api.open-meteo.com https://api.weather.gov https://aviationweather.gov https://api.tidesandcurrents.noaa.gov https://api.bigdatacloud.net https://api.rainviewer.com https://*.rainviewer.com https://mesonet.agron.iastate.edu">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://unpkg.com; style-src 'self' 'unsafe-inline' https://unpkg.com https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob: https:; worker-src blob:; child-src blob:; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'; connect-src 'self' blob: data: wxr: https://tiles.openfreemap.org https://*.open-meteo.com https://api.open-meteo.com https://api.weather.gov https://aviationweather.gov https://api.tidesandcurrents.noaa.gov https://api.bigdatacloud.net https://api.rainviewer.com https://*.rainviewer.com https://mesonet.agron.iastate.edu https://willhrom-weather-gtg.pages.dev">
 <meta name="referrer" content="no-referrer">
 <title>Weather</title>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -155,6 +155,25 @@ body.mapopen .tabbar{display:none}
 .legend .key{display:flex;flex-wrap:wrap;gap:4px 10px}
 .legend .key span{display:flex;align-items:center;gap:4px}
 .legend .key i{width:8px;height:8px;border-radius:2px}
+.edr{position:absolute;right:10px;top:56px;z-index:6;display:none;flex-direction:column;align-items:stretch;gap:6px;width:50px;background:rgba(8,18,32,.88);border:1px solid var(--line2);border-radius:12px;padding:7px 5px;user-select:none;-webkit-user-select:none}
+.edr.on{display:flex}
+.mapfull .edr{top:calc(var(--safe-top) + 152px)}
+.edr .eh{text-align:center;font-size:9px;font-weight:700;letter-spacing:.12em;color:var(--faint)}
+.edr .eh b{display:block;font-family:var(--mono);font-size:15px;letter-spacing:0;color:var(--text);font-weight:600;margin-top:1px}
+.edr .rail{display:none;flex-direction:column;touch-action:none;position:relative;padding:2px 0}
+.mapfull .edr .rail{display:flex}
+.edr .rail::before{content:"";position:absolute;left:50%;top:6px;bottom:6px;width:2px;margin-left:-1px;background:var(--line2);border-radius:1px}
+.edr .rail span{position:relative;height:15px;line-height:15px;text-align:center;font-family:var(--mono);font-size:9.5px;color:var(--faint)}
+.edr .rail span em{position:relative;font-style:normal;background:rgba(8,18,32,.95);padding:0 3px;border-radius:4px}
+.edr .rail span.on em{background:var(--accent);color:#06121f;font-weight:700;padding:1px 5px}
+.edr .ac{display:none;flex-direction:column;gap:3px;border-top:1px solid var(--line2);padding-top:6px}
+.mapfull .edr .ac{display:flex}
+.edr .ac button{font-size:9.5px;font-weight:600;padding:4px 0;border-radius:6px;color:var(--muted);background:rgba(255,255,255,.04)}
+.edr .ac button.on{background:rgba(124,196,255,.18);color:var(--text)}
+.legend .edrt{display:flex;align-items:center;gap:6px}
+.legend .edrt button{width:22px;height:20px;border-radius:6px;background:rgba(255,255,255,.07);color:var(--text);font-size:12px;line-height:1}
+.legend .edrt button:disabled{opacity:.3}
+.legend .edrt b{font-family:var(--mono);font-weight:600;color:var(--text);min-width:46px;text-align:center}
 .layers{position:absolute;z-index:7;top:calc(var(--safe-top) + 58px);right:56px;width:min(300px,calc(100vw - 76px));max-height:calc(100% - var(--safe-top) - 150px);overflow-y:auto;
   background:rgba(11,24,42,.97);border:1px solid var(--line2);border-radius:14px;padding:6px 12px 12px;display:none}
 .layers.on{display:block}
@@ -342,6 +361,7 @@ body.mapopen .tabbar{display:none}
       <button class="mbtn" id="mapLayers" aria-label="Layers"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 3l9 5-9 5-9-5 9-5z"/><path d="M3 13l9 5 9-5"/></svg></button>
       <button class="mbtn" id="mapLocate" aria-label="Center on location"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg></button>
       <div class="layers" id="layerPanel"></div>
+      <div class="edr" id="edr"></div>
       <div class="legend" id="legend"></div>
       <div class="player" id="player"><button class="play" id="play"></button><div class="tl"><input type="range" id="slider" min="0" max="0" value="0"><div class="tls" id="tls"></div></div><span id="ftime">--</span></div>
     </div>
@@ -673,7 +693,7 @@ async function renderAirport(){
     const arr=await getJSON(`https://aviationweather.gov/api/data/metar?bbox=${b}&format=json`);if(place.id!==pid)return;
     const list=(Array.isArray(arr)?arr:[]).filter(m=>m&&m.rawOb&&Number.isFinite(+m.lat)&&Number.isFinite(+m.lon)).map(cleanMetar).filter(m=>m.icaoId).map(m=>Object.assign(m,{km:km(place.lat,place.lon,m.lat,m.lon)})).sort((a,b)=>a.km-b.km);
     if(!list.length){METAR=null;$("#fcat").innerHTML="";panel.style.display="none";return}
-    const m=list[0];METAR=m;const cat=flightCat(m),badge=`<span class="badge"><i style="background:${catColor(cat)}"></i>${cat}</span>`;
+    const m=list[0];METAR=m;if(typeof TAB!=="undefined"&&TAB==="sky"&&SKY)drawSky();const cat=flightCat(m),badge=`<span class="badge"><i style="background:${catColor(cat)}"></i>${cat}</span>`;
     $("#aptDist").textContent=`${Math.round(m.km*.621)} mi`;
     const age=m.obsTime?Math.round((Date.now()/1000-m.obsTime)/60):null;
     $("#apt").innerHTML=`<div class="apt"><b>${esc(m.icaoId)}</b><span>${esc((m.name||"").replace(/,\s*US$/,""))}</span>${badge}</div>
@@ -908,6 +928,10 @@ function radarField(url){
 let EMPTY_TILE=null;
 function emptyTile(){if(!EMPTY_TILE)EMPTY_TILE=new Promise(r=>{const c=document.createElement("canvas");c.width=c.height=1;c.toBlob(b=>b.arrayBuffer().then(r),"image/png")});return EMPTY_TILE}
 function registerRadar(){
+  maplibregl.addProtocol("gtg",async params=>{
+    const m=/^gtg:\/\/(\d+)\/(\d+)\/(\d+)\?k=([^&]+)&ac=([LMH])$/.exec(params.url);
+    let d=null;if(m){try{d=await gtgTile(+m[1],+m[2],+m[3],decodeURIComponent(m[4]),m[5])}catch(e){}}
+    return{data:d||await emptyTile()}});
   maplibregl.addProtocol("wxr",async params=>{
     const m=/^wxr:\/\/(\d+)\/(\d+)\/(\d+)\?(.*)$/.exec(params.url),z=+m[1],x=+m[2],y=+m[3],q=new URLSearchParams(m[4]);
     const nz=+q.get("nz"),d=Math.max(0,z-nz),px=x>>d,py=y>>d,url=q.get("u").replace("{z}",z-d).replace("{x}",px).replace("{y}",py);
@@ -984,7 +1008,7 @@ function saveLayers(){store.set("wx.layers",L)}
 function rmLayer(id){if(map.getLayer(id))map.removeLayer(id);if(map.getSource(id))map.removeSource(id)}
 function raster(id,url,o={}){
   if(map.getSource(id))return;
-  map.addSource(id,{type:"raster",tiles:[url],tileSize:o.tileSize||256,maxzoom:o.maxzoom||12,...(o.minzoom!=null?{minzoom:o.minzoom}:{}),attribution:o.attr||""});
+  map.addSource(id,{type:"raster",tiles:[url],tileSize:o.tileSize||256,maxzoom:o.maxzoom||12,...(o.minzoom!=null?{minzoom:o.minzoom}:{}),...(o.bounds?{bounds:o.bounds}:{}),attribution:o.attr||""});
   map.addLayer({id,type:"raster",source:id,paint:{"raster-opacity":o.opacity??.8,"raster-fade-duration":0,"raster-resampling":"linear","raster-saturation":o.sat??0}},beforeLabels());
 }
 async function applyLayers(force){
@@ -999,7 +1023,7 @@ async function applyLayers(force){
   const key=String(us);
   if(L.radar){if(force||!frames.length||key!==radarKey||Date.now()-radarStamp>4*6e4){radarKey=key;await loadRadar()}}else clearRadar();
   for(const f of frames)if(map.getLayer(f.id))map.moveLayer(f.id,beforeLabels());
-  updateAlertLayer();updateNationalAviation();loadBboxAviation();updateLegend();
+  updateAlertLayer();updateNationalAviation();loadBboxAviation();updateGtg();updateLegend();
 }
 function clearRadar(){clearTimeout(timer);frames.forEach(f=>rmLayer(f.id));frames=[];$("#player").style.display="none";$("#mapSrc").textContent=""}
 async function loadRadar(){
@@ -1080,7 +1104,7 @@ async function updateNationalAviation(){
   if(!map.getLayer("turb-fill")){map.addLayer({id:"turb-fill",type:"fill",source:"turbarea",paint:{"fill-color":tcol,"fill-opacity":["match",["get","tk"],"sig",.2,.15]}});
     map.addLayer({id:"turb-line",type:"line",source:"turbarea",filter:["!=",["get","tk"],"hi"],paint:{"line-color":tcol,"line-width":["match",["get","tk"],"sig",2.2,1.6]}});
     map.addLayer({id:"turb-line-hi",type:"line",source:"turbarea",filter:["==",["get","tk"],"hi"],paint:{"line-color":"#c792ea","line-width":1.6,"line-dasharray":[3,2]}})}
-  setVis(TURB_AREA_IDS,L.turb);
+  setVis(TURB_AREA_IDS,L.turb);if(G.cur&&map.getLayer("gtg")&&map.getLayoutProperty("gtg","visibility")!=="none")setVis(["turb-fill"],false);
   for(const id of ["metar","pirep","turb-pirep","turb-pirep-lbl"])if(map.getLayer(id))map.moveLayer(id);
 }
 async function loadBboxAviation(){
@@ -1095,20 +1119,103 @@ async function loadBboxAviation(){
     geo("pireps",{type:"FeatureCollection",features:((j&&j.features)||[]).filter(f=>f.geometry).map(f=>{const p=f.properties||{},raw=p.rawOb||p.rawOB||"";return{...f,properties:{...p,raw,kind:/\/TB/.test(raw)?"tb":/\/IC/.test(raw)?"ic":"x"}}})});
     if(!map.getLayer("pirep"))map.addLayer({id:"pirep",type:"circle",source:"pireps",paint:{"circle-radius":4,"circle-color":["match",["get","kind"],"tb","#ff8a3d","ic","#4cc9f0","#e9eef3"],"circle-stroke-color":"#0a1626","circle-stroke-width":1}})}catch(e){console.warn("pirep",e)}}
   if(L.turb){try{const j=await getJSON(`https://aviationweather.gov/api/data/pirep?bbox=${bb}&format=geojson&age=3`,20000);
-    const feats=((j&&j.features)||[]).filter(f=>f.geometry).map(f=>{const t=pirepTurb(f.properties||{});return{type:"Feature",geometry:f.geometry,properties:{sev:t.sev,fl:t.fl==null?"":"FL"+String(t.fl).padStart(3,"0"),raw:t.raw}}}).filter(f=>f.properties.sev>=0);
+    const feats=((j&&j.features)||[]).filter(f=>f.geometry).map(f=>{const t=pirepTurb(f.properties||{});return{type:"Feature",geometry:f.geometry,properties:{sev:t.sev,fl:t.fl==null?"":"FL"+String(t.fl).padStart(3,"0"),fln:t.fl==null?-1:t.fl,raw:t.raw}}}).filter(f=>f.properties.sev>=0);
     geo("turbpireps",{type:"FeatureCollection",features:feats});
     if(!map.getLayer("turb-pirep")){const c=["match",["get","sev"],0,"#3ddc97",1,"#ffd54a",2,"#ff8a3d",3,"#ff5468","#e05cff"];
       map.addLayer({id:"turb-pirep",type:"circle",source:"turbpireps",paint:{"circle-radius":["match",["get","sev"],0,3.5,1,4.5,2,6,7],"circle-color":c,"circle-stroke-color":"#0a1626","circle-stroke-width":1.4}});
       map.addLayer({id:"turb-pirep-lbl",type:"symbol",source:"turbpireps",minzoom:6,layout:{"text-field":["get","fl"],"text-size":10,"text-offset":[0,1.3],"text-font":["Noto Sans Regular"],"text-allow-overlap":false},paint:{"text-color":"#e6eef8","text-halo-color":"#0a1626","text-halo-width":1.2}})}}catch(e){console.warn("turb pirep",e)}}
-  setVis(["metar"],L.metar);setVis(["pirep"],L.pirep);setVis(["turb-pirep","turb-pirep-lbl"],L.turb);for(const id of ["metar","pirep","turb-pirep","turb-pirep-lbl"])if(map.getLayer(id))map.moveLayer(id);
+  setVis(["metar"],L.metar);setVis(["pirep"],L.pirep);setVis(["turb-pirep","turb-pirep-lbl"],L.turb);gtgPirepFilter();for(const id of ["metar","pirep","turb-pirep","turb-pirep-lbl"])if(map.getLayer(id))map.moveLayer(id);
 }
+
+/* ---------- GTG turbulence forecast: eddy dissipation rate by flight level ----------
+   NOAA/NCEP Graphical Turbulence Guidance (EDPARM), decoded from GRIB2 by the gtg workflow
+   into one grayscale PNG per flight level and forecast hour (gray = EDR × 250). Coloured here
+   with the aviationweather.gov thresholds for the chosen aircraft weight class. */
+const GTG_BASE="https://willhrom-weather-gtg.pages.dev/gtg/";
+const EDR_T={L:[.13,.16,.36,.64],M:[.15,.20,.44,.79],H:[.17,.24,.54,.96]};
+const EDR_N={L:"Light aircraft",M:"Medium aircraft",H:"Heavy aircraft"};
+const G=Object.assign({fl:350,ac:"M"},store.get("wx.gtg",{}),{man:null,mt:0,ti:0,pin:0,cache:new Map(),cur:null,req:0,url:""});
+function gtgSave(){store.set("wx.gtg",{fl:G.fl,ac:G.ac})}
+// colour table over EDR 0..1.5 in steps of ~0.0007 (continuous field, so contours stay smooth)
+const LUTN=2048,LUTMAX=1.5;
+function edrLUT(ac){const[l,m,s,x]=EDR_T[ac],lut=new Uint8ClampedArray(LUTN*4);
+  for(let k=0;k<LUTN;k++){const e=k/(LUTN-1)*LUTMAX;let c=[0,0,0],a=0;
+    if(e>=x){c=[224,92,255];a=220}else if(e>=s){c=[255,84,104];a=200}else if(e>=m){c=[255,138,61];a=175}else if(e>=l){c=[255,213,74];a=140}
+    else if(e>=l*.7){c=[255,213,74];a=Math.round(80*(e-l*.7)/(l*.3))}
+    lut.set([c[0],c[1],c[2],a],k*4)}return lut}
+async function gtgManifest(){
+  if(G.man&&Date.now()-G.mt<10*6e4)return G.man;
+  const r=await fetch(GTG_BASE+"manifest.json?"+Math.floor(Date.now()/6e4),{cache:"no-store"});if(!r.ok)throw new Error("gtg manifest "+r.status);
+  const m=await r.json();if(!m||!Array.isArray(m.times)||!m.times.length||!Array.isArray(m.bounds)||!Array.isArray(m.levels))throw new Error("bad gtg manifest");
+  const keep=G.pin||Date.now();let best=0;m.times.forEach((t,k)=>{if(Math.abs(Date.parse(t.valid)-keep)<Math.abs(Date.parse(m.times[best].valid)-keep))best=k});
+  if(!G.man||G.man.cycle!==m.cycle)G.cache.clear();
+  G.man=m;G.mt=Date.now();G.ti=best;if(!m.levels.includes(G.fl))G.fl=m.levels.reduce((a,b)=>Math.abs(b-G.fl)<Math.abs(a-G.fl)?b:a);
+  return m}
+// PNG encoding from the gtg workflow: EDR × 1000 as a 16-bit number in red (high byte) and
+// green (low byte); blue = 255 where the model has data
+async function gtgGray(m,f,fl){
+  const key=m.cycle+"/"+f+"/"+fl;if(G.cache.has(key))return G.cache.get(key);
+  const r=await fetch(`${GTG_BASE}${f}/FL${String(fl).padStart(3,"0")}.png?c=${m.cycle}`);if(!r.ok)throw new Error("gtg "+r.status);
+  const bmp=await createImageBitmap(await r.blob(),{premultiplyAlpha:"none",colorSpaceConversion:"none"});
+  const w=bmp.width,h=bmp.height,cv=document.createElement("canvas");cv.width=w;cv.height=h;const cx=cv.getContext("2d",{willReadFrequently:true});cx.drawImage(bmp,0,0);
+  const d=cx.getImageData(0,0,w,h).data,n=w*h,e=new Float32Array(n),sc=+m.scale||1000;
+  for(let i=0;i<n;i++)e[i]=d[i*4+2]>127?(d[i*4]*256+d[i*4+1])/sc:0;
+  const v={w,h,e};G.cache.set(key,v);if(G.cache.size>24)G.cache.delete(G.cache.keys().next().value);return v}
+// map tiles drawn on the device from the decoded field: each 512-px tile samples EDR with
+// bilinear interpolation, so contours stay smooth at every zoom level
+const gtgMy=a=>Math.log(Math.tan(Math.PI/4+a*Math.PI/360));
+async function gtgTile(z,x,y,key,ac){
+  let v=G.cache.get(key);if(!v){const[c,f,fl]=key.split("/");if(!G.man||G.man.cycle!==c)return null;v=await gtgGray(G.man,f,+fl)}
+  const[w,s,e,n]=G.man.bounds,W0=v.w,H0=v.h,g=v.e,S=512,N=1<<z,lut=edrLUT(ac),K=(LUTN-1)/LUTMAX,yn=gtgMy(n),ys=gtgMy(s);
+  const c=document.createElement("canvas");c.width=c.height=S;const cx=c.getContext("2d"),img=cx.createImageData(S,S),o=img.data;let any=false;
+  for(let oy=0;oy<S;oy++){const my=Math.PI*(1-2*(y+(oy+.5)/S)/N),fy=(yn-my)/(yn-ys)*H0-.5;if(fy<-.5||fy>H0-.5)continue;
+    const cy=Math.max(0,Math.min(H0-1.001,fy)),y0=cy|0,ty=cy-y0,r0=y0*W0,r1=r0+W0;
+    for(let ox=0;ox<S;ox++){const lon=(x+(ox+.5)/S)/N*360-180,fx=(lon-w)/(e-w)*W0-.5;if(fx<-.5||fx>W0-.5)continue;
+      const cxf=Math.max(0,Math.min(W0-1.001,fx)),x0=cxf|0,tx=cxf-x0;
+      const val=(g[r0+x0]*(1-tx)+g[r0+x0+1]*tx)*(1-ty)+(g[r1+x0]*(1-tx)+g[r1+x0+1]*tx)*ty,k=Math.min(LUTN-1,Math.round(val*K))*4;
+      if(!lut[k+3])continue;const i=(oy*S+ox)*4;o[i]=lut[k];o[i+1]=lut[k+1];o[i+2]=lut[k+2];o[i+3]=lut[k+3];any=true}}
+  if(!any)return null;cx.putImageData(img,0,0);const b=await new Promise(r=>c.toBlob(r,"image/png"));return b.arrayBuffer()}
+function renderEdrPanel(){
+  const el=$("#edr"),on=mapReady&&L.turb&&isCONUS(place)&&G.man;el.classList.toggle("on",!!on);if(!on)return;
+  const lv=[...G.man.levels].sort((a,b)=>b-a);
+  el.innerHTML=`<div class="eh">ALT<b>FL${String(G.fl).padStart(3,"0")}</b></div><div class="rail" id="edrRail">${lv.map(f=>`<span data-fl="${f}"${f===G.fl?' class="on"':""}><em>${f%60===0||f===G.fl?String(f).padStart(3,"0"):"·"}</em></span>`).join("")}</div><div class="ac">${["L","M","H"].map(c=>`<button data-c="${c}"${c===G.ac?' class="on"':""}>${c==="L"?"Light":c==="M"?"Med":"Heavy"}</button>`).join("")}</div>`;
+}
+function gtgPirepFilter(){if(!mapReady)return;const f=G.man&&L.turb?["any",["<",["get","fln"],0],["<=",["abs",["-",["get","fln"],G.fl]],40]]:null;
+  for(const id of ["turb-pirep","turb-pirep-lbl"])if(map.getLayer(id))map.setFilter(id,f)}
+async function updateGtg(){
+  if(!mapReady)return;const req=++G.req,us=isCONUS(place);
+  if(!(us&&L.turb)){setVis(["gtg"],false);renderEdrPanel();return}
+  try{const m=await gtgManifest();if(req!==G.req)return;renderEdrPanel();gtgPirepFilter();
+    const t=m.times[G.ti],v=await gtgGray(m,t.f,G.fl);if(req!==G.req)return;
+    const key=m.cycle+"/"+t.f+"/"+G.fl,id="gtg",url=`gtg://{z}/{x}/{y}?k=${encodeURIComponent(key)}&ac=${G.ac}`;
+    if(G.url!==url){rmLayer(id);raster(id,url,{opacity:.85,maxzoom:11,bounds:m.bounds,attr:"GTG · NOAA/NCEP"});G.url=url}
+    map.moveLayer(id,beforeLabels());G.cur=v;setVis(["gtg"],true);setVis(["turb-fill"],false);
+  }catch(e){console.warn("gtg",e);G.cur=null;setVis(["gtg"],false);renderEdrPanel()}
+  updateLegend()}
+// altitude rail: tap or drag; aircraft class buttons
+(()=>{const el=$("#edr");let drag=false;
+  const pick=y=>{const rows=[...el.querySelectorAll(".rail span")];if(!rows.length)return;
+    let best=rows[0],bd=1e9;for(const r of rows){const b=r.getBoundingClientRect(),d=Math.abs(b.top+b.height/2-y);if(d<bd){bd=d;best=r}}
+    const fl=+best.dataset.fl;if(fl!==G.fl){G.fl=fl;gtgSave();rows.forEach(r=>{const f=+r.dataset.fl,on=f===fl;r.classList.toggle("on",on);r.firstChild.textContent=on||f%60===0?String(f).padStart(3,"0"):"·"});
+      el.querySelector(".eh b").textContent="FL"+String(fl).padStart(3,"0");clearTimeout(G.dt);G.dt=setTimeout(updateGtg,drag?120:0);gtgPirepFilter()}};
+  el.addEventListener("pointerdown",e=>{e.stopPropagation();const r=e.target.closest(".rail");if(r){drag=true;r.setPointerCapture(e.pointerId);pick(e.clientY)}});
+  el.addEventListener("pointermove",e=>{if(drag)pick(e.clientY)});
+  el.addEventListener("pointerup",()=>{drag=false});el.addEventListener("pointercancel",()=>{drag=false});
+  el.addEventListener("click",e=>{e.stopPropagation();const b=e.target.closest(".ac button");if(b&&b.dataset.c!==G.ac){G.ac=b.dataset.c;gtgSave();renderEdrPanel();updateGtg()}});})();
+function gtgPopup(e){
+  if(!(G.cur&&G.man&&L.turb&&isCONUS(place)))return;const[w,s,ea,n]=G.man.bounds,my=a=>Math.log(Math.tan(Math.PI/4+a*Math.PI/360));
+  const x=Math.floor((e.lngLat.lng-w)/(ea-w)*G.cur.w),y=Math.floor((my(n)-my(e.lngLat.lat))/(my(n)-my(s))*G.cur.h);
+  if(x<0||y<0||x>=G.cur.w||y>=G.cur.h)return;const edr=G.cur.e[y*G.cur.w+x],[l,m,sv,xx]=EDR_T[G.ac];
+  const cat=edr>=xx?"Extreme":edr>=sv?"Severe":edr>=m?"Moderate":edr>=l?"Light":"Smooth";
+  const t=G.man.times[G.ti],v=Date.parse(t.valid);
+  if(popup)popup.remove();popup=new maplibregl.Popup({maxWidth:"260px"}).setLngLat(e.lngLat).setHTML(`<b>Turbulence forecast · ${cat}</b> <span class="badge">FL${String(G.fl).padStart(3,"0")}</span><pre>EDR ${edr.toFixed(2)} m²ᐟ³/s\n${EDR_N[G.ac]}\nValid ${fT(v+off*1000)} · GTG ${G.man.cycle.slice(8)}Z run</pre>`).addTo(map)}
 function onMapClick(e){
-  if(!isFull())return;const ids=["turb-pirep","metar","pirep","turb-fill","sigmet-fill","cwa-line","gairmet-fill","alerts-fill"].filter(id=>map.getLayer(id)&&map.getLayoutProperty(id,"visibility")!=="none");
-  const f=map.queryRenderedFeatures([[e.point.x-8,e.point.y-8],[e.point.x+8,e.point.y+8]],{layers:ids})[0];if(!f)return;const p=f.properties||{};let h;
+  if(!isFull())return;const ids=["turb-pirep","metar","pirep","turb-fill","turb-line","turb-line-hi","sigmet-fill","cwa-line","gairmet-fill","alerts-fill"].filter(id=>map.getLayer(id)&&map.getLayoutProperty(id,"visibility")!=="none");
+  const f=map.queryRenderedFeatures([[e.point.x-8,e.point.y-8],[e.point.x+8,e.point.y+8]],{layers:ids})[0];if(!f){gtgPopup(e);return}const p=f.properties||{};let h;
   if(f.layer.id==="metar")h=`<b>${esc(p.id)}</b> <span class="badge"><i style="background:${catColor(p.cat)}"></i>${esc(p.cat)}</span><div style="color:#9fb2c8;margin-top:4px">${esc(p.name)}</div><pre>${esc(p.raw)}</pre>`;
   else if(f.layer.id==="pirep")h=`<b>PIREP</b><pre>${esc(p.raw)}</pre>`;
   else if(f.layer.id==="turb-pirep")h=`<b>Turbulence report · ${["None","Light","Moderate","Severe","Extreme"][+p.sev]||""}</b>${p.fl?` <span class="badge">${esc(p.fl)}</span>`:""}<pre>${esc(p.raw)}</pre>`;
-  else if(f.layer.id==="turb-fill")h=`<b>${esc(p.src)} · ${p.tk==="hi"?"High-level turbulence":p.tk==="sig"?"Severe turbulence":"Low-level turbulence"}</b><pre>${esc([p.validTime&&"Valid "+p.validTime,p.base!=null&&p.base!==""&&"Base "+p.base,p.top!=null&&p.top!==""&&"Top "+p.top,p.altitudeLow1!=null&&"From "+p.altitudeLow1,p.altitudeHi1!=null&&"To "+p.altitudeHi1,p.rawAirSigmet].filter(Boolean).join("\n"))}</pre>`;
+  else if(/^turb-(fill|line)/.test(f.layer.id))h=`<b>${esc(p.src)} · ${p.tk==="hi"?"High-level turbulence":p.tk==="sig"?"Severe turbulence":"Low-level turbulence"}</b><pre>${esc([p.validTime&&"Valid "+p.validTime,p.base!=null&&p.base!==""&&"Base "+p.base,p.top!=null&&p.top!==""&&"Top "+p.top,p.altitudeLow1!=null&&"From "+p.altitudeLow1,p.altitudeHi1!=null&&"To "+p.altitudeHi1,p.rawAirSigmet].filter(Boolean).join("\n"))}</pre>`;
   else if(f.layer.id==="gairmet-fill")h=`<b>G-AIRMET · ${esc(p.hazard||"")}</b><pre>${esc([p.validTime&&"Valid "+p.validTime,p.base!=null&&"Base "+p.base,p.top!=null&&"Top "+p.top,p.dueTo].filter(Boolean).join("\n"))}</pre>`;
   else if(f.layer.id==="sigmet-fill")h=`<b>${esc(p.airSigmetType||"SIGMET")} · ${esc(p.hazard||"")}</b><pre>${esc(p.rawAirSigmet||p.rawSigmet||"")}</pre>`;
   else if(f.layer.id==="cwa-line")h=`<b>CWA ${esc(p.cwsu||"")}</b><pre>${esc(p.cwaText||p.rawCwa||"")}</pre>`;
@@ -1119,12 +1226,16 @@ function updateLegend(){
   const us=isCONUS(place),rows=[];
   if(L.radar)rows.push(`<div class="lg">Light <i style="background:linear-gradient(90deg,${BANDS.map((b,k)=>`${b[1]} ${k/BANDS.length*100}% ${(k+1)/BANDS.length*100}%`).join(",")})"></i>Heavy</div>`);
   if(us&&L.mrms)rows.push(`<div class="lg">Rain <i style="background:linear-gradient(90deg,#00d0a0,#00a000,#ffff00,#ff9000,#ff0000,#c000c0)"></i>${S.rain==="in"?"→ 4+ in":"→ 100+ mm"}</div>`);
+  if(us&&L.turb&&G.man){const t=G.man.times,ti=G.ti,v=Date.parse(t[ti].valid),[l,m,sv,x]=EDR_T[G.ac];
+    rows.push(`<div class="key"><b style="color:var(--text);font-weight:600">EDR · FL${String(G.fl).padStart(3,"0")}</b><span><i style="background:#ffd54a"></i>Lgt ${l.toFixed(2)}</span><span><i style="background:#ff8a3d"></i>Mod ${m.toFixed(2)}</span><span><i style="background:#ff5468"></i>Sev ${sv.toFixed(2)}</span><span><i style="background:#e05cff"></i>Ext ${x.toFixed(2)}</span></div><div class="edrt"><button data-d="-1"${ti?"":" disabled"}>‹</button><b>${fT(v+off*1000)}</b><button data-d="1"${ti<t.length-1?"":" disabled"}>›</button><span>${v-Date.now()>45*6e4?"+"+Math.round((v-Date.now())/36e5)+"h forecast":"now"} · GTG ${G.man.cycle.slice(8)}Z</span></div>`)}
   if(us&&L.turb)rows.push(`<div class="key"><span><i style="background:#ffb547"></i>Turb low</span><span><i style="background:#c792ea"></i>Turb high</span><span><i style="background:#ff5468"></i>SIGMET</span></div><div class="key">PIREPs <span><i style="background:#ffd54a;border-radius:50%"></i>LGT</span><span><i style="background:#ff8a3d;border-radius:50%"></i>MOD</span><span><i style="background:#ff5468;border-radius:50%"></i>SEV</span><span><i style="background:#3ddc97;border-radius:50%"></i>smooth</span></div>`);
   if(us&&L.metar)rows.push(`<div class="key">${["VFR","MVFR","IFR","LIFR"].map(c=>`<span><i style="background:${catColor(c)}"></i>${c}</span>`).join("")}</div>`);
   if(us&&L.gairmet)rows.push(`<div class="key">${[["IFR","IFR"],["MT_OBSC","Mtn obsc"],["TURB-HI","Turb hi"],["TURB-LO","Turb lo"],["ICE","Icing"],["LLWS","LLWS"]].map(([k,n])=>`<span><i style="background:${GCOL[k]}"></i>${n}</span>`).join("")}</div>`);
   if(us&&(L.sigmet||L.cwa||L.pirep))rows.push(`<div class="key">${L.sigmet?'<span><i style="background:#ff5468"></i>SIGMET</span>':""}${L.cwa?'<span><i style="background:#ffd54a"></i>CWA</span>':""}${L.pirep?'<span><i style="background:#ff8a3d"></i>Turb PIREP</span><span><i style="background:#4cc9f0"></i>Ice PIREP</span>':""}</div>`);
   $("#legend").innerHTML=rows.join("");$("#legend").style.display=rows.length?"":"none";
 }
+$("#legend").onclick=e=>{const b=e.target.closest(".edrt button");if(!b)return;e.stopPropagation();if(!G.man)return;
+  G.ti=Math.max(0,Math.min(G.man.times.length-1,G.ti+ +b.dataset.d));G.pin=Date.parse(G.man.times[G.ti].valid);updateGtg()};
 
 
 /* ---------- tabs ---------- */
@@ -1181,8 +1292,17 @@ function nowLayers(){
     let base=def;if(best&&best.c>=10){const q=col.indexOf(best),below=q>0?col[q-1]:null;base=Math.max(lo,(below?(below.z+best.z)/2:best.z-150)-EL)}
     if(name==="low"&&(!best||best.c<10))base=cuBase;
     out.push({base:EL+Math.max(60,base),c,band:name})});
-  return out}
-const coverCat=c=>c<25?"FEW":c<50?"SCT":c<88?"BKN":"OVC";
+  // a nearby, recent airport report is what's actually overhead: its layers replace the model's
+  // below the top of what the ceilometer can see (~12,000 ft); the model fills in above that
+  const ob=skyMetar();if(!ob)return out;
+  const COV={FEW:20,SCT:40,BKN:75,OVC:100,OVX:100,VV:100},rep=[];
+  for(const c of ob.clouds){if(!(c.cover in COV)||c.base==null)continue;rep.push({base:EL+Math.max(30,c.base*.3048),c:COV[c.cover],band:"rep",rep:c.cover})}
+  const top=rep.length?Math.max(...rep.map(l=>l.base))+600:EL+3600,seen=EL+3700; // ASOS reports clouds to 12,000 ft
+  return [...rep,...out.filter(l=>l.base>Math.max(top,seen))].sort((x,y)=>x.base-y.base)}
+// the nearest METAR, when it's within ~25 km and under 2 h old
+function skyMetar(){const m=METAR;if(!m||!Array.isArray(m.clouds)||!m.clouds.length||!(m.km<=25))return null;
+  if(m.obsTime&&Date.now()/1000-m.obsTime>7200)return null;return m}
+const coverCat=c=>c<30?"FEW":c<50?"SCT":c<88?"BKN":"OVC";
 /* ---- cartoon cloud types ----
    Each layer gets the cloud type it most likely is, from its height above ground, its coverage,
    and whether it's producing rain or storms. Sheets (stratus, altostratus, cirrostratus,
@@ -1324,7 +1444,7 @@ function drawSky(){
   const lay=nowLayers(),gy0=Y(EL),used=new Set(),later=[],precip=[];SKY.used=used;
   const pr=(SKY.pr[0]||0),wc=Math.max(SKY.wc[0]||0,SKY.wc[1]||0),src=pr>=.05&&lay.length?(lay.find(l=>l.c>=50)||lay[0]):null,storm=wc>=95,snow=isSnowCode(wc)||(SKY.fz[0]!=null&&SKY.fz[0]-EL<250);
   // how many of the 4 slots a layer fills: scattered 2, broken 3, overcast = a continuous sheet
-  const slots=(cat,q)=>cat==="SCT"?[q%2,q%2+2]:cat==="BKN"?[0,1,2,3].filter(c=>c!==(q+1)%4):[0,1,2,3];
+  const slots=(cat,q)=>cat==="FEW"?[(q*3+1)%4]:cat==="SCT"?[q%2,q%2+2]:cat==="BKN"?[0,1,2,3].filter(c=>c!==(q+1)%4):[0,1,2,3];
   lay.slice().reverse().forEach((l,q)=>{const cat=coverCat(l.c),type=cloudType(l.base-EL,cat,l===src,storm),st=l===src?CSTYLE.wet:SKY.day[0]?CSTYLE.day:CSTYLE.night;
     used.add(type+(l===src&&type!=="Cb"?"*":""));
     if(SHEETS.includes(type)){SHEET[type](g,L0+4,Wc-R0-4,Y(l.base),U,st,type.length*31+q);return}
@@ -1379,11 +1499,11 @@ function skyInfo(){
   const what=wc>=95?"Thunderstorms":isSnowCode(wc)?"Snow":"Rain";
   let h=`<div class="skyhead"><b>${k===0?"Now":fDay(t)+" "+fTime(t)}</b><span>${lay.length?`${lay.length} layer${lay.length>1?"s":""}`:"No significant clouds"}</span></div>`;
   h+=lay.slice().reverse().map(l=>{const cat=coverCat(l.c),type=cloudType(l.base-SKY.elev,cat,l===src,wc>=95);
-    return `<div class="lyr"><span class="ci"><img src="${cloudIcon(type,l===src)}" alt=""></span><span class="rg"><b>${{SCT:"Scattered",BKN:"Broken",OVC:"Overcast"}[cat]}</b> ${CTYPE[type].toLowerCase()} at ${fmtAGL(l.base-SKY.elev)}</span><span class="pc">${l===src?`<em>${what} from here</em>`:""}</span></div>`}).join("");
+    return `<div class="lyr"><span class="ci"><img src="${cloudIcon(type,l===src)}" alt=""></span><span class="rg"><b>${{FEW:"Few",SCT:"Scattered",BKN:"Broken",OVC:"Overcast"}[cat]}</b> ${CTYPE[type].toLowerCase()} at ${fmtAGL(l.base-SKY.elev)}${l.rep?` <small style="color:#ffc94d">· reported</small>`:""}</span><span class="pc">${l===src?`<em>${what} from here</em>`:""}</span></div>`}).join("");
   if(wet&&!src)h+=`<div class="lyr"><span class="ci"></span><span class="rg">${what} expected</span><span class="pc"></span></div>`;
   h+=`<div class="tbl" style="margin-top:6px">`+
     `<div class="tr"><span>Freezing level</span><b>${fmtAltM(SKY.fz[k])} MSL</b></div>`+
-    `<div class="tr"><span>Est. cumulus base</span><b>${base==null?"--":fmtAGL(base)}</b></div>`+
+    (skyMetar()?"":`<div class="tr"><span>Est. cumulus base</span><b>${base==null?"--":fmtAGL(base)}</b></div>`)+
     (k===0&&METAR&&METAR.clouds&&METAR.clouds.length?`<div class="tr"><span>Reported at ${esc(METAR.icaoId)}</span><b>${METAR.clouds.map(c=>esc(c.cover)+(c.base!=null?" "+(S.temp==="F"?(c.base/1000).toFixed(1).replace(".0","")+"k":Math.round(c.base*.3048)+"m"):"")).join(" · ")}</b></div>`:"")+`</div>`+
     `<div class="skykey">${[...(SKY.used||[])].sort().map(u=>{const t=u.replace("*","");return `<span class="ki"><img src="${cloudIcon(t,u.endsWith("*"))}" alt="">${CTYPE[t]}${u.endsWith("*")?" (rain)":""}</span>`}).join("")}<span><i></i>Freezing level</span>${METAR?'<span style="color:#ffc94d">▸ airport-reported</span>':""}</div>`;
   $("#skyInfo").innerHTML=h;

@@ -1,0 +1,62 @@
+name: Turbulence forecast (GTG EDR)
+
+# Decodes NOAA's Graphical Turbulence Guidance (eddy dissipation rate, every 3,000 ft from
+# FL030 to FL450, now to +18 h) from GRIB2 into small images the app colours on the phone.
+# GTG runs hourly; this picks up the newest complete run four times a day (keeps Actions minutes low)
+# and skips quickly when that run is already published.
+on:
+  schedule:
+    - cron: "25 1,7,13,19 * * *"
+  workflow_dispatch:
+    inputs:
+      force:
+        description: "Rebuild even if this cycle is already published"
+        type: boolean
+        default: false
+  push:
+    branches: [main]
+    paths: ["gtg/**", ".github/workflows/gtg.yml"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gtg
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install decoder
+        run: pip install --quiet pygrib==2.1.6 pyproj numpy pillow requests
+      - name: Decode latest GTG cycle
+        id: build
+        env:
+          PREV_MANIFEST_URL: https://willhrom-weather-gtg.pages.dev/gtg/manifest.json
+          FORCE: ${{ (github.event_name == 'push' || inputs.force) && '1' || '0' }}
+        run: |
+          set -o pipefail
+          python -u gtg/build_gtg.py dist 2>&1 | tee build.log
+      - name: Headers
+        if: steps.build.outputs.skip != '1'
+        run: |
+          printf '/*\n  Access-Control-Allow-Origin: *\n  Cache-Control: no-cache\n  X-Content-Type-Options: nosniff\n' > dist/_headers
+          du -sh dist; ls dist/gtg | head; ls dist/gtg/f000 | head -3
+      - uses: actions/setup-node@v4
+        if: steps.build.outputs.skip != '1'
+        with:
+          node-version: "22"
+      - name: Publish to Cloudflare Pages
+        if: steps.build.outputs.skip != '1'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          npx --yes wrangler@4.157.0 pages project create willhrom-weather-gtg --production-branch=main || true
+          npx --yes wrangler@4.157.0 pages deploy dist --project-name=willhrom-weather-gtg --branch=main --commit-dirty=true
