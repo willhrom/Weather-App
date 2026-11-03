@@ -984,12 +984,17 @@ function saveLayers(){store.set("wx.layers",L)}
 function rmLayer(id){if(map.getLayer(id))map.removeLayer(id);if(map.getSource(id))map.removeSource(id)}
 function raster(id,url,o={}){
   if(map.getSource(id))return;
-  map.addSource(id,{type:"raster",tiles:[url],tileSize:256,maxzoom:o.maxzoom||12,attribution:o.attr||""});
+  map.addSource(id,{type:"raster",tiles:[url],tileSize:o.tileSize||256,maxzoom:o.maxzoom||12,...(o.minzoom!=null?{minzoom:o.minzoom}:{}),attribution:o.attr||""});
   map.addLayer({id,type:"raster",source:id,paint:{"raster-opacity":o.opacity??.8,"raster-fade-duration":0,"raster-resampling":"linear","raster-saturation":o.sat??0}},beforeLabels());
 }
 async function applyLayers(force){
   if(!mapReady)return;const us=isCONUS(place),bust=Math.floor(Date.now()/3e5);
-  for(const k of ["ir","vis"]){const id="sat-"+k;if(L[k]&&us)raster(id,`https://mesonet.agron.iastate.edu/cache/tile.py/1.0.0/goes_east_conus_ch${k==="ir"?"13":"02"}/{z}/{x}/{y}.png?${bust}`,{opacity:k==="ir"?.6:.75,maxzoom:k==="ir"?7:8,attr:"GOES via IEM"});else rmLayer(id)}
+  // satellite: a standard-resolution layer underneath, and a high-definition layer on top that
+  // requests deeper zoom levels at double pixel density (sharp on phone screens). If the HD tiles
+  // aren't available somewhere, the standard layer still shows through.
+  for(const k of ["ir","vis"]){const id="sat-"+k,hd="sat-"+k+"-hd",u=`https://mesonet.agron.iastate.edu/cache/tile.py/1.0.0/goes_east_conus_ch${k==="ir"?"13":"02"}/{z}/{x}/{y}.png?${bust}`;
+    if(L[k]&&us){raster(id,u,{opacity:k==="ir"?.6:.75,maxzoom:k==="ir"?7:8,attr:"GOES via IEM"});raster(hd,u,{opacity:k==="ir"?.6:.78,tileSize:128,minzoom:4,maxzoom:k==="ir"?9:11})}
+    else{rmLayer(hd);rmLayer(id)}}
   for(const d of LAYERS.filter(x=>x.k==="mrms")){const id="mrms-"+d.v;if(L.mrms===d.v&&us)raster(id,`https://mesonet.agron.iastate.edu/cache/tile.py/1.0.0/${d.v}-900913/{z}/{x}/{y}.png?${bust}`,{opacity:.75,maxzoom:8,attr:"MRMS via IEM"});else rmLayer(id)}
   const key=String(us);
   if(L.radar){if(force||!frames.length||key!==radarKey||Date.now()-radarStamp>4*6e4){radarKey=key;await loadRadar()}}else clearRadar();
