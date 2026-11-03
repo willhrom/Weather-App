@@ -406,7 +406,7 @@ const UA=navigator.userAgent,NATIVE=/WeatherApp\//.test(UA);
 const store={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
 const DEFAULT={id:"sf",name:"San Francisco",sub:"California",lat:37.7749,lon:-122.4194};
 let S=Object.assign({temp:"F",wind:"mph",rain:"in",gps:true,nRain:true,nAlerts:true},store.get("wx.settings",{}));
-let L=Object.assign({radar:true,future:false,ir:false,vis:false,mrms:"",alerts:true,metar:false,gairmet:false,sigmet:false,cwa:false,pirep:false},store.get("wx.layers",{}));
+let L=Object.assign({radar:true,future:false,turb:false,ir:false,vis:false,mrms:"",alerts:true,metar:false,gairmet:false,sigmet:false,cwa:false,pirep:false},store.get("wx.layers",{}));
 let places=store.get("wx.places",[]);
 let sel=store.get("wx.sel",S.gps?"gps":(places[0]?places[0].id:"sf"));
 let gpsPlace=store.get("wx.gpsPlace",null);
@@ -874,6 +874,7 @@ const LAYERS=[
  {g:"Aviation · aviationweather.gov",k:"gairmet",n:"G-AIRMETs",s:"IFR, mtn obsc, turb, icing, LLWS — now",c:"#c792ea",us:1},
  {g:"Aviation · aviationweather.gov",k:"sigmet",n:"SIGMETs",s:"Convective & non-convective",c:"#ff5468",us:1},
  {g:"Aviation · aviationweather.gov",k:"cwa",n:"Center Weather Advisories",s:"CWAs from ARTCCs",c:"#ffd54a",us:1},
+ {g:"Aviation · aviationweather.gov",k:"turb",n:"Turbulence",s:"G-AIRMET & SIGMET areas + pilot reports",c:"linear-gradient(135deg,#ffb547,#ff8a3d,#c792ea)",us:1},
  {g:"Aviation · aviationweather.gov",k:"pirep",n:"PIREPs",s:"Pilot reports, last 2 h",c:"#e9eef3",us:1}];
 const GCOL={"IFR":"#c792ea","MT_OBSC":"#d4a373","TURB-HI":"#ff8a3d","TURB-LO":"#7cc4ff","ICE":"#4cc9f0","LLWS":"#ff5468","SFC_WND":"#ffd54a"};
 let map=null,mapReady=false,meMarker=null,frames=[],fi=0,playing=false,timer=null,radarStamp=0,radarKey="",popup=null,avTimer=null;
@@ -962,7 +963,7 @@ function renderMap(){
   renderChips();if(mapReady){buildLayerPanel();applyLayers()}
 }
 function renderChips(){
-  const us=isCONUS(place),chips=[["radar","Radar"],...(us?[["ir","Satellite"],["mrms","Rain 24h"],["metar","Flight cat"],["gairmet","G-AIRMET"],["sigmet","SIGMET"]]:[])];
+  const us=isCONUS(place),chips=[["radar","Radar"],...(us?[["turb","Turbulence"],["ir","Satellite"],["mrms","Rain 24h"],["metar","Flight cat"],["gairmet","G-AIRMET"],["sigmet","SIGMET"]]:[])];
   $("#chips").innerHTML=chips.map(([k,n])=>`<button class="chip${(k==="mrms"?L.mrms:L[k])?" on":""}" data-k="${k}">${n}</button>`).join("");
 }
 $("#chips").onclick=e=>{const b=e.target.closest(".chip");if(!b)return;e.stopPropagation();const k=b.dataset.k;if(k==="future")radarStamp=0;
@@ -1041,10 +1042,18 @@ async function updateAlertLayer(){
   setVis(["alerts-fill","alerts-line"],true);
 }
 let natCache={t:0,g:EMPTY,s:EMPTY,c:EMPTY};
+const TURB_AREA_IDS=["turb-fill","turb-line","turb-line-hi"];
+// turbulence intensity from a PIREP: AWC fields when present, otherwise parsed from the raw /TB group
+function pirepTurb(p){const raw=String(p.rawOb||p.rawOB||"");let t=String(p.tbInt1||"").toUpperCase();
+  if(!t){const m=/\/TB\s*([A-Z\-]+)/.exec(raw);t=m?m[1]:""}
+  const sev=/EXTRM|EXTREME/.test(t)?4:/SEV/.test(t)?3:/MOD/.test(t)?2:/LGT|LIGHT|LT/.test(t)?1:/NEG|SMTH|SMOOTH/.test(t)?0:-1;
+  let fl=p.fltLvl!=null&&p.fltLvl!==""?+p.fltLvl:null;if(fl==null){const m=/\/FL\s*(\d{3})/.exec(raw);fl=m?+m[1]:null}
+  return{sev,fl:Number.isFinite(fl)?fl:null,raw}}
 async function updateNationalAviation(){
   if(!mapReady)return;const us=isCONUS(place);
   setVis(["gairmet-fill","gairmet-line"],us&&L.gairmet);setVis(["sigmet-fill","sigmet-line"],us&&L.sigmet);setVis(["cwa-line"],us&&L.cwa);
-  if(!(us&&(L.gairmet||L.sigmet||L.cwa)))return;
+  setVis(TURB_AREA_IDS,us&&L.turb);
+  if(!(us&&(L.gairmet||L.sigmet||L.cwa||L.turb)))return;
   if(Date.now()-natCache.t>10*6e4){natCache.t=Date.now();
     const fc=u=>getJSON(u,20000).then(j=>j&&j.features?j:EMPTY).catch(()=>EMPTY);
     [natCache.g,natCache.s,natCache.c]=await Promise.all([fc("https://aviationweather.gov/api/data/gairmet?format=geojson"),fc("https://aviationweather.gov/api/data/airsigmet?format=geojson"),fc("https://aviationweather.gov/api/data/cwa?format=geojson")])}
@@ -1058,11 +1067,21 @@ async function updateNationalAviation(){
   if(!map.getLayer("sigmet-fill")){map.addLayer({id:"sigmet-fill",type:"fill",source:"sigmet",paint:{"fill-color":"#ff5468","fill-opacity":.12}});map.addLayer({id:"sigmet-line",type:"line",source:"sigmet",paint:{"line-color":"#ff5468","line-width":1.6}})}
   if(!map.getLayer("cwa-line"))map.addLayer({id:"cwa-line",type:"line",source:"cwa",paint:{"line-color":"#ffd54a","line-width":1.6,"line-dasharray":[2,1.5]}});
   setVis(["gairmet-fill","gairmet-line"],L.gairmet);setVis(["sigmet-fill","sigmet-line"],L.sigmet);setVis(["cwa-line"],L.cwa);
-  for(const id of ["metar","pirep"])if(map.getLayer(id))map.moveLayer(id);
+  // turbulence areas: G-AIRMET TURB-LO / TURB-HI (current snapshot) + turbulence SIGMETs
+  const tf=[];gf.filter(f=>fh(f)===minH&&/TURB/i.test(f.properties.hazard||"")).forEach(f=>tf.push({...f,properties:{...f.properties,tk:/HI/i.test(f.properties.hazard)?"hi":"lo",src:"G-AIRMET"}}));
+  natCache.s.features.filter(f=>f.geometry&&/TURB/i.test((f.properties||{}).hazard||"")).forEach(f=>tf.push({...f,properties:{...f.properties,tk:"sig",src:"SIGMET"}}));
+  geo("turbarea",{type:"FeatureCollection",features:tf});
+  const tcol=["match",["get","tk"],"hi","#c792ea","sig","#ff5468","#ffb547"];
+  if(!map.getLayer("turb-fill")){map.addLayer({id:"turb-fill",type:"fill",source:"turbarea",paint:{"fill-color":tcol,"fill-opacity":["match",["get","tk"],"sig",.2,.15]}});
+    map.addLayer({id:"turb-line",type:"line",source:"turbarea",filter:["!=",["get","tk"],"hi"],paint:{"line-color":tcol,"line-width":["match",["get","tk"],"sig",2.2,1.6]}});
+    map.addLayer({id:"turb-line-hi",type:"line",source:"turbarea",filter:["==",["get","tk"],"hi"],paint:{"line-color":"#c792ea","line-width":1.6,"line-dasharray":[3,2]}})}
+  setVis(TURB_AREA_IDS,L.turb);
+  for(const id of ["metar","pirep","turb-pirep","turb-pirep-lbl"])if(map.getLayer(id))map.moveLayer(id);
 }
 async function loadBboxAviation(){
   if(!mapReady)return;const us=isCONUS(place);setVis(["metar"],us&&L.metar);setVis(["pirep"],us&&L.pirep);
-  if(!us||!(L.metar||L.pirep))return;
+  setVis(["turb-pirep","turb-pirep-lbl"],us&&L.turb);
+  if(!us||!(L.metar||L.pirep||L.turb))return;
   const b=map.getBounds(),bb=[b.getSouth(),b.getWest(),b.getNorth(),b.getEast()].map(v=>v.toFixed(2)).join(",");
   if(L.metar){try{const arr=await getJSON(`https://aviationweather.gov/api/data/metar?bbox=${bb}&format=json`,20000);
     geo("metars",{type:"FeatureCollection",features:(Array.isArray(arr)?arr:[]).filter(m=>m.lat!=null).map(m=>({type:"Feature",geometry:{type:"Point",coordinates:[m.lon,m.lat]},properties:{id:String(m.icaoId||""),cat:flightCat(cleanMetar(m)),raw:String(m.rawOb||""),name:String(m.name||"")}}))});
@@ -1070,13 +1089,21 @@ async function loadBboxAviation(){
   if(L.pirep){try{const j=await getJSON(`https://aviationweather.gov/api/data/pirep?bbox=${bb}&format=geojson&age=2`,20000);
     geo("pireps",{type:"FeatureCollection",features:((j&&j.features)||[]).filter(f=>f.geometry).map(f=>{const p=f.properties||{},raw=p.rawOb||p.rawOB||"";return{...f,properties:{...p,raw,kind:/\/TB/.test(raw)?"tb":/\/IC/.test(raw)?"ic":"x"}}})});
     if(!map.getLayer("pirep"))map.addLayer({id:"pirep",type:"circle",source:"pireps",paint:{"circle-radius":4,"circle-color":["match",["get","kind"],"tb","#ff8a3d","ic","#4cc9f0","#e9eef3"],"circle-stroke-color":"#0a1626","circle-stroke-width":1}})}catch(e){console.warn("pirep",e)}}
-  setVis(["metar"],L.metar);setVis(["pirep"],L.pirep);for(const id of ["metar","pirep"])if(map.getLayer(id))map.moveLayer(id);
+  if(L.turb){try{const j=await getJSON(`https://aviationweather.gov/api/data/pirep?bbox=${bb}&format=geojson&age=3`,20000);
+    const feats=((j&&j.features)||[]).filter(f=>f.geometry).map(f=>{const t=pirepTurb(f.properties||{});return{type:"Feature",geometry:f.geometry,properties:{sev:t.sev,fl:t.fl==null?"":"FL"+String(t.fl).padStart(3,"0"),raw:t.raw}}}).filter(f=>f.properties.sev>=0);
+    geo("turbpireps",{type:"FeatureCollection",features:feats});
+    if(!map.getLayer("turb-pirep")){const c=["match",["get","sev"],0,"#3ddc97",1,"#ffd54a",2,"#ff8a3d",3,"#ff5468","#e05cff"];
+      map.addLayer({id:"turb-pirep",type:"circle",source:"turbpireps",paint:{"circle-radius":["match",["get","sev"],0,3.5,1,4.5,2,6,7],"circle-color":c,"circle-stroke-color":"#0a1626","circle-stroke-width":1.4}});
+      map.addLayer({id:"turb-pirep-lbl",type:"symbol",source:"turbpireps",minzoom:6,layout:{"text-field":["get","fl"],"text-size":10,"text-offset":[0,1.3],"text-font":["Noto Sans Regular"],"text-allow-overlap":false},paint:{"text-color":"#e6eef8","text-halo-color":"#0a1626","text-halo-width":1.2}})}}catch(e){console.warn("turb pirep",e)}}
+  setVis(["metar"],L.metar);setVis(["pirep"],L.pirep);setVis(["turb-pirep","turb-pirep-lbl"],L.turb);for(const id of ["metar","pirep","turb-pirep","turb-pirep-lbl"])if(map.getLayer(id))map.moveLayer(id);
 }
 function onMapClick(e){
-  if(!isFull())return;const ids=["metar","pirep","sigmet-fill","cwa-line","gairmet-fill","alerts-fill"].filter(id=>map.getLayer(id)&&map.getLayoutProperty(id,"visibility")!=="none");
+  if(!isFull())return;const ids=["turb-pirep","metar","pirep","turb-fill","sigmet-fill","cwa-line","gairmet-fill","alerts-fill"].filter(id=>map.getLayer(id)&&map.getLayoutProperty(id,"visibility")!=="none");
   const f=map.queryRenderedFeatures([[e.point.x-8,e.point.y-8],[e.point.x+8,e.point.y+8]],{layers:ids})[0];if(!f)return;const p=f.properties||{};let h;
   if(f.layer.id==="metar")h=`<b>${esc(p.id)}</b> <span class="badge"><i style="background:${catColor(p.cat)}"></i>${esc(p.cat)}</span><div style="color:#9fb2c8;margin-top:4px">${esc(p.name)}</div><pre>${esc(p.raw)}</pre>`;
   else if(f.layer.id==="pirep")h=`<b>PIREP</b><pre>${esc(p.raw)}</pre>`;
+  else if(f.layer.id==="turb-pirep")h=`<b>Turbulence report · ${["None","Light","Moderate","Severe","Extreme"][+p.sev]||""}</b>${p.fl?` <span class="badge">${esc(p.fl)}</span>`:""}<pre>${esc(p.raw)}</pre>`;
+  else if(f.layer.id==="turb-fill")h=`<b>${esc(p.src)} · ${p.tk==="hi"?"High-level turbulence":p.tk==="sig"?"Severe turbulence":"Low-level turbulence"}</b><pre>${esc([p.validTime&&"Valid "+p.validTime,p.base!=null&&p.base!==""&&"Base "+p.base,p.top!=null&&p.top!==""&&"Top "+p.top,p.altitudeLow1!=null&&"From "+p.altitudeLow1,p.altitudeHi1!=null&&"To "+p.altitudeHi1,p.rawAirSigmet].filter(Boolean).join("\n"))}</pre>`;
   else if(f.layer.id==="gairmet-fill")h=`<b>G-AIRMET · ${esc(p.hazard||"")}</b><pre>${esc([p.validTime&&"Valid "+p.validTime,p.base!=null&&"Base "+p.base,p.top!=null&&"Top "+p.top,p.dueTo].filter(Boolean).join("\n"))}</pre>`;
   else if(f.layer.id==="sigmet-fill")h=`<b>${esc(p.airSigmetType||"SIGMET")} · ${esc(p.hazard||"")}</b><pre>${esc(p.rawAirSigmet||p.rawSigmet||"")}</pre>`;
   else if(f.layer.id==="cwa-line")h=`<b>CWA ${esc(p.cwsu||"")}</b><pre>${esc(p.cwaText||p.rawCwa||"")}</pre>`;
@@ -1087,6 +1114,7 @@ function updateLegend(){
   const us=isCONUS(place),rows=[];
   if(L.radar)rows.push(`<div class="lg">Light <i style="background:linear-gradient(90deg,${BANDS.map((b,k)=>`${b[1]} ${k/BANDS.length*100}% ${(k+1)/BANDS.length*100}%`).join(",")})"></i>Heavy</div>`);
   if(us&&L.mrms)rows.push(`<div class="lg">Rain <i style="background:linear-gradient(90deg,#00d0a0,#00a000,#ffff00,#ff9000,#ff0000,#c000c0)"></i>${S.rain==="in"?"→ 4+ in":"→ 100+ mm"}</div>`);
+  if(us&&L.turb)rows.push(`<div class="key"><span><i style="background:#ffb547"></i>Turb low</span><span><i style="background:#c792ea"></i>Turb high</span><span><i style="background:#ff5468"></i>SIGMET</span></div><div class="key">PIREPs <span><i style="background:#ffd54a;border-radius:50%"></i>LGT</span><span><i style="background:#ff8a3d;border-radius:50%"></i>MOD</span><span><i style="background:#ff5468;border-radius:50%"></i>SEV</span><span><i style="background:#3ddc97;border-radius:50%"></i>smooth</span></div>`);
   if(us&&L.metar)rows.push(`<div class="key">${["VFR","MVFR","IFR","LIFR"].map(c=>`<span><i style="background:${catColor(c)}"></i>${c}</span>`).join("")}</div>`);
   if(us&&L.gairmet)rows.push(`<div class="key">${[["IFR","IFR"],["MT_OBSC","Mtn obsc"],["TURB-HI","Turb hi"],["TURB-LO","Turb lo"],["ICE","Icing"],["LLWS","LLWS"]].map(([k,n])=>`<span><i style="background:${GCOL[k]}"></i>${n}</span>`).join("")}</div>`);
   if(us&&(L.sigmet||L.cwa||L.pirep))rows.push(`<div class="key">${L.sigmet?'<span><i style="background:#ff5468"></i>SIGMET</span>':""}${L.cwa?'<span><i style="background:#ffd54a"></i>CWA</span>':""}${L.pirep?'<span><i style="background:#ff8a3d"></i>Turb PIREP</span><span><i style="background:#4cc9f0"></i>Ice PIREP</span>':""}</div>`);
