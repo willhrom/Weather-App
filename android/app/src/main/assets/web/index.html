@@ -92,8 +92,8 @@ body.mapopen .tabbar{display:none}
 .fc{margin-left:auto;align-self:flex-start;text-align:right}
 .badge{display:inline-flex;white-space:nowrap;align-items:center;gap:6px;font-family:var(--mono);font-size:11px;font-weight:500;padding:4px 7px;border-radius:6px;border:1px solid var(--line2);color:var(--muted)}
 .badge i{width:7px;height:7px;border-radius:50%}
-.today{margin-top:10px;padding:6px 14px 8px}
-.today p.ol{margin:4px 0 8px;font-size:15px;line-height:1.5;color:var(--text);font-weight:450}
+.today{margin:14px 14px 0;border:1px solid var(--line);border-radius:12px;background:rgba(255,255,255,.035);padding:6px 12px 8px}
+.today p.ol{margin:4px 0 4px;font-size:14px;line-height:1.5;color:var(--text);font-weight:450}
 .today p.ol b{font-weight:650}
 .today h4{display:flex;align-items:center;justify-content:space-between;margin:6px 0 4px;font-size:10px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--faint)}
 .today h4 b{font-family:var(--mono);font-size:11.5px;letter-spacing:0;text-transform:none;font-weight:500;color:var(--water);padding:2px 7px;border-radius:6px;background:rgba(76,201,240,.12)}
@@ -306,7 +306,6 @@ body.mapopen .tabbar{display:none}
   <div class="pills" id="pills"></div>
   <section class="tab" data-tab="now">
   <div id="alerts"></div>
-  <div class="panel today" id="today"></div>
   <div class="panel">
     <div class="ph">Now<span class="r" id="obsTime"></span></div>
     <div class="now">
@@ -314,6 +313,7 @@ body.mapopen .tabbar{display:none}
       <div class="cond"><b id="cond">&nbsp;</b><span id="feels">&nbsp;</span></div>
       <div class="fc" id="fcat"></div>
     </div>
+    <div class="today" id="today"></div>
     <div class="readouts" id="readouts"></div>
   </div>
   <div class="panel" id="mapPanel">
@@ -472,12 +472,12 @@ function todayIndex(){return Math.max(0,W.daily.time.indexOf(ymd(nowWall())))}
 /* ---------- now ---------- */
 let METAR=null;
 function visText(){
-  if(METAR&&METAR.visib!=null){const v=String(METAR.visib),plus=v.includes("+"),n=parseFloat(v);return S.temp==="F"?[String(n),"mi"+(plus?"+":"")]:[(n*1.609).toFixed(0),"km"+(plus?"+":"")]}
+  if(false&&METAR&&METAR.visib!=null){const v=String(METAR.visib),plus=v.includes("+"),n=parseFloat(v);return S.temp==="F"?[String(n),"mi"+(plus?"+":"")]:[(n*1.609).toFixed(0),"km"+(plus?"+":"")]}
   const v=W.hourly.visibility&&W.hourly.visibility[hourIndex()],u=(W.hourly_units||{}).visibility||"m";if(v==null)return["--",""];
   const m=/ft/.test(u)?v*.3048:v;return S.temp==="F"?[Math.min(10,m/1609).toFixed(m<8000?1:0),"mi"]:[Math.min(20,m/1000).toFixed(m<10000?1:0),"km"];
 }
 function ceilingText(){
-  if(METAR&&Array.isArray(METAR.clouds)){const c=METAR.clouds.filter(x=>x&&x.cover);if(!c.length||/CLR|SKC|CAVOK/.test(c[0].cover))return["CLR","no clouds below 12k"];
+  if(false&&METAR&&Array.isArray(METAR.clouds)){const c=METAR.clouds.filter(x=>x&&x.cover);if(!c.length||/CLR|SKC|CAVOK/.test(c[0].cover))return["CLR","no clouds below 12k"];
     const ceil=c.find(x=>/BKN|OVC|OVX/.test(x.cover)),k=ceil||c[0],b=k.base;return[esc(k.cover)+(b!=null?" "+(b>=10000?Math.round(b/1000)+"k":(b/1000).toFixed(1).replace(".0","")+"k"):""),ceil?"ceiling":"lowest layer"]}
   return[Math.round(W.current.cloud_cover)+"%","cloud cover"];
 }
@@ -504,12 +504,12 @@ function renderNow(){
     ro("Wind",U.w(c.wind_speed_10m),U.wl(),`gust ${U.w(c.wind_gusts_10m)} · ${dirName(c.wind_direction_10m)} ${String(Math.round(c.wind_direction_10m)).padStart(3,"0")}°`)+
     ro("Humidity",Math.round(c.relative_humidity_2m),"%",`dew pt ${U.t(c.dew_point_2m)}`)+
     ro("Pressure",press,S.temp==="F"?"inHg":"hPa",`${arrow} ${tr}`)+
-    ro("Visibility",esc(vv),vu,METAR?esc(METAR.icaoId):"model")+
+    ro("Visibility",esc(vv),vu,"forecast")+
     ro("Clouds",cv,"",cu)+
     ro("UV",uv==null?"--":Math.round(uv),"",uv==null?"":uvT(uv)+` · max ${Math.round(d.uv_index_max[ti]||0)}`)+
     ro("Rain today",U.r(today),U.rl(),`${d.precipitation_probability_max[ti]??"--"}% chance`)+
     ro("Sunset",fT(wall(d.sunset[ti])),"",`rise ${fT(wall(d.sunrise[ti]))}`);
-  $("#obsTime").textContent=METAR?`${METAR.icaoId} obs + model`:"Model "+fTime(nowWall());
+  $("#obsTime").textContent="as of "+fTime(nowWall());
 }
 
 /* ---------- rest of today (typed summary) ---------- */
@@ -552,7 +552,7 @@ function renderToday(){
   ol+=max(T)>tNow+1&&hiK>0?` High near <b>${U.t(max(T))}</b>, dropping to ${U.t(min(T.slice(hiK)))} ${tonight?"by morning":"tonight"}.`:` Cooling to <b>${U.t(min(T))}</b> ${tonight?"by morning":"tonight"}.`;
   const gm=max(WG),gThresh=S.wind==="kmh"?40:S.wind==="kn"?22:25;if(gm>=gThresh)ol+=` Gusty, up to ${U.w(gm)} ${U.wl()}.`;
   const row=(k,v)=>`<div class="trow"><small>${k}</small><span>${v}</span></div>`;
-  $("#today").innerHTML=`<h4>${label}<b class="${pmax<15?"dry":""}">${pmax}% rain</b></h4><p class="ol">${ol}</p>${row("Rain",rain)}${row("Temp",temp)}${row("Wind",wind)}${row("Sky",sky)}`;
+  $("#today").innerHTML=`<h4>${label}<b class="${pmax<15?"dry":""}">${pmax}% rain</b></h4><p class="ol">${ol}</p>`;
 }
 
 /* ---------- next 24 h ---------- */
@@ -657,12 +657,11 @@ async function renderAirport(){
     const list=(Array.isArray(arr)?arr:[]).filter(m=>m&&m.rawOb&&Number.isFinite(+m.lat)&&Number.isFinite(+m.lon)).map(cleanMetar).filter(m=>m.icaoId).map(m=>Object.assign(m,{km:km(place.lat,place.lon,m.lat,m.lon)})).sort((a,b)=>a.km-b.km);
     if(!list.length){METAR=null;$("#fcat").innerHTML="";panel.style.display="none";return}
     const m=list[0];METAR=m;const cat=flightCat(m),badge=`<span class="badge"><i style="background:${catColor(cat)}"></i>${cat}</span>`;
-    $("#fcat").innerHTML=`<span class="badge"><i style="background:${catColor(cat)}"></i>${cat} ${esc(m.icaoId)}</span>`;
     $("#aptDist").textContent=`${Math.round(m.km*.621)} mi`;
     const age=m.obsTime?Math.round((Date.now()/1000-m.obsTime)/60):null;
     $("#apt").innerHTML=`<div class="apt"><b>${esc(m.icaoId)}</b><span>${esc((m.name||"").replace(/,\s*US$/,""))}</span>${badge}</div>
       <div class="raw"><small>METAR${age!=null?` · ${age} min ago`:""}</small>${esc(m.rawOb)}</div><div class="raw" id="taf"><small>TAF</small>Loading…</div>`;
-    panel.style.display="";try{renderNow()}catch(e){}if(TAB==="sky"&&SKY)drawSky();
+    panel.style.display="";if(TAB==="sky"&&SKY)drawSky();
     getText(`https://aviationweather.gov/api/data/taf?ids=${encodeURIComponent(m.icaoId)}&format=raw`).then(t=>{const el=$("#taf");if(el)el.innerHTML=`<small>TAF</small>${t.trim()?esc(t.trim().replace(/\s+(FM\d|TEMPO|BECMG|PROB)/g,"\n  $1")):"No TAF issued for this airport."}`}).catch(()=>{const el=$("#taf");if(el)el.remove()});
   }catch(e){console.warn("metar",e);panel.style.display="none"}
 }
