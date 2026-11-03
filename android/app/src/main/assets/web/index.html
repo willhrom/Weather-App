@@ -44,7 +44,7 @@ body.mapopen .tabbar{display:none}
 .lyr{display:grid;grid-template-columns:40px minmax(0,1fr) auto;align-items:center;gap:10px;padding:8px 0;border-top:1px solid var(--line);font-size:13px}
 .lyr .cv{font-family:var(--mono);font-size:11px;font-weight:500;text-align:center;padding:3px 0;border-radius:6px;background:rgba(255,255,255,.08)}
 .lyr .ci img{display:block;width:36px;height:22px;object-fit:contain}
-.lyr .rg{color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.lyr .rg b{color:var(--text);font-weight:600}
+.lyr .rg{color:var(--faint);font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.lyr .rg b{color:var(--text);font-weight:600;font-size:14px}
 .lyr .pc em{font-style:normal;color:var(--water);font-family:"Inter Tight",sans-serif;font-weight:600}
 .skykey .ki{display:inline-flex;align-items:center;gap:4px}.skykey .ki img{width:28px;height:17px;object-fit:contain}
 .lyr .pc{font-family:var(--mono);color:var(--muted);font-size:12px}
@@ -75,10 +75,10 @@ body.mapopen .tabbar{display:none}
 /* alerts */
 .alert{display:block;width:100%;text-align:left;border-radius:12px;padding:10px 12px;margin-top:10px;background:rgba(255,138,61,.1);border:1px solid rgba(255,138,61,.35)}
 .alert.sev{background:rgba(255,84,104,.1);border-color:rgba(255,84,104,.4)}
-.alert b{font-size:13.5px;font-weight:600;display:flex;align-items:center;gap:8px}
+.alert b{font-size:15px;font-weight:600;display:flex;align-items:center;gap:8px}
 .alert b::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--warn);flex:none}
 .alert.sev b::before{background:var(--bad)}
-.alert span{display:block;font-size:12px;color:var(--muted);margin-top:3px}
+.alert span{display:block;font-size:11.5px;color:var(--faint);margin-top:3px}
 .alert p{display:none;font-size:12.5px;line-height:1.5;color:var(--muted);white-space:pre-wrap;margin:8px 0 0}
 .alert.open p{display:block}
 
@@ -87,8 +87,8 @@ body.mapopen .tabbar{display:none}
 .bigt{font-family:var(--mono);font-size:68px;font-weight:300;letter-spacing:-.05em;line-height:.85}
 .bigt sup{font-size:28px;vertical-align:top;position:relative;top:4px;margin-left:2px;letter-spacing:0;color:var(--muted)}
 .cond{padding-bottom:3px;min-width:0}
-.cond b{display:block;font-size:17px;font-weight:600;letter-spacing:-.01em}
-.cond span{display:block;font-size:12.5px;color:var(--muted);margin-top:4px}
+.cond b{display:block;font-size:20px;font-weight:600;letter-spacing:-.015em}
+.cond span{display:block;font-size:12px;color:var(--faint);margin-top:5px;line-height:1.45}
 .fc{margin-left:auto;align-self:flex-start;text-align:right}
 .badge{display:inline-flex;white-space:nowrap;align-items:center;gap:6px;font-family:var(--mono);font-size:11px;font-weight:500;padding:4px 7px;border-radius:6px;border:1px solid var(--line2);color:var(--muted)}
 .badge i{width:7px;height:7px;border-radius:50%}
@@ -107,9 +107,9 @@ body.mapopen .tabbar{display:none}
 @media (max-width:400px){.readouts{grid-template-columns:repeat(2,1fr)}}
 .ro{padding:10px 12px 11px;border:1px solid var(--line);border-radius:12px;background:rgba(255,255,255,.035);min-width:0}
 .ro small{display:block;font-size:9.5px;font-weight:600;letter-spacing:.13em;text-transform:uppercase;color:var(--faint)}
-.ro b{display:block;font-family:var(--mono);font-size:15px;font-weight:400;margin-top:5px;white-space:nowrap}
-.ro b em{font-style:normal;font-size:10.5px;color:var(--muted);margin-left:2px}
-.ro span{display:block;font-size:10.5px;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ro b{display:block;font-family:var(--mono);font-size:22px;font-weight:400;letter-spacing:-.02em;margin-top:6px;white-space:nowrap;color:var(--text)}
+.ro b em{font-style:normal;font-size:11px;letter-spacing:0;color:var(--faint);margin-left:3px}
+.ro span{display:block;font-size:10.5px;color:var(--faint);margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
 /* map (no blur behind the map — it can clip map rendering on Android) */
 #mapPanel{backdrop-filter:none;-webkit-backdrop-filter:none;background:#0b1a2c}
@@ -137,7 +137,17 @@ body.mapopen .tabbar{display:none}
 .player .play{width:28px;height:28px;border-radius:8px;background:var(--accent);color:#06121f;display:grid;place-items:center;flex:none}
 .player .play svg{width:12px;height:12px}
 .player input{flex:1;accent-color:var(--accent);min-width:0}
-.player span{font-family:var(--mono);font-size:11.5px;color:var(--muted);min-width:58px;text-align:right}
+.player #ftime{font-family:var(--mono);font-size:11.5px;color:var(--muted);min-width:58px;text-align:right}
+.player #ftime.fut{color:#c792ea}
+.player.fut::before{content:"FORECAST";position:absolute;top:-20px;right:10px;font-size:9px;font-weight:700;letter-spacing:.14em;color:#c792ea;background:rgba(8,18,32,.86);padding:2px 6px;border-radius:5px}
+.player input{border-radius:4px}
+.player .tl{flex:1;min-width:0;position:relative;padding:4px 0 14px}
+.player .tl input{width:100%;margin:0;display:block}
+.tls{position:absolute;left:0;right:0;bottom:0;height:11px;font-family:var(--mono);font-size:9px;color:var(--faint)}
+.tls span{position:absolute;top:0;white-space:nowrap}
+.tls .a{left:0}.tls .z{right:0}.tls .tnow{transform:translateX(-50%)}
+.tls span.tnow{color:var(--text);font-weight:600}
+.tls i{position:absolute;top:-13px;width:2px;height:10px;margin-left:-1px;border-radius:1px;background:#f0f5fb;opacity:.8}
 .legend{position:absolute;left:10px;z-index:6;bottom:62px;display:flex;flex-direction:column;gap:4px;font-size:10px;color:var(--muted);background:rgba(8,18,32,.86);border:1px solid var(--line2);border-radius:9px;padding:6px 8px;max-width:70%}
 .mapfull .legend{bottom:calc(var(--safe-bot) + 68px)}
 .legend .lg{display:flex;align-items:center;gap:6px}
@@ -170,14 +180,14 @@ body.mapopen .tabbar{display:none}
 /* charts */
 .chart{width:100%}
 .chart text{font-family:var(--mono)}
-.legendrow{display:flex;gap:14px;font-size:11px;color:var(--muted);margin-top:8px}
+.legendrow{display:flex;gap:14px;font-size:10.5px;color:var(--faint);margin-top:8px}
 .legendrow i{display:inline-block;width:9px;height:3px;border-radius:2px;margin-right:5px;vertical-align:middle}
 
 /* tables */
 .tbl{display:grid;grid-template-columns:1fr auto}
 .tr{display:contents}
-.tr>*{padding:8px 0;border-bottom:1px solid var(--line);font-size:13.5px}
-.tr>:last-child{text-align:right;font-family:var(--mono);font-weight:400}
+.tr>*{padding:8px 0;border-bottom:1px solid var(--line);font-size:12.5px}
+.tr>:last-child{text-align:right;font-family:var(--mono);font-weight:400;font-size:15px;color:var(--text)}
 .tr:last-child>*{border-bottom:0}
 .tr span{color:var(--muted)}
 .tr .fcv{color:var(--water)}
@@ -188,7 +198,7 @@ body.mapopen .tabbar{display:none}
 .wv{font-family:var(--mono)}
 .wv .big{font-size:38px;font-weight:300;letter-spacing:-.03em}
 .wv .big em{font-style:normal;font-size:13px;color:var(--muted);margin-left:4px;letter-spacing:0}
-.wv p{margin:6px 0 0;font-size:12.5px;color:var(--muted);font-family:"Inter Tight",sans-serif}
+.wv p{margin:6px 0 0;font-size:12px;color:var(--faint);font-family:"Inter Tight",sans-serif}
 .wv p b{color:var(--text);font-weight:500;font-family:var(--mono)}
 
 /* airport */
@@ -201,15 +211,15 @@ body.mapopen .tabbar{display:none}
 
 /* tide, moon */
 .split{display:flex;align-items:baseline;justify-content:space-between}
-.split .v{font-family:var(--mono);font-size:26px;font-weight:300}
+.split .v{font-family:var(--mono);font-size:32px;font-weight:300;letter-spacing:-.02em}
 .split .v em{font-style:normal;font-size:12px;color:var(--muted);margin-left:3px}
-.split span{font-size:12.5px;color:var(--muted)}
+.split span{font-size:12px;color:var(--faint)}
 .cells{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:10px;overflow:hidden;margin-top:10px}
 .cell{background:var(--panel);padding:8px 4px;text-align:center}
 .cell small{display:block;font-size:9.5px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--faint)}
-.cell b{display:block;font-family:var(--mono);font-size:12px;font-weight:500;margin:3px 0 1px}
-.cell span{font-family:var(--mono);font-size:11px;color:var(--muted)}
-.foot{font-size:11px;color:var(--faint);margin-top:9px}
+.cell b{display:block;font-family:var(--mono);font-size:14px;font-weight:500;margin:4px 0 2px;color:var(--text)}
+.cell span{font-family:var(--mono);font-size:10.5px;color:var(--faint)}
+.foot{font-size:10.5px;color:var(--faint);margin-top:9px}
 .wt{display:flex;align-items:flex-end;gap:14px}
 .wt .v{font-family:var(--mono);font-size:44px;font-weight:300;letter-spacing:-.04em;line-height:.9}
 .wt .v sup{font-size:20px;color:var(--muted);vertical-align:top;margin-left:2px}
@@ -217,8 +227,8 @@ body.mapopen .tabbar{display:none}
 .wt .lbl span{display:block;font-size:12.5px;color:var(--muted);margin-top:3px}
 .moon{display:grid;grid-template-columns:96px 1fr;gap:14px;align-items:center}
 .moon svg{width:96px;height:96px}
-.moon h3{margin:0;font-size:16px;font-weight:600}
-.moon p{margin:5px 0 0;font-size:12.5px;color:var(--muted)}
+.moon h3{margin:0;font-size:18px;font-weight:600}
+.moon p{margin:5px 0 0;font-size:12px;color:var(--faint)}
 .moon p b{color:var(--text);font-family:var(--mono);font-weight:500}
 
 /* 10-day */
@@ -228,16 +238,17 @@ body.mapopen .tabbar{display:none}
 .dhead span:nth-child(3),.dhead span:nth-child(4),.dhead span:nth-child(6){text-align:right;margin-right:-.1em}
 .dhead span:nth-child(5){text-align:center}
 .day{border-top:1px solid var(--line)}
-.drow{width:100%;text-align:left;padding:9px 0;font-size:13px}
+.drow{width:100%;text-align:left;padding:10px 0;font-size:13px}
 .drow>*{min-width:0}
-.drow .d{font-weight:600;line-height:1.15}
-.drow .d small{display:block;font-size:10.5px;font-weight:500;color:var(--faint);margin-top:1px;font-family:var(--mono)}
-.drow .c{color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-right:6px;line-height:1.2}
+.drow .d{font-weight:600;font-size:14.5px;line-height:1.15}
+.drow .d small{display:block;font-size:10px;font-weight:500;color:var(--faint);margin-top:1px;font-family:var(--mono)}
+.drow .c{color:var(--faint);font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-right:6px;line-height:1.2}
 .drow .c small{display:block;font-family:var(--mono);font-size:10.5px;color:var(--water);margin-top:1px}
 .drow .p{font-family:var(--mono);font-size:11.5px;color:var(--water);text-align:right}
 .drow .p.z{color:var(--faint)}
 .drow .lo,.drow .hi{font-family:var(--mono);text-align:right}
-.drow .lo{color:var(--muted)}
+.drow .hi{font-size:15.5px;color:var(--text)}
+.drow .lo{color:var(--faint);font-size:13px}
 .drow .rc{display:block;padding:0 8px}
 .drow .rc .rng{display:block}
 .rng{height:4px;border-radius:2px;background:var(--line2);position:relative}
@@ -257,8 +268,8 @@ body.mapopen .tabbar{display:none}
 .dsum b{color:var(--text);font-weight:600}
 .ks{min-width:0}
 .ks small{display:block;font-size:9px;font-weight:600;letter-spacing:.11em;text-transform:uppercase;color:var(--faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.ks b{display:block;font-family:var(--mono);font-size:14px;font-weight:400;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.ks span{display:block;font-size:10.5px;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ks b{display:block;font-family:var(--mono);font-size:17px;color:var(--text);font-weight:400;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ks span{display:block;font-size:10.5px;color:var(--faint);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .dsec{border-top:1px solid var(--line);margin-top:14px;padding-top:12px}
 .dsec h5{margin:0 0 10px;font-size:10px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--faint)}
 .kg{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 16px}
@@ -332,7 +343,7 @@ body.mapopen .tabbar{display:none}
       <button class="mbtn" id="mapLocate" aria-label="Center on location"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg></button>
       <div class="layers" id="layerPanel"></div>
       <div class="legend" id="legend"></div>
-      <div class="player" id="player"><button class="play" id="play"></button><input type="range" id="slider" min="0" max="0" value="0"><span id="ftime">--</span></div>
+      <div class="player" id="player"><button class="play" id="play"></button><div class="tl"><input type="range" id="slider" min="0" max="0" value="0"><div class="tls" id="tls"></div></div><span id="ftime">--</span></div>
     </div>
   </div>
   <div class="panel"><div class="ph">Next 24 hours<span class="r" id="hrsNote"></span></div><div class="pb" id="hours"></div></div>
@@ -395,7 +406,7 @@ const UA=navigator.userAgent,NATIVE=/WeatherApp\//.test(UA);
 const store={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
 const DEFAULT={id:"sf",name:"San Francisco",sub:"California",lat:37.7749,lon:-122.4194};
 let S=Object.assign({temp:"F",wind:"mph",rain:"in",gps:true,nRain:true,nAlerts:true},store.get("wx.settings",{}));
-let L=Object.assign({radar:true,ir:false,vis:false,mrms:"",alerts:true,metar:false,gairmet:false,sigmet:false,cwa:false,pirep:false},store.get("wx.layers",{}));
+let L=Object.assign({radar:true,future:false,ir:false,vis:false,mrms:"",alerts:true,metar:false,gairmet:false,sigmet:false,cwa:false,pirep:false},store.get("wx.layers",{}));
 let places=store.get("wx.places",[]);
 let sel=store.get("wx.sel",S.gps?"gps":(places[0]?places[0].id:"sf"));
 let gpsPlace=store.get("wx.gpsPlace",null);
@@ -852,7 +863,7 @@ function dayDetail(j){
 
 /* ---------- map ---------- */
 const LAYERS=[
- {g:"Weather",k:"radar",n:"Radar loop",s:"Reflectivity, last hour",c:"linear-gradient(135deg,#04e9e7,#02fd02,#fdf802,#fd0000)"},
+ {g:"Weather",k:"radar",n:"Radar loop",s:"Past hour + 3-hour forecast",c:"linear-gradient(135deg,#04e9e7,#02fd02,#fdf802,#fd0000)"},
  {g:"Weather",k:"ir",n:"Satellite · infrared",s:"GOES-East, clouds day & night",c:"linear-gradient(135deg,#222,#ddd)",us:1},
  {g:"Weather",k:"vis",n:"Satellite · visible",s:"GOES-East, daylight only",c:"linear-gradient(135deg,#556,#fff)",us:1},
  {g:"Weather",k:"mrms",v:"q2-n1p",n:"Rain · last hour",s:"MRMS radar estimate",c:"linear-gradient(135deg,#0a8,#ff0,#f00)",us:1},
@@ -954,7 +965,7 @@ function renderChips(){
   const us=isCONUS(place),chips=[["radar","Radar"],...(us?[["ir","Satellite"],["mrms","Rain 24h"],["metar","Flight cat"],["gairmet","G-AIRMET"],["sigmet","SIGMET"]]:[])];
   $("#chips").innerHTML=chips.map(([k,n])=>`<button class="chip${(k==="mrms"?L.mrms:L[k])?" on":""}" data-k="${k}">${n}</button>`).join("");
 }
-$("#chips").onclick=e=>{const b=e.target.closest(".chip");if(!b)return;e.stopPropagation();const k=b.dataset.k;
+$("#chips").onclick=e=>{const b=e.target.closest(".chip");if(!b)return;e.stopPropagation();const k=b.dataset.k;if(k==="future")radarStamp=0;
   if(k==="mrms")L.mrms=L.mrms?"":"q2-p24h";else L[k]=!L[k];if(k==="ir"&&L.ir)L.vis=false;saveLayers();renderChips();buildLayerPanel();applyLayers()};
 function buildLayerPanel(){
   const us=isCONUS(place);let s="",g="";
@@ -964,7 +975,7 @@ function buildLayerPanel(){
   if(!us)s+=`<div class="foot">Satellite, rain totals, alerts and aviation layers cover the lower 48 US states.</div>`;
   $("#layerPanel").innerHTML=s;
 }
-$("#layerPanel").onclick=e=>{const b=e.target.closest(".lrow");if(!b)return;const k=b.dataset.k,v=b.dataset.v;
+$("#layerPanel").onclick=e=>{const b=e.target.closest(".lrow");if(!b)return;const k=b.dataset.k,v=b.dataset.v;if(k==="future"){radarStamp=0;if(!L.future)L.radar=true}
   if(k==="mrms")L.mrms=L.mrms===v?"":v;else L[k]=!L[k];if(k==="ir"&&L.ir)L.vis=false;if(k==="vis"&&L.vis)L.ir=false;
   saveLayers();buildLayerPanel();renderChips();applyLayers()};
 function saveLayers(){store.set("wx.layers",L)}
@@ -990,16 +1001,27 @@ async function loadRadar(){
   try{
     if(us){const base=Math.floor((Date.now()-2*6e4)/3e5)*3e5;
       frames=[55,50,45,40,35,30,25,20,15,10,5,0].map(m=>({id:"rad"+m,t:base-m*6e4,url:`https://mesonet.agron.iastate.edu/cache/tile.py/1.0.0/nexrad-n0q-900913${m?"-m"+String(m).padStart(2,"0")+"m":""}/{z}/{x}/{y}.png?${base}`}));
-      $("#mapSrc").textContent="NEXRAD · last hour"}
+      $("#mapSrc").textContent="NEXRAD · last hour";
+      { // HRRR forecast reflectivity: latest run is ~1 h behind; keep only frames valid after now, every 15 min for 3 h
+        const run=Math.floor((Date.now()-55*6e4)/36e5)*36e5,first=Math.ceil((Date.now()-run)/9e5)*15;
+        for(let fm=first;fm<=first+180&&fm<=1080;fm+=15)frames.push({id:"fut"+fm,t:run+fm*6e4,fut:1,url:`https://mesonet.agron.iastate.edu/cache/tile.py/1.0.0/hrrr::REFD-F${String(fm).padStart(4,"0")}-0/{z}/{x}/{y}.png?${run}`});
+        $("#mapSrc").textContent="NEXRAD past hour · HRRR next 3 h"}}
     else{const j=await getJSON("https://api.rainviewer.com/public/weather-maps.json");
       frames=j.radar.past.map((f,k)=>({id:"rad"+k,t:f.time*1000,url:`${j.host}${f.path}/256/{z}/{x}/{y}/2/1_1.png`,mz:7}));$("#mapSrc").textContent="RainViewer · last 2 h"}
-    for(const f of frames)raster(f.id,us?smoothRadar(f.url,8):f.url,{opacity:0,maxzoom:us?13:7,attr:us?"NEXRAD via IEM":"RainViewer"});
-    $("#slider").max=frames.length-1;$("#player").style.display="";showFrame(frames.length-1);tick();
+    for(const f of frames)raster(f.id,f.fut?f.url:us?smoothRadar(f.url,8):f.url,{opacity:0,maxzoom:f.fut?8:us?13:7,attr:f.fut?"HRRR via IEM":us?"NEXRAD via IEM":"RainViewer"});
+    NOWF=frames.filter(f=>!f.fut).length-1;
+    $("#slider").max=frames.length-1;const sl=$("#slider"),pct=frames.length>1?NOWF/(frames.length-1)*100:100;
+    const hasF=frames.length>NOWF+1;sl.style.background=hasF?`linear-gradient(90deg,transparent ${pct}%,rgba(199,146,234,.35) ${pct}%)`:"";
+    const pastMin=Math.round((frames[NOWF].t-frames[0].t)/6e4),futMin=hasF?Math.round((frames[frames.length-1].t-frames[NOWF].t)/6e4):0,hl=m=>m>=90?Math.round(m/60)+"h":m>=55?"1h":m+"m";
+    $("#tls").innerHTML=`<span class="a">−${hl(pastMin)}</span>${hasF?`<i style="left:${pct}%"></i><span class="tnow" style="left:${pct}%">Now</span><span class="z" style="color:#c792ea">+${hl(futMin)}</span>`:`<span class="z tnow" style="transform:none">Now</span>`}`;
+    $("#player").style.display="";showFrame(NOWF);tick();
   }catch(e){console.error(e);$("#ftime").textContent="n/a"}
 }
-function showFrame(k){if(!frames.length)return;frames.forEach((f,j)=>map.getLayer(f.id)&&map.setPaintProperty(f.id,"raster-opacity",j===k?.88:0));fi=k;$("#slider").value=k;$("#ftime").textContent=fT(frames[k].t+off*1000)}
+let NOWF=0;
+function showFrame(k){if(!frames.length)return;frames.forEach((f,j)=>map.getLayer(f.id)&&map.setPaintProperty(f.id,"raster-opacity",j===k?(f.fut?.8:.88):0));fi=k;$("#slider").value=k;
+  const f=frames[k],el=$("#ftime");el.textContent=(f.fut?"+":"")+fT(f.t+off*1000);el.classList.toggle("fut",!!f.fut);$("#player").classList.toggle("fut",!!f.fut)}
 function setPlay(){$("#play").innerHTML=playing?'<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>':'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 4l13 8-13 8z"/></svg>'}
-function tick(){clearTimeout(timer);setPlay();if(!playing||!frames.length)return;timer=setTimeout(()=>{showFrame((fi+1)%frames.length);tick()},fi===frames.length-1?1500:450)}
+function tick(){clearTimeout(timer);setPlay();if(!playing||!frames.length)return;timer=setTimeout(()=>{showFrame((fi+1)%frames.length);tick()},fi===frames.length-1||fi===NOWF?1500:450)}
 $("#play").onclick=e=>{e.stopPropagation();playing=!playing;tick()};
 $("#slider").oninput=e=>{playing=false;tick();showFrame(+e.target.value)};
 $("#player").onclick=e=>e.stopPropagation();
