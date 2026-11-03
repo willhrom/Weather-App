@@ -184,15 +184,18 @@ svg{display:block}
 .moon p b{color:var(--text);font-family:var(--mono);font-weight:500}
 
 /* 10-day */
-.dgrid{display:grid;grid-template-columns:56px 1fr 44px 32px 64px 30px 20px;align-items:center}
-.dhead{font-size:9.5px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--faint);padding-bottom:6px}
-.dhead span:nth-child(n+3){text-align:right}.dhead span:nth-child(5){text-align:center}
+.dgrid{display:grid;grid-template-columns:54px minmax(0,1fr) 40px 30px 72px 30px 18px;align-items:center}
+.dhead{font-size:9px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--faint);padding-bottom:6px}
+.dhead span{white-space:nowrap}
+.dhead span:nth-child(3),.dhead span:nth-child(4),.dhead span:nth-child(6){text-align:right;margin-right:-.1em}
+.dhead span:nth-child(5){text-align:center}
 .day{border-top:1px solid var(--line)}
-.drow{width:100%;text-align:left;padding:8px 0;font-size:13px}
+.drow{width:100%;text-align:left;padding:9px 0;font-size:13px}
 .drow>*{min-width:0}
 .drow .d{font-weight:600;line-height:1.15}
 .drow .d small{display:block;font-size:10.5px;font-weight:500;color:var(--faint);margin-top:1px;font-family:var(--mono)}
-.drow .c{color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-right:6px}
+.drow .c{color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-right:6px;line-height:1.2}
+.drow .c small{display:block;font-family:var(--mono);font-size:10.5px;color:var(--water);margin-top:1px}
 .drow .p{font-family:var(--mono);font-size:11.5px;color:var(--water);text-align:right}
 .drow .p.z{color:var(--faint)}
 .drow .lo,.drow .hi{font-family:var(--mono);text-align:right}
@@ -209,17 +212,20 @@ svg{display:block}
 .ddet{display:grid;grid-template-rows:0fr;transition:grid-template-rows .3s cubic-bezier(.2,.8,.2,1)}
 .day.open .ddet{grid-template-rows:1fr}
 .ddin{overflow:hidden;min-height:0}
-.dbox{padding:2px 0 14px}
-.dsum{font-size:12.5px;color:var(--muted);line-height:1.45;margin:2px 0 10px}
+.dbox{padding:2px 0 16px}
+.dstrip{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+.dstrip .ks{border:1px solid var(--line);border-radius:10px;background:rgba(255,255,255,.035);padding:8px 9px}
+.dsum{font-size:12.5px;color:var(--muted);line-height:1.45;margin:12px 0 8px}
 .dsum b{color:var(--text);font-weight:600}
-.dtiles{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
-.dt{border:1px solid var(--line);border-radius:12px;background:rgba(255,255,255,.035);padding:10px 12px}
-.dt.wide{grid-column:1/-1}
-.dt small{display:block;font-size:9.5px;font-weight:600;letter-spacing:.13em;text-transform:uppercase;color:var(--faint);margin-bottom:6px}
-.dt .kv{display:flex;justify-content:space-between;gap:8px;font-size:12.5px;color:var(--muted);padding:2px 0}
-.dt .kv b{font-family:var(--mono);font-weight:400;color:var(--text);white-space:nowrap}
-.clay{display:grid;grid-template-columns:86px 1fr 38px;align-items:center;gap:8px;font-size:12px;color:var(--muted);padding:3px 0}
-.clay small{display:inline;margin:0;letter-spacing:0;text-transform:none;font-weight:500;font-size:10.5px;color:var(--faint)}
+.ks{min-width:0}
+.ks small{display:block;font-size:9px;font-weight:600;letter-spacing:.11em;text-transform:uppercase;color:var(--faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ks b{display:block;font-family:var(--mono);font-size:14px;font-weight:400;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ks span{display:block;font-size:10.5px;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dsec{border-top:1px solid var(--line);margin-top:14px;padding-top:12px}
+.dsec h5{margin:0 0 10px;font-size:10px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--faint)}
+.kg{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 16px}
+.clay{display:grid;grid-template-columns:96px minmax(0,1fr) 40px;align-items:center;gap:10px;font-size:12.5px;color:var(--text);padding:4px 0}
+.clay small{display:block;margin:1px 0 0;letter-spacing:0;text-transform:none;font-weight:500;font-size:10.5px;color:var(--faint)}
 .clay .bar{height:6px;border-radius:3px;background:var(--line2);overflow:hidden}
 .clay .bar i{display:block;height:100%;border-radius:3px;background:linear-gradient(90deg,#9fb2c8,#f0f5fb)}
 .clay b{font-family:var(--mono);font-weight:400;color:var(--text);text-align:right}
@@ -658,7 +664,7 @@ function renderDaily(){
   for(let j=ti;j<ti+n;j++){const a=(d.temperature_2m_min[j]-lo)/sp*100,b=(d.temperature_2m_max[j]-lo)/sp*100,p=d.precipitation_probability_max[j],open=openDay===d.time[j];
     s+=`<div class="day${open?" open":""}" data-date="${d.time[j]}"><button class="drow dgrid" aria-expanded="${open}">
       <span class="d">${j===ti?"Today":fDay(wall(d.time[j]))}<small>${fMD(wall(d.time[j]))}</small></span>
-      <span class="c">${wxText(d.weather_code[j])}${d.precipitation_sum[j]>=wet()?` · ${U.r(d.precipitation_sum[j])}`:""}</span>
+      <span class="c">${wxText(d.weather_code[j])}${d.precipitation_sum[j]>=wet()?`<small>${U.r(d.precipitation_sum[j])} ${U.rl()}</small>`:""}</span>
       <span class="p${p?"":" z"}">${p==null?"--":p+"%"}</span><span class="lo">${Math.round(d.temperature_2m_min[j])}</span>
       <span class="rc"><span class="rng"><i style="left:${a}%;right:${100-b}%"></i>${j===ti?`<b style="left:${Math.min(100,Math.max(0,(cur-lo)/sp*100))}%"></b>`:""}</span></span>
       <span class="hi">${Math.round(d.temperature_2m_max[j])}</span><span class="chev">${CHEV}</span></button>
@@ -674,18 +680,25 @@ function dayDetail(j){
   const d=W.daily,h=W.hourly,date=d.time[j],idx=[];h.time.forEach((t,k)=>{if(t.slice(0,10)===date)idx.push(k)});if(!idx.length)return"";
   const col=k=>idx.map(i=>(h[k]||[])[i]).filter(v=>v!=null),avg=a=>a.length?a.reduce((x,y)=>x+y,0)/a.length:null,mx=a=>a.length?Math.max(...a):null,mn=a=>a.length?Math.min(...a):null;
   const F=S.temp==="F",units=W.hourly_units||{};
-  // chart: temperature, cloud cover, rain chance for the day
+  // chart: three tracks — temperature line, cloud-cover strip, rain-chance bars
   const T=col("temperature_2m"),CC=idx.map(i=>(h.cloud_cover||[])[i]??null),PP=idx.map(i=>h.precipitation_probability[i]||0),n=idx.length;
-  const tl=mn(T),th=mx(T),Wd=340,H=118,top=18,bot=84,X=k=>10+k*(Wd-20)/Math.max(1,n-1),Y=v=>bot-(v-tl)/((th-tl)||1)*(bot-top);
-  let g="";
-  if(CC.some(v=>v!=null)){let pth=`M${X(0)} ${bot}`;CC.forEach((v,k)=>pth+=`L${X(k).toFixed(1)} ${(bot-(v||0)/100*(bot-top+6)).toFixed(1)}`);g+=`<path d="${pth}L${X(n-1)} ${bot}Z" fill="#9fb2c8" opacity=".13"/>`}
-  PP.forEach((p,k)=>{if(p>0){const bh=p/100*20;g+=`<rect x="${X(k)-3}" y="${104-bh}" width="6" height="${bh}" rx="1.5" fill="#4cc9f0" opacity="${.3+p/150}"/>`}});
-  g+=`<line x1="6" y1="104" x2="${Wd-6}" y2="104" stroke="#1c2d44"/><path d="${T.map((v,k)=>(k?"L":"M")+X(k).toFixed(1)+" "+Y(v).toFixed(1)).join("")}" fill="none" stroke="#f0f5fb" stroke-width="1.8"/>`;
-  [0,6,12,18].forEach(k=>{if(k<n){g+=`<text x="${X(k)}" y="${H-2}" fill="#64799a" font-size="9" text-anchor="${k?"middle":"start"}">${fHour(wall(h.time[idx[k]]))}</text>`;if(T[k]!=null)g+=`<text x="${X(k)}" y="${Y(T[k])-6}" fill="#9fb2c8" font-size="9" text-anchor="middle">${Math.round(T[k])}°</text>`}});
-  const kmax=T.indexOf(th);if(kmax>=0)g+=`<circle cx="${X(kmax)}" cy="${Y(th)}" r="3" fill="#ffc94d"/>`;
+  const tl=mn(T),th=mx(T),Wd=340,L0=44,Rr=8,X=k=>L0+(k+.5)*(Wd-L0-Rr)/n,cw=(Wd-L0-Rr)/n,tTop=16,tBot=62,Y=v=>tBot-(v-tl)/((th-tl)||1)*(tBot-tTop);
+  const lab=(y,t)=>`<text x="0" y="${y}" fill="#64799a" font-size="8.5" font-family="Inter Tight" font-weight="600" letter-spacing=".08em">${t}</text>`;
+  let g=lab(42,"TEMP")+lab(83,"CLOUDS")+lab(109,"RAIN");
+  for(let k=0;k<n;k+=6)g+=`<line x1="${X(k)-cw/2}" y1="8" x2="${X(k)-cw/2}" y2="116" stroke="#1c2d44"/>`;
+  g+=`<path d="${T.map((v,k)=>(k?"L":"M")+X(k).toFixed(1)+" "+Y(v).toFixed(1)).join("")}" fill="none" stroke="#f0f5fb" stroke-width="1.8" stroke-linejoin="round"/>`;
+  const kmax=T.indexOf(th),kmin=T.indexOf(tl);
+  if(kmax>=0)g+=`<circle cx="${X(kmax)}" cy="${Y(th)}" r="3" fill="#ffc94d"/><text x="${X(kmax)}" y="${Y(th)-6}" fill="#f0f5fb" font-size="9.5" text-anchor="middle">${Math.round(th)}°</text>`;
+  if(kmin>=0)g+=`<circle cx="${X(kmin)}" cy="${Y(tl)}" r="3" fill="#6fd3ff"/><text x="${X(kmin)}" y="${Y(tl)+13}" fill="#9fb2c8" font-size="9.5" text-anchor="middle">${Math.round(tl)}°</text>`;
+  CC.forEach((v,k)=>{g+=`<rect x="${(X(k)-cw/2+.5).toFixed(1)}" y="76" width="${(cw-1).toFixed(1)}" height="9" rx="1.5" fill="#dfe8f3" opacity="${v==null?0:(.06+v/100*.7).toFixed(2)}"/>`});
+  g+=`<line x1="${L0}" y1="116" x2="${Wd-Rr}" y2="116" stroke="#2a3f5c"/>`;
+  let pk=-1;PP.forEach((p,k)=>{if(p>0){const bh=Math.max(1.5,p/100*20);g+=`<rect x="${(X(k)-cw*.32).toFixed(1)}" y="${116-bh}" width="${(cw*.64).toFixed(1)}" height="${bh}" rx="1" fill="#4cc9f0" opacity="${(.35+p/160).toFixed(2)}"/>`}if(pk<0||p>PP[pk])pk=k});
+  if(pk>=0&&PP[pk]>=10)g+=`<text x="${X(pk)}" y="${116-PP[pk]/100*20-4}" fill="#4cc9f0" font-size="9" text-anchor="middle">${PP[pk]}%</text>`;
+  [0,6,12,18].forEach(k=>{if(k<n)g+=`<text x="${X(k)-cw/2+2}" y="129" fill="#64799a" font-size="9">${fHour(wall(h.time[idx[k]]))}</text>`});
+  const H=132;
   // clouds by altitude
   const cl=avg(col("cloud_cover_low")),cm=avg(col("cloud_cover_mid")),ch=avg(col("cloud_cover_high")),ct=avg(col("cloud_cover"));
-  const lay=(name,alt,v)=>`<div class="clay"><span>${name}<br><small>${alt}</small></span><span class="bar"><i style="width:${Math.round(v||0)}%"></i></span><b>${v==null?"--":Math.round(v)+"%"}</b></div>`;
+  const lay=(name,alt,v)=>`<div class="clay"><span>${name}<small>${alt}</small></span><span class="bar"><i style="width:${Math.round(v||0)}%"></i></span><b>${v==null?"--":Math.round(v)+"%"}</b></div>`;
   // estimated cloud base: (temp − dew point) spread in the afternoon
   const aft=idx.filter(i=>{const hr=+h.time[i].slice(11,13);return hr>=12&&hr<=16}),spread=avg(aft.map(i=>(h.temperature_2m[i]??null)-((h.dew_point_2m||[])[i]??NaN)).filter(v=>!isNaN(v)));
   const base=spread==null?null:F?Math.max(0,Math.round(spread/4.4*1000/100)*100):Math.max(0,Math.round(spread*125/50)*50);
@@ -701,23 +714,22 @@ function dayDetail(j){
   const pv=v=>v==null?"--":F?(v*.02953).toFixed(2):Math.round(v)+"",pu=F?"inHg":"hPa";
   const visU=units.visibility||"m",visv=mn(vis),visT=visv==null?"--":(()=>{const m=/ft/.test(visU)?visv*.3048:visv;return F?Math.min(10,m/1609).toFixed(m<8000?1:0)+" mi":Math.min(20,m/1000).toFixed(m<10000?1:0)+" km"})();
   const sun=d.sunshine_duration?d.sunshine_duration[j]/3600:null,dl=d.daylight_duration?d.daylight_duration[j]/3600:(wall(d.sunset[j])-wall(d.sunrise[j]))/36e5;
-  const kv=(k,v)=>`<div class="kv"><span>${k}</span><b>${v}</b></div>`;
-  const wetDay=d.precipitation_sum[j]>=wet();
-  const sum=`${wxText(d.weather_code[j])}. High <b>${U.t(d.temperature_2m_max[j])}</b>${kmax>=0?` around ${fT(wall(h.time[idx[kmax]]))}`:""}, low <b>${U.t(d.temperature_2m_min[j])}</b>. `+
-    (wetDay?`<b>${U.r(d.precipitation_sum[j])} ${U.rl()}</b> of rain, heaviest around ${fT(wall(h.time[idx[kP]]))}. `:`${d.precipitation_probability_max[j]??0}% chance of rain. `)+
-    `Wind ${wd!=null?dirName(wd)+" ":""}up to <b>${U.w(mx(ws))} ${U.wl()}</b>, gusts ${U.w(mx(wg))}.`;
-  return `<div class="dbox"><div class="dsum">${sum}</div><svg class="chart" viewBox="0 0 ${Wd} ${H}">${g}</svg>
-    <div class="legendrow"><span><i style="background:#f0f5fb"></i>Temp</span><span><i style="background:#9fb2c8;opacity:.6"></i>Cloud cover</span><span><i style="background:#4cc9f0"></i>Rain chance</span></div>
-    <div class="dtiles">
-     <div class="dt wide"><small>Clouds by altitude · avg ${ct==null?"--":Math.round(ct)+"%"} cover</small>
-      ${lay("High",F?"above 20k ft":"above 6 km",ch)}${lay("Mid",F?"6.5k – 20k ft":"2 – 6 km",cm)}${lay("Low",F?"below 6.5k ft":"below 2 km",cl)}
-      <div class="kv" style="margin-top:6px"><span>Est. cloud base (afternoon)</span><b>${fmtAlt(base)}</b></div>${fzv!=null?kv("Freezing level (lowest)",fmtAlt(fzv)):""}</div>
-     <div class="dt"><small>Wind</small>${kv("Max",`${U.w(mx(ws))} ${U.wl()}`)}${kv("Gusts",`${U.w(mx(wg))}${gustAt?" · "+gustAt:""}`)}${kv("Direction",wd!=null?`${dirName(wd)} ${String(Math.round(wd)).padStart(3,"0")}°`:"--")}${kv("Avg",`${U.w(avg(ws))} ${U.wl()}`)}</div>
-     <div class="dt"><small>Rain</small>${kv("Total",`${U.r(d.precipitation_sum[j])} ${U.rl()}`)}${kv("Chance",`${d.precipitation_probability_max[j]??0}%`)}${kv("Hours",rainHrs==null?"--":Math.round(rainHrs)+" h")}${kv("Peak hour",wetDay?fT(wall(h.time[idx[kP]])):"—")}</div>
-     <div class="dt"><small>Feel &amp; moisture</small>${kv("Feels like",`${U.t(mx(fl))} / ${U.t(mn(fl))}`)}${kv("Humidity",`${mn(rh)==null?"--":Math.round(mn(rh))}–${mx(rh)==null?"--":Math.round(mx(rh))}%`)}${kv("Dew point",U.t(avg(dp)))}${kv("Visibility",visT==="--"?"--":"≥ "+visT)}</div>
-     <div class="dt"><small>Sun &amp; air</small>${kv("UV max",uv==null?"--":Math.round(uv))}${kv("Sunshine",sun==null?"--":sun.toFixed(1)+" h")}${kv("Daylight",`${Math.floor(dl)}h ${Math.round((dl%1)*60)}m`)}${kv("Pressure",`${pv(mn(pr))}–${pv(mx(pr))}`)}</div>
-     <div class="dt wide"><small>Sunrise · sunset</small>${kv("Sunrise",fTime(wall(d.sunrise[j])))}${kv("Sunset",fTime(wall(d.sunset[j])))}</div>
-    </div></div>`;
+  const st=(k,v,sub)=>`<div class="ks"><small>${k}</small><b>${v}</b>${sub?`<span>${sub}</span>`:""}</div>`;
+  const wetDay=d.precipitation_sum[j]>=wet(),chance=d.precipitation_probability_max[j]??0;
+  const sum=`${wxText(d.weather_code[j])}. Warmest around <b>${kmax>=0?fT(wall(h.time[idx[kmax]])):"--"}</b>`+
+    (wetDay?`, rain heaviest around <b>${fT(wall(h.time[idx[kP]]))}</b>`:"")+`${wd!=null?`, wind from the ${dirName(wd)}`:""}.`;
+  const sec=(t,body)=>`<div class="dsec"><h5>${t}</h5>${body}</div>`;
+  return `<div class="dbox">
+    <div class="dstrip">${st("High",U.t(d.temperature_2m_max[j]),`low ${U.t(d.temperature_2m_min[j])}`)}${st("Rain",`${chance}%`,wetDay?`${U.r(d.precipitation_sum[j])} ${U.rl()}`:"dry")}${st("Wind",`${U.w(mx(ws))}<em style="font-style:normal;font-size:10px;color:var(--muted);margin-left:2px">${U.wl()}</em>`,`gust ${U.w(mx(wg))}`)}${st("Clouds",ct==null?"--":Math.round(ct)+"%","avg cover")}</div>
+    <div class="dsum">${sum}</div>
+    <svg class="chart" viewBox="0 0 ${Wd} ${H}">${g}</svg>
+    ${sec("Clouds by altitude",`${lay("High",F?"above 20k ft":"above 6 km",ch)}${lay("Mid",F?"6.5k – 20k ft":"2 – 6 km",cm)}${lay("Low",F?"below 6.5k ft":"below 2 km",cl)}
+      <div class="kg" style="margin-top:10px">${st("Cloud base","~"+fmtAlt(base),"afternoon estimate")}${st("Freezing level",fmtAlt(fzv),"lowest today")}</div>`)}
+    ${sec("Wind",`<div class="kg">${st("Max sustained",`${U.w(mx(ws))} ${U.wl()}`)}${st("Peak gust",`${U.w(mx(wg))} ${U.wl()}`,gustAt?"around "+gustAt:"")}${st("Direction",wd!=null?`${dirName(wd)} ${String(Math.round(wd)).padStart(3,"0")}°`:"--","prevailing")}${st("Average",`${U.w(avg(ws))} ${U.wl()}`)}</div>`)}
+    ${sec("Rain",`<div class="kg">${st("Total",`${U.r(d.precipitation_sum[j])} ${U.rl()}`)}${st("Chance",chance+"%")}${st("Hours of rain",rainHrs==null?"--":Math.round(rainHrs)+" h")}${st("Heaviest",wetDay?fT(wall(h.time[idx[kP]])):"—")}</div>`)}
+    ${sec("Comfort",`<div class="kg">${st("Feels like",`${U.t(mx(fl))} / ${U.t(mn(fl))}`,"high / low")}${st("Humidity",`${mn(rh)==null?"--":Math.round(mn(rh))}–${mx(rh)==null?"--":Math.round(mx(rh))}%`)}${st("Dew point",U.t(avg(dp)),"average")}${st("Visibility",visT==="--"?"--":visT,"lowest")}</div>`)}
+    ${sec("Sun &amp; air",`<div class="kg">${st("Sunrise",fTime(wall(d.sunrise[j])))}${st("Sunset",fTime(wall(d.sunset[j])))}${st("Daylight",`${Math.floor(dl)}h ${Math.round((dl%1)*60)}m`,sun==null?"":`${sun.toFixed(1)} h of sun`)}${st("UV max",uv==null?"--":Math.round(uv))}${st("Pressure",`${pv(mn(pr))}–${pv(mx(pr))}`,pu)}</div>`)}
+  </div>`;
 }
 
 /* ---------- map ---------- */
