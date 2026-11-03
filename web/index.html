@@ -184,15 +184,22 @@ svg{display:block}
 .moon p b{color:var(--text);font-family:var(--mono);font-weight:500}
 
 /* 10-day */
-.days{display:grid;grid-template-columns:44px 1fr 34px 26px 60px 26px;align-items:center;column-gap:8px}
-.days>*{padding:8px 0;border-bottom:1px solid var(--line);font-size:13px}
+.days{display:grid;grid-template-columns:56px 1fr 44px 34px 64px 30px;column-gap:0}
+.days .rc{padding:8px}
+.days .rc .rng{flex:1}
+.days>*{padding:8px 0;border-bottom:1px solid var(--line);font-size:13px;display:flex;align-items:center;min-width:0}
+.days .p,.days .lo,.days .hi{justify-content:flex-end}
+.days .d{flex-direction:column;align-items:flex-start;justify-content:center}
+.days .hd{justify-content:flex-end}.days .hd:nth-child(5){justify-content:center}
 .days>:nth-last-child(-n+6){border-bottom:0}
-.days .d{font-weight:600}
-.days .c{color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.days .d{font-weight:600;line-height:1.15}
+.days .d small{display:block;font-size:10.5px;font-weight:500;color:var(--faint);margin-top:1px;font-family:var(--mono)}
+.days .p.z{color:var(--faint)}
+.days .c{color:var(--muted);padding-right:6px}.days .c span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
 .days .p{font-family:var(--mono);font-size:11.5px;color:var(--water);text-align:right}
 .days .lo,.days .hi{font-family:var(--mono);text-align:right}
 .days .lo{color:var(--muted)}
-.days .rng{height:4px;border-radius:2px;background:var(--line2);position:relative;padding:0;align-self:center}
+.days .rng{height:4px;border-radius:2px;background:var(--line2);position:relative}
 .days .hd{font-size:9.5px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--faint);padding:0 0 6px}
 .days .rng b{position:absolute;top:-3px;width:10px;height:10px;margin-left:-5px;border-radius:50%;background:#f0f5fb;border:2px solid #0b1a2c}
 .days .rng i{position:absolute;top:0;bottom:0;border-radius:2px;background:linear-gradient(90deg,#6fd3ff,#ffc94d,#ff9f6b)}
@@ -616,7 +623,7 @@ function renderDaily(){
   s+=`<span class="hd"></span><span class="hd"></span><span class="hd" style="text-align:right">rain</span><span class="hd" style="text-align:right">low</span><span class="hd" style="text-align:center">range</span><span class="hd" style="text-align:right">high</span>`;
   const cur=W.current.temperature_2m;
   for(let j=ti;j<ti+n;j++){const a=(d.temperature_2m_min[j]-lo)/sp*100,b=(d.temperature_2m_max[j]-lo)/sp*100,p=d.precipitation_probability_max[j];
-    s+=`<span class="d">${j===ti?"Today":fDay(wall(d.time[j]))}</span><span class="c">${wxText(d.weather_code[j])}${d.precipitation_sum[j]>=wet()?` · ${U.r(d.precipitation_sum[j])}`:""}</span><span class="p">${p>=20?p+"%":""}</span><span class="lo">${Math.round(d.temperature_2m_min[j])}</span><span class="rng"><i style="left:${a}%;right:${100-b}%"></i>${j===ti?`<b style="left:${Math.min(100,Math.max(0,(cur-lo)/sp*100))}%"></b>`:""}</span><span class="hi">${Math.round(d.temperature_2m_max[j])}</span>`}
+    s+=`<span class="d">${j===ti?"Today":fDay(wall(d.time[j]))}<small>${fMD(wall(d.time[j]))}</small></span><span class="c"><span>${wxText(d.weather_code[j])}${d.precipitation_sum[j]>=wet()?` · ${U.r(d.precipitation_sum[j])}`:""}</span></span><span class="p${p?"":" z"}">${p==null?"--":p+"%"}</span><span class="lo">${Math.round(d.temperature_2m_min[j])}</span><span class="rc"><span class="rng"><i style="left:${a}%;right:${100-b}%"></i>${j===ti?`<b style="left:${Math.min(100,Math.max(0,(cur-lo)/sp*100))}%"></b>`:""}</span></span><span class="hi">${Math.round(d.temperature_2m_max[j])}</span>`}
   $("#daily").innerHTML=s;
 }
 
