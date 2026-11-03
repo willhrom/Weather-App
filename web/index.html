@@ -4,10 +4,12 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
 <meta name="theme-color" content="#0f2a4a">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://unpkg.com; style-src 'self' 'unsafe-inline' https://unpkg.com https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob: https:; worker-src blob:; child-src blob:; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'; connect-src 'self' blob: data: wxr: https://tiles.openfreemap.org https://*.open-meteo.com https://api.open-meteo.com https://api.weather.gov https://aviationweather.gov https://api.tidesandcurrents.noaa.gov https://api.bigdatacloud.net https://api.rainviewer.com https://*.rainviewer.com https://mesonet.agron.iastate.edu">
+<meta name="referrer" content="no-referrer">
 <title>Weather</title>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" integrity="sha384-MinO0mNliZ3vwppuPOUnGa+iq619pfMhLVUXfC4LHwSCvF9H+6P/KO4Q7qBOYV5V" crossorigin="anonymous">
 <style>
 :root{
   --bg:#08121f;--panel:rgba(16,32,54,.62);--panel2:rgba(255,255,255,.05);--line:rgba(140,190,255,.11);--line2:rgba(140,190,255,.2);
@@ -328,7 +330,7 @@ svg{display:block}
 </div>
 <div class="toast" id="toast"></div>
 
-<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js" integrity="sha384-SYKAG6cglRMN0RVvhNeBY0r3FYKNOJtznwA0v7B5Vp9tr31xAHsZC0DqkQ/pZDmj" crossorigin="anonymous"></script>
 <script>
 "use strict";
 const REPO="__REPO__",BUILD="__BUILD__";
@@ -426,7 +428,7 @@ function visText(){
 }
 function ceilingText(){
   if(METAR&&Array.isArray(METAR.clouds)){const c=METAR.clouds.filter(x=>x&&x.cover);if(!c.length||/CLR|SKC|CAVOK/.test(c[0].cover))return["CLR","no clouds below 12k"];
-    const ceil=c.find(x=>/BKN|OVC|OVX/.test(x.cover)),k=ceil||c[0],b=k.base;return[k.cover+(b!=null?" "+(b>=10000?Math.round(b/1000)+"k":(b/1000).toFixed(1).replace(".0","")+"k"):""),ceil?"ceiling":"lowest layer"]}
+    const ceil=c.find(x=>/BKN|OVC|OVX/.test(x.cover)),k=ceil||c[0],b=k.base;return[esc(k.cover)+(b!=null?" "+(b>=10000?Math.round(b/1000)+"k":(b/1000).toFixed(1).replace(".0","")+"k"):""),ceil?"ceiling":"lowest layer"]}
   return[Math.round(W.current.cloud_cover)+"%","cloud cover"];
 }
 function renderNow(){
@@ -452,7 +454,7 @@ function renderNow(){
     ro("Wind",U.w(c.wind_speed_10m),U.wl(),`gust ${U.w(c.wind_gusts_10m)} · ${dirName(c.wind_direction_10m)} ${String(Math.round(c.wind_direction_10m)).padStart(3,"0")}°`)+
     ro("Humidity",Math.round(c.relative_humidity_2m),"%",`dew pt ${U.t(c.dew_point_2m)}`)+
     ro("Pressure",press,S.temp==="F"?"inHg":"hPa",`${arrow} ${tr}`)+
-    ro("Visibility",vv,vu,METAR?METAR.icaoId:"model")+
+    ro("Visibility",esc(vv),vu,METAR?esc(METAR.icaoId):"model")+
     ro("Clouds",cv,"",cu)+
     ro("UV",uv==null?"--":Math.round(uv),"",uv==null?"":uvT(uv)+` · max ${Math.round(d.uv_index_max[ti]||0)}`)+
     ro("Rain today",U.r(today),U.rl(),`${d.precipitation_probability_max[ti]??"--"}% chance`)+
@@ -541,8 +543,13 @@ async function renderAlerts(){
 $("#alerts").onclick=e=>{const b=e.target.closest(".alert");if(b)b.classList.toggle("open")};
 
 /* ---------- nearest airport ---------- */
+const CATS=["VFR","MVFR","IFR","LIFR"];
+function cleanMetar(m){return Object.assign({},m,{icaoId:/^[A-Z0-9]{3,5}$/.test(m.icaoId||"")?m.icaoId:"",
+  visib:/^\d+(\.\d+)?\+?$/.test(String(m.visib==null?"":m.visib))?String(m.visib):null,
+  clouds:(Array.isArray(m.clouds)?m.clouds:[]).filter(c=>c&&/^(SKC|CLR|CAVOK|FEW|SCT|BKN|OVC|OVX|VV)$/.test(c.cover)).map(c=>({cover:c.cover,base:Number.isFinite(+c.base)&&c.base!==null?+c.base:null})),
+  fltCat:CATS.includes(m.fltCat)?m.fltCat:null,ceil:Number.isFinite(+m.ceil)&&m.ceil!==null?+m.ceil:null})}
 function flightCat(m){
-  const fc=m.fltCat||m.fltcat;if(fc)return fc;
+  const fc=m.fltCat||m.fltcat;if(CATS.includes(fc))return fc;
   let ceil=1e5;(m.clouds||[]).forEach(c=>{if(c&&/BKN|OVC|OVX/.test(c.cover)&&c.base!=null)ceil=Math.min(ceil,c.base)});
   if(m.ceil!=null)ceil=Math.min(ceil,+m.ceil);
   const v=parseFloat(String(m.visib==null?10:m.visib).replace("+",""));
@@ -554,7 +561,7 @@ async function renderAirport(){
   const pid=place.id,b=[place.lat-.45,place.lon-.6,place.lat+.45,place.lon+.6].map(v=>v.toFixed(2)).join(",");
   try{
     const arr=await getJSON(`https://aviationweather.gov/api/data/metar?bbox=${b}&format=json`);if(place.id!==pid)return;
-    const list=(Array.isArray(arr)?arr:[]).filter(m=>m.rawOb&&m.lat!=null).map(m=>Object.assign(m,{km:km(place.lat,place.lon,m.lat,m.lon)})).sort((a,b)=>a.km-b.km);
+    const list=(Array.isArray(arr)?arr:[]).filter(m=>m&&m.rawOb&&Number.isFinite(+m.lat)&&Number.isFinite(+m.lon)).map(cleanMetar).filter(m=>m.icaoId).map(m=>Object.assign(m,{km:km(place.lat,place.lon,m.lat,m.lon)})).sort((a,b)=>a.km-b.km);
     if(!list.length){METAR=null;$("#fcat").innerHTML="";panel.style.display="none";return}
     const m=list[0];METAR=m;const cat=flightCat(m),badge=`<span class="badge"><i style="background:${catColor(cat)}"></i>${cat}</span>`;
     $("#fcat").innerHTML=`<span class="badge"><i style="background:${catColor(cat)}"></i>${cat} ${esc(m.icaoId)}</span>`;
@@ -563,7 +570,7 @@ async function renderAirport(){
     $("#apt").innerHTML=`<div class="apt"><b>${esc(m.icaoId)}</b><span>${esc((m.name||"").replace(/,\s*US$/,""))}</span>${badge}</div>
       <div class="raw"><small>METAR${age!=null?` · ${age} min ago`:""}</small>${esc(m.rawOb)}</div><div class="raw" id="taf"><small>TAF</small>Loading…</div>`;
     panel.style.display="";try{renderNow()}catch(e){}
-    getText(`https://aviationweather.gov/api/data/taf?ids=${m.icaoId}&format=raw`).then(t=>{const el=$("#taf");if(el)el.innerHTML=`<small>TAF</small>${t.trim()?esc(t.trim().replace(/\s+(FM\d|TEMPO|BECMG|PROB)/g,"\n  $1")):"No TAF issued for this airport."}`}).catch(()=>{const el=$("#taf");if(el)el.remove()});
+    getText(`https://aviationweather.gov/api/data/taf?ids=${encodeURIComponent(m.icaoId)}&format=raw`).then(t=>{const el=$("#taf");if(el)el.innerHTML=`<small>TAF</small>${t.trim()?esc(t.trim().replace(/\s+(FM\d|TEMPO|BECMG|PROB)/g,"\n  $1")):"No TAF issued for this airport."}`}).catch(()=>{const el=$("#taf");if(el)el.remove()});
   }catch(e){console.warn("metar",e);panel.style.display="none"}
 }
 
@@ -906,7 +913,7 @@ async function loadBboxAviation(){
   if(!us||!(L.metar||L.pirep))return;
   const b=map.getBounds(),bb=[b.getSouth(),b.getWest(),b.getNorth(),b.getEast()].map(v=>v.toFixed(2)).join(",");
   if(L.metar){try{const arr=await getJSON(`https://aviationweather.gov/api/data/metar?bbox=${bb}&format=json`,20000);
-    geo("metars",{type:"FeatureCollection",features:(Array.isArray(arr)?arr:[]).filter(m=>m.lat!=null).map(m=>({type:"Feature",geometry:{type:"Point",coordinates:[m.lon,m.lat]},properties:{id:m.icaoId,cat:flightCat(m),raw:m.rawOb,name:m.name||""}}))});
+    geo("metars",{type:"FeatureCollection",features:(Array.isArray(arr)?arr:[]).filter(m=>m.lat!=null).map(m=>({type:"Feature",geometry:{type:"Point",coordinates:[m.lon,m.lat]},properties:{id:String(m.icaoId||""),cat:flightCat(cleanMetar(m)),raw:String(m.rawOb||""),name:String(m.name||"")}}))});
     if(!map.getLayer("metar"))map.addLayer({id:"metar",type:"circle",source:"metars",paint:{"circle-radius":["interpolate",["linear"],["zoom"],4,2.5,8,5.5],"circle-color":["match",["get","cat"],"VFR","#3ddc97","MVFR","#4ca3ff","IFR","#ff5468","LIFR","#e05cff","#9fb2c8"],"circle-stroke-color":"#0a1626","circle-stroke-width":1}})}catch(e){console.warn("metar layer",e)}}
   if(L.pirep){try{const j=await getJSON(`https://aviationweather.gov/api/data/pirep?bbox=${bb}&format=geojson&age=2`,20000);
     geo("pireps",{type:"FeatureCollection",features:((j&&j.features)||[]).filter(f=>f.geometry).map(f=>{const p=f.properties||{},raw=p.rawOb||p.rawOB||"";return{...f,properties:{...p,raw,kind:/\/TB/.test(raw)?"tb":/\/IC/.test(raw)?"ic":"x"}}})});

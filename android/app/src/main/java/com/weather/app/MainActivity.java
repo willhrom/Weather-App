@@ -65,6 +65,10 @@ public class MainActivity extends Activity {
     s.setJavaScriptEnabled(true);
     s.setDomStorageEnabled(true);
     s.setGeolocationEnabled(true);
+    s.setAllowFileAccess(false);           // no access to files on the phone
+    s.setAllowContentAccess(false);        // no access to other apps' content
+    s.setSaveFormData(false);
+    s.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
     String ver = "1.0";
     try { ver = getPackageManager().getPackageInfo(getPackageName(), 0).versionName; } catch (Exception ignored) {}
     s.setUserAgentString(s.getUserAgentString() + " WeatherApp/" + ver);
@@ -72,6 +76,7 @@ public class MainActivity extends Activity {
     web.setWebChromeClient(new WebChromeClient() {
       @Override
       public void onGeolocationPermissionsShowPrompt(String origin, GeolocationPermissions.Callback cb) {
+        if (!isOurOrigin(origin)) { cb.invoke(origin, false, false); return; }
         if (hasLocation()) { cb.invoke(origin, true, false); return; }
         geoOrigin = origin; geoCallback = cb;
         if (Build.VERSION.SDK_INT >= 23) {
@@ -89,8 +94,14 @@ public class MainActivity extends Activity {
       public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest req) {
         Uri u = req.getUrl();
         if (HOST.equals(u.getHost())) return false;
-        // links (credits, app reinstall) open in the phone's browser
-        try { startActivity(new Intent(Intent.ACTION_VIEW, u)); } catch (Exception ignored) {}
+        // ordinary https links (credits, app download) open in the phone's browser; anything else is ignored
+        if ("https".equals(u.getScheme())) {
+          try {
+            Intent i = new Intent(Intent.ACTION_VIEW, u);
+            i.addCategory(Intent.CATEGORY_BROWSABLE);
+            startActivity(i);
+          } catch (Exception ignored) {}
+        }
         return true;
       }
     });
@@ -103,8 +114,11 @@ public class MainActivity extends Activity {
   public class Bridge {
     @JavascriptInterface
     public void setWatch(String json) {
+      if (json == null || json.length() > 2000) return;
       try {
         org.json.JSONObject o = new org.json.JSONObject(json);
+        double lat = o.getDouble("lat"), lon = o.getDouble("lon");
+        if (Double.isNaN(lat) || Double.isNaN(lon) || Math.abs(lat) > 90 || Math.abs(lon) > 180) return;
         SharedPreferences sp = getSharedPreferences(WeatherJob.PREFS, 0);
         sp.edit().putString("watch", json).apply();
         if (o.optBoolean("rain", true) || o.optBoolean("alerts", true)) WeatherJob.schedule(MainActivity.this);
@@ -184,34 +198,54 @@ public class MainActivity extends Activity {
     }
   }
 
-  static boolean allowed(String url) {
+  static boolean isOurOrigin(String origin) {
+    try { return HOST.equals(new URL(origin).getHost()) && "https".equals(new URL(origin).getProtocol()); }
+    catch (Exception e) { return false; }
+  }
+
+  /** Only https, default port, no user-info tricks, and only the listed weather services. */
+  static URL allowedUrl(String url) {
     try {
-      Uri u = Uri.parse(url);
-      if (!"https".equals(u.getScheme()) || u.getHost() == null) return false;
-      for (String a : ALLOWED) if (u.getHost().equals(a) || u.getHost().endsWith("." + a)) return true;
+      URL u = new URL(url);
+      String host = u.getHost() == null ? "" : u.getHost().toLowerCase(java.util.Locale.US);
+      if (!"https".equals(u.getProtocol()) || u.getUserInfo() != null || (u.getPort() != -1 && u.getPort() != 443)) return null;
+      if (url.indexOf('\\') >= 0 || host.isEmpty()) return null;
+      for (String a : ALLOWED) if (host.equals(a) || host.endsWith("." + a)) return u;
     } catch (Exception ignored) {}
-    return false;
+    return null;
   }
 
   /** Fetches data and map overlay tiles natively, so the page isn't blocked by cross-site rules. */
   private WebResourceResponse proxy(String target) {
-    if (target == null || !allowed(target)) return error(403, "Blocked");
+    URL url = target == null || target.length() > 4000 ? null : allowedUrl(target);
+    if (url == null) return error(403, "Blocked");
     HttpURLConnection c = null;
     try {
-      c = (HttpURLConnection) new URL(target).openConnection();
-      c.setConnectTimeout(12000);
-      c.setReadTimeout(25000);
-      c.setRequestProperty("User-Agent", "WeatherApp/1.0 (Android; personal weather app)");
-      int code = c.getResponseCode();
-      InputStream in = code >= 400 ? c.getErrorStream() : c.getInputStream();
-      byte[] body = in == null ? new byte[0] : readAll(in);
-      String type = c.getContentType() == null ? "application/octet-stream" : c.getContentType();
-      String mime = type.split(";")[0].trim();
-      String enc = mime.startsWith("text/") || mime.contains("json") || mime.contains("xml") ? "utf-8" : null;
-      WebResourceResponse r = new WebResourceResponse(mime, enc, new ByteArrayInputStream(body));
-      r.setStatusCodeAndReasonPhrase(code, code >= 400 ? "Error" : "OK");
-      r.setResponseHeaders(headers());
-      return r;
+      for (int hop = 0; ; hop++) {
+        c = (HttpURLConnection) url.openConnection();
+        c.setInstanceFollowRedirects(false);
+        c.setConnectTimeout(12000);
+        c.setReadTimeout(25000);
+        c.setRequestProperty("User-Agent", "WeatherApp/1.0 (Android; personal weather app)");
+        int code = c.getResponseCode();
+        if (code >= 300 && code < 400 && hop < 3) {
+          String loc = c.getHeaderField("Location");
+          c.disconnect();
+          url = loc == null ? null : allowedUrl(new URL(url, loc).toString());
+          if (url == null) return error(403, "Blocked redirect");
+          continue;
+        }
+        InputStream in = code >= 400 ? c.getErrorStream() : c.getInputStream();
+        byte[] body = in == null ? new byte[0] : readAll(in);
+        String type = c.getContentType() == null ? "application/octet-stream" : c.getContentType();
+        String mime = type.split(";")[0].trim().toLowerCase(java.util.Locale.US);
+        if (mime.contains("html") || mime.contains("javascript")) mime = "text/plain"; // data only, never runnable pages or scripts
+        String enc = mime.startsWith("text/") || mime.contains("json") || mime.contains("xml") ? "utf-8" : null;
+        WebResourceResponse r = new WebResourceResponse(mime, enc, new ByteArrayInputStream(body));
+        r.setStatusCodeAndReasonPhrase(code, code >= 400 ? "Error" : "OK");
+        r.setResponseHeaders(headers());
+        return r;
+      }
     } catch (Exception e) {
       return error(502, "Network error");
     } finally {
@@ -231,7 +265,8 @@ public class MainActivity extends Activity {
   private static Map<String, String> headers() {
     Map<String, String> h = new HashMap<>();
     h.put("Cache-Control", "no-store");
-    h.put("Access-Control-Allow-Origin", "*");
+    h.put("Access-Control-Allow-Origin", "https://" + HOST);
+    h.put("X-Content-Type-Options", "nosniff");
     return h;
   }
 
