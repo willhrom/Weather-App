@@ -10,7 +10,10 @@ import android.os.Build;
 import android.os.Bundle;
 import android.view.View;
 import android.view.Window;
+import android.app.NotificationManager;
+import android.content.SharedPreferences;
 import android.webkit.GeolocationPermissions;
+import android.webkit.JavascriptInterface;
 import android.webkit.WebChromeClient;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebResourceResponse;
@@ -91,8 +94,38 @@ public class MainActivity extends Activity {
         return true;
       }
     });
+    web.addJavascriptInterface(new Bridge(), "WxNative");
     setContentView(web);
     web.loadUrl("https://" + HOST + "/");
+  }
+
+  /** Lets the page tell the app which place to watch and which notifications are on. */
+  public class Bridge {
+    @JavascriptInterface
+    public void setWatch(String json) {
+      try {
+        org.json.JSONObject o = new org.json.JSONObject(json);
+        SharedPreferences sp = getSharedPreferences(WeatherJob.PREFS, 0);
+        sp.edit().putString("watch", json).apply();
+        if (o.optBoolean("rain", true) || o.optBoolean("alerts", true)) WeatherJob.schedule(MainActivity.this);
+        else WeatherJob.cancel(MainActivity.this);
+      } catch (Exception ignored) {}
+    }
+    @JavascriptInterface
+    public void requestNotifications() {
+      if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission("android.permission.POST_NOTIFICATIONS") != PackageManager.PERMISSION_GRANTED) {
+        runOnUiThread(() -> requestPermissions(new String[]{"android.permission.POST_NOTIFICATIONS"}, 8));
+      }
+    }
+    @JavascriptInterface
+    public boolean notificationsAllowed() {
+      NotificationManager nm = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
+      return nm == null || nm.areNotificationsEnabled();
+    }
+    @JavascriptInterface
+    public void testNotification() {
+      WeatherJob.notify(MainActivity.this, "rain", 99, "Notifications are working", "You'll get alerts for rain starting soon and severe weather here.", false);
+    }
   }
 
   private boolean hasLocation() {
