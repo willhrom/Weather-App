@@ -3,7 +3,7 @@ name: Build Android app
 on:
   push:
     branches: [main]
-    paths: ["web/**", "android/**", ".github/workflows/android.yml"]
+    paths: ["android/**", ".github/workflows/android.yml"]
   workflow_dispatch:
 
 permissions:
@@ -14,10 +14,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Use the latest app page
+      # The app loads the live page from Cloudflare; this copy is only the offline fallback
+      - name: Bundle the offline copy of the app page
         run: |
           mkdir -p android/app/src/main/assets/web
-          sed "s#__REPO__#${{ github.repository }}#" web/index.html > android/app/src/main/assets/web/index.html
+          sed -e "s#__REPO__#${{ github.repository }}#" -e "s#__BUILD__#built-in#" web/index.html > android/app/src/main/assets/web/index.html
       - uses: actions/setup-java@v4
         with:
           distribution: temurin

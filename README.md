@@ -2,15 +2,21 @@
 
 A sleek Android weather app: GPS and saved locations, rain totals, wind, tides, moon phase and animated radar.
 
-## Download link
+## How updates work
 
-GitHub builds the app every time `web/` or `android/` changes (Actions tab, about 5 minutes). The newest build is always at:
+- **The app page** (`web/index.html`) is published to Cloudflare Pages at `https://willhrom-weather.pages.dev` on every push. The app loads it from there each time it opens, so changes show up with no reinstall. The last version that loaded is saved on the phone, so it still opens offline.
+- **The Android shell** (`android/`) rarely changes. When it does, GitHub builds a new APK at
+  `https://github.com/willhrom/Weather-App/releases/download/android/weather.apk`
+  (private repo — sign in to github.com in Chrome on the phone first).
 
-`https://github.com/willhrom/weather-app/releases/download/android/weather.apk`
+### One-time Cloudflare setup
 
-This repo is private, so sign in to github.com in Chrome on your phone before opening that link (or open **Releases** in the repo and tap `weather.apk`).
+1. Cloudflare dashboard → **My Profile → API Tokens → Create Token → Create Custom Token**. Permission: **Account → Cloudflare Pages → Edit**. Create it and copy the token.
+2. Copy your **Account ID** (Workers & Pages overview, right side).
+3. In this repo: **Settings → Secrets and variables → Actions → New repository secret**. Add `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`.
+4. **Actions → Publish app page → Run workflow**.
 
-## 2. Install on your phone
+## Install on your phone
 
 1. Signed in to GitHub, open that link in Chrome on the phone. It downloads `weather.apk`.
 2. Tap the download. Android asks to allow installs from Chrome the first time: tap **Settings → Allow from this source**, then go back and tap **Install**.
@@ -18,18 +24,18 @@ This repo is private, so sign in to github.com in Chrome on your phone before op
 
 ## Using it
 
-- **Location pin (top right)** opens Locations: search any city or ZIP, tap a result to add it, tap × to remove. The chips under the name switch between places with one tap.
+- **☰ (top right)** or tapping the place name opens Locations: search any city, ZIP or airport code, tap a result to add it, tap × to remove. The chips under the name switch between places with one tap.
 - **Follow my location** uses the phone's GPS. Turn it off to only use your saved places.
 - Units (°F/°C, mph/km/h/knots, in/mm) are in the same panel.
 - Pull down from the top, or tap ↻, to refresh. It also refreshes itself every 10 minutes.
-- Radar: tap the corner button for full screen, then pinch and drag. Back closes it.
+- Map: tap it for full screen, then pinch and drag. The layers button switches between radar, satellite, MRMS rain totals, NWS alerts and aviation layers (METARs, G-AIRMETs, SIGMETs, CWAs, PIREPs). Tap an airport or shaded area for details. Back closes it.
 
 ## Updating later
 
-Replace `web/index.html` in the repository with a new version. GitHub rebuilds automatically, and opening the same link (or **Get the latest version of the app** in the Locations panel) installs the update over the old one, keeping your places and settings.
+Change `web/index.html` and push. Cloudflare publishes it in about a minute and the app picks it up next time it opens. Only changes under `android/` need a reinstall.
 
 ## Where the data comes from
 
-All free, no keys needed: Open-Meteo (forecast, rain totals, season total), NOAA (tides from the nearest station within ~55 miles; elsewhere modelled sea level), NEXRAD radar via Iowa State Mesonet in the US and RainViewer elsewhere, CARTO dark map. Moon phase, rise and set are calculated on the phone.
+All free, no keys: Open-Meteo (forecast, rain totals), NWS (alerts), AviationWeather.gov (METAR/TAF, G-AIRMET, SIGMET, CWA, PIREP), NOAA (tides), Iowa State Mesonet (NEXRAD radar, GOES satellite, MRMS rain totals; RainViewer outside the US), OpenFreeMap dark map. Moon is calculated on the phone.
 
 `android/app/weather.keystore` just lets each build install over the last one. It isn't a secret.

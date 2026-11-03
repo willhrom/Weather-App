@@ -19,23 +19,28 @@ import android.webkit.WebView;
 import android.webkit.WebViewClient;
 
 import java.io.ByteArrayInputStream;
-import java.io.InputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.HashMap;
 import java.util.Map;
 
 /**
- * The weather app: one full-screen web view showing web/index.html.
- * The page is served from a private https address so the phone's location works,
- * and data requests are fetched natively (no browser cross-site limits).
+ * The weather app: a full-screen web view showing the live app page from Cloudflare Pages,
+ * so changes pushed to GitHub reach the phone without reinstalling.
+ * The last page that loaded is saved on the phone (and a copy ships inside the app),
+ * so it still opens with no signal. Data requests are fetched natively.
  */
 public class MainActivity extends Activity {
-  static final String HOST = "weather.app.local";
+  static final String HOST = "willhrom-weather.pages.dev";
   private static final int REQ_LOC = 7;
   private static final String[] ALLOWED = {
-      "open-meteo.com", "api.tidesandcurrents.noaa.gov", "api.bigdatacloud.net", "api.rainviewer.com"
+      "open-meteo.com", "api.tidesandcurrents.noaa.gov", "api.bigdatacloud.net", "rainviewer.com",
+      "aviationweather.gov", "api.weather.gov", "mesonet.agron.iastate.edu"
   };
 
   private WebView web;
@@ -47,17 +52,16 @@ public class MainActivity extends Activity {
     super.onCreate(saved);
     Window w = getWindow();
     if (Build.VERSION.SDK_INT >= 21) {
-      w.setStatusBarColor(Color.parseColor("#0b1424"));
-      w.setNavigationBarColor(Color.parseColor("#08121f"));
+      w.setStatusBarColor(Color.parseColor("#07090c"));
+      w.setNavigationBarColor(Color.parseColor("#07090c"));
     }
     web = new WebView(this);
-    web.setBackgroundColor(Color.parseColor("#08121f"));
+    web.setBackgroundColor(Color.parseColor("#07090c"));
     web.setOverScrollMode(View.OVER_SCROLL_NEVER);
     WebSettings s = web.getSettings();
     s.setJavaScriptEnabled(true);
     s.setDomStorageEnabled(true);
     s.setGeolocationEnabled(true);
-    s.setMediaPlaybackRequiresUserGesture(true);
     String ver = "1.0";
     try { ver = getPackageManager().getPackageInfo(getPackageName(), 0).versionName; } catch (Exception ignored) {}
     s.setUserAgentString(s.getUserAgentString() + " WeatherApp/" + ver);
@@ -82,13 +86,13 @@ public class MainActivity extends Activity {
       public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest req) {
         Uri u = req.getUrl();
         if (HOST.equals(u.getHost())) return false;
-        // links (credits, app update) open in the phone's browser
+        // links (credits, app reinstall) open in the phone's browser
         try { startActivity(new Intent(Intent.ACTION_VIEW, u)); } catch (Exception ignored) {}
         return true;
       }
     });
     setContentView(web);
-    web.loadUrl("https://" + HOST + "/index.html");
+    web.loadUrl("https://" + HOST + "/");
   }
 
   private boolean hasLocation() {
@@ -105,19 +109,45 @@ public class MainActivity extends Activity {
     }
   }
 
-  /** Serves the app's own files, and relays data requests to the allowed weather services. */
   private WebResourceResponse intercept(Uri u) {
-    if (!HOST.equals(u.getHost())) return null; // map tiles, fonts, scripts load normally
+    if (!HOST.equals(u.getHost())) return null; // map tiles, fonts and scripts load normally
     String path = u.getPath() == null ? "/" : u.getPath();
+    if (path.equals("/proxy")) return proxy(u.getQueryParameter("u"));
+    if (path.equals("/") || path.equals("/index.html")) return page();
+    return null;
+  }
+
+  /** The newest page from Cloudflare; if offline, the last saved copy; failing that, the built-in copy. */
+  private WebResourceResponse page() {
+    File cache = new File(getFilesDir(), "index.html");
+    byte[] body = null;
+    HttpURLConnection c = null;
     try {
-      if (path.equals("/proxy")) return proxy(u.getQueryParameter("u"));
-      if (path.equals("/") ) path = "/index.html";
-      InputStream in = getAssets().open("web" + path);
-      String type = path.endsWith(".html") ? "text/html" : path.endsWith(".js") ? "application/javascript"
-          : path.endsWith(".css") ? "text/css" : path.endsWith(".png") ? "image/png" : "application/octet-stream";
-      return new WebResourceResponse(type, "utf-8", in);
+      c = (HttpURLConnection) new URL("https://" + HOST + "/index.html?t=" + System.currentTimeMillis()).openConnection();
+      c.setConnectTimeout(5000);
+      c.setReadTimeout(8000);
+      c.setRequestProperty("Cache-Control", "no-cache");
+      if (c.getResponseCode() == 200) {
+        body = readAll(c.getInputStream());
+        if (body.length > 1000) {
+          FileOutputStream out = new FileOutputStream(cache);
+          out.write(body);
+          out.close();
+        } else body = null;
+      }
+    } catch (Exception ignored) {
+    } finally {
+      if (c != null) c.disconnect();
+    }
+    try {
+      InputStream in = body != null ? new ByteArrayInputStream(body)
+          : cache.exists() ? new FileInputStream(cache)
+          : getAssets().open("web/index.html");
+      WebResourceResponse r = new WebResourceResponse("text/html", "utf-8", in);
+      r.setResponseHeaders(headers());
+      return r;
     } catch (Exception e) {
-      return error(404, "Not found");
+      return error(500, "App page unavailable");
     }
   }
 
@@ -130,6 +160,7 @@ public class MainActivity extends Activity {
     return false;
   }
 
+  /** Fetches data and map overlay tiles natively, so the page isn't blocked by cross-site rules. */
   private WebResourceResponse proxy(String target) {
     if (target == null || !allowed(target)) return error(403, "Blocked");
     HttpURLConnection c = null;
@@ -137,14 +168,14 @@ public class MainActivity extends Activity {
       c = (HttpURLConnection) new URL(target).openConnection();
       c.setConnectTimeout(12000);
       c.setReadTimeout(25000);
-      c.setRequestProperty("User-Agent", "WeatherApp (Android)");
-      c.setRequestProperty("Accept", "application/json");
+      c.setRequestProperty("User-Agent", "WeatherApp/1.0 (Android; personal weather app)");
       int code = c.getResponseCode();
       InputStream in = code >= 400 ? c.getErrorStream() : c.getInputStream();
-      ByteArrayOutputStream out = new ByteArrayOutputStream();
-      if (in != null) { byte[] b = new byte[16384]; int n; while ((n = in.read(b)) > 0) out.write(b, 0, n); in.close(); }
-      WebResourceResponse r = new WebResourceResponse("application/json", "utf-8",
-          new ByteArrayInputStream(out.toByteArray()));
+      byte[] body = in == null ? new byte[0] : readAll(in);
+      String type = c.getContentType() == null ? "application/octet-stream" : c.getContentType();
+      String mime = type.split(";")[0].trim();
+      String enc = mime.startsWith("text/") || mime.contains("json") || mime.contains("xml") ? "utf-8" : null;
+      WebResourceResponse r = new WebResourceResponse(mime, enc, new ByteArrayInputStream(body));
       r.setStatusCodeAndReasonPhrase(code, code >= 400 ? "Error" : "OK");
       r.setResponseHeaders(headers());
       return r;
@@ -153,6 +184,15 @@ public class MainActivity extends Activity {
     } finally {
       if (c != null) c.disconnect();
     }
+  }
+
+  private static byte[] readAll(InputStream in) throws java.io.IOException {
+    ByteArrayOutputStream out = new ByteArrayOutputStream();
+    byte[] b = new byte[16384];
+    int n;
+    while ((n = in.read(b)) > 0) out.write(b, 0, n);
+    in.close();
+    return out.toByteArray();
   }
 
   private static Map<String, String> headers() {
