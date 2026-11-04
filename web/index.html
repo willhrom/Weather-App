@@ -763,8 +763,8 @@ function renderToday(){
   const ADJ={sunny:"sunny",clear:"clear","partly cloudy":"partly cloudy",cloudy:"cloudy"},NOUN={rainy:"rain",drizzly:"drizzle",showery:"showers",stormy:"thunderstorms",snowy:"snow",foggy:"fog"};
   const vb=(base,pl)=>pl?base:base.replace(/^(\w+)/,w=>w==="give"?"gives":w+"s");
   const single=m=>{const t=toks(m.p),last=t[t.length-1],sp=t.length>1?`through ${last}`:t[0],[sj,pl]=SUBJ[m.k];
-    if(grp(m.k)==="fair"&&m.ks.includes("sunny")&&m.ks.includes("clear"))return `Sunny skies continue ${list(toks(m.p.filter((p,k)=>m.ks[k]==="sunny")))}, followed by clear skies ${list(toks(m.p.filter((p,k)=>m.ks[k]==="clear")))}`;
-    if(ADJ[m.k])return `Skies remain ${ADJ[m.k]} ${sp}`;
+    if(grp(m.k)==="fair"&&m.ks.includes("sunny")&&m.ks.includes("clear"))return `Skies stay sunny ${list(toks(m.p.filter((p,k)=>m.ks[k]==="sunny")))} and clear ${list(toks(m.p.filter((p,k)=>m.ks[k]==="clear")))}`;
+    if(ADJ[m.k])return `Skies stay ${ADJ[m.k]} ${sp}`;
     return `${sj} ${vb(m.k==="foggy"?"persist":"continue",pl)} ${sp}`};
   const change=(prev,m)=>{const t1=toks(m.p)[0],g=grp(m.k),pg=grp(prev.k),pl=SUBJ[prev.k][1];
     if(WET(m.k))return WET(prev.k)?`${vb("turn",pl)} to ${NOUN[m.k]} ${t1}`:`${vb("give",pl)} way to ${NOUN[m.k]} ${t1}`;
@@ -784,13 +784,13 @@ function renderToday(){
   let ol=ms.length===1?single(ms[0])+".":`${SUBJ[ms[0].k][0]} ${change(ms[0],ms[1])}.`+(ms[2]?` ${later(ms[1],ms[2])}.`:"");
   const hTxt=t=>{const h=new Date(Math.round(t/36e5)*36e5).getUTCHours();return h===0?"midnight":h===12?"noon":`${h%12} ${h<12?"AM":"PM"}`};
   const isNight=t=>{const hr=new Date(t).getUTCHours();return hr>=20||hr<4};
-  if(pmax>=30){const pk=PP.indexOf(pmax),a=amt>=wet()?Math.round(amt*(S.rain==="in"?10:1))/(S.rain==="in"?10:1):0,amtTxt=a>0?`, with about ${a} ${S.rain==="in"?(a===1?"inch":"inches"):"mm"} expected`:"";
-    ol+=pk===0?` Rain chances are highest now at <b>${pmax}%</b>${amtTxt}.`:` Rain chances peak at <b>${pmax}%</b> around ${hTxt(at(pk))}${amtTxt}.`}
-  if(tonight){const lowK=T.indexOf(min(T));ol+=` The low dips to <b>${U.t(min(T))}</b>${lowK>0?` around ${hTxt(at(lowK))}`:""}.`}
+  if(pmax>=30){const pk=PP.indexOf(pmax),a=amt>=wet()?Math.round(amt*(S.rain==="in"?10:1))/(S.rain==="in"?10:1):0,amtTxt=a>0?`, totaling about ${a} ${S.rain==="in"?(a===1?"inch":"inches"):"mm"}`:"";
+    ol+=` Rain is most likely ${pk===0?"now":"around "+hTxt(at(pk))} (<b>${pmax}%</b>)${amtTxt}.`}
+  if(tonight){const lowK=T.indexOf(min(T));ol+=` Temperatures bottom out at <b>${U.t(min(T))}</b>${lowK>0?` around ${hTxt(at(lowK))}`:""}.`}
   else if(max(T)>tNow+1&&hiK>0){const rest=T.slice(hiK),lo=min(rest),loT=at(hiK+rest.indexOf(lo));
-    ol+=` The high reaches <b>${U.t(max(T))}</b> around ${hTxt(at(hiK))}${lo<max(T)-2?(isNight(loT)?`, with a low of ${U.t(lo)} tonight`:`, before cooling to ${U.t(lo)} by ${hTxt(loT)}`):""}.`}
+    ol+=` Temperatures peak at <b>${U.t(max(T))}</b> around ${hTxt(at(hiK))}${lo<max(T)-2?` and drop to ${U.t(lo)} ${isNight(loT)?"tonight":"by "+hTxt(loT)}`:""}.`}
   else ol+=` Temperatures fall to <b>${U.t(min(T))}</b> ${isNight(at(loK))?"tonight":"by "+hTxt(at(loK))}.`;
-  const gm=max(WG),gThresh=S.wind==="kmh"?40:S.wind==="kn"?22:25;if(gm>=gThresh)ol+=` Wind gusts may reach ${U.w(gm)} ${U.wl()}.`;
+  const gm=max(WG),gThresh=S.wind==="kmh"?40:S.wind==="kn"?22:25;if(gm>=gThresh)ol+=` Gusts of up to ${U.w(gm)} ${U.wl()} are likely.`;
   const row=(k,v)=>`<div class="trow"><small>${k}</small><span>${v}</span></div>`;
   $("#today").innerHTML=`<h4>${label}<b class="${pmax<15?"dry":""}">${pmax}% rain</b></h4><p class="ol">${ol}</p>`;
 }
