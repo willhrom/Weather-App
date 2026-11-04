@@ -34,7 +34,7 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install decoder
-        run: pip install --quiet pygrib==2.1.6 pyproj numpy pillow requests
+        run: pip install --quiet pygrib==2.1.6 pyproj numpy pillow requests xarray netcdf4
       - name: Decode latest GTG cycle
         id: build
         env:
@@ -43,6 +43,13 @@ jobs:
         run: |
           set -o pipefail
           python -u gtg/build_gtg.py dist 2>&1 | tee build.log
+      - name: Water clarity (once a day; otherwise reuse the published copy)
+        if: steps.build.outputs.skip != '1'
+        run: |
+          mkdir -p dist/clarity; B=https://willhrom-weather-gtg.pages.dev/clarity
+          if curl -sf "$B/clarity.json" -o dist/clarity/clarity.json && grep -q "\"date\": \"$(date -u +%F)\"" dist/clarity/clarity.json && curl -sf "$B/kd.png" -o dist/clarity/kd.png; then echo "reused today's clarity"
+          else python -u gtg/build_clarity.py dist || (curl -sf "$B/kd.png" -o dist/clarity/kd.png && curl -sf "$B/clarity.json" -o dist/clarity/clarity.json) || echo "no clarity this run"; fi
+          ls -la dist/clarity
       - name: Headers
         if: steps.build.outputs.skip != '1'
         run: |
