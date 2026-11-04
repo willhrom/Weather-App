@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
 <meta name="theme-color" content="#0f2a4a">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://unpkg.com; style-src 'self' 'unsafe-inline' https://unpkg.com https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob: https:; worker-src blob:; child-src blob:; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'; connect-src 'self' blob: data: wxr: https://tiles.openfreemap.org https://*.open-meteo.com https://api.open-meteo.com https://api.weather.gov https://aviationweather.gov https://api.tidesandcurrents.noaa.gov https://api.bigdatacloud.net https://api.rainviewer.com https://*.rainviewer.com https://mesonet.agron.iastate.edu https://willhrom-weather-gtg.pages.dev https://realearth.ssec.wisc.edu">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://unpkg.com; style-src 'self' 'unsafe-inline' https://unpkg.com https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob: https:; worker-src blob:; child-src blob:; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'; connect-src 'self' blob: data: wxr: https://tiles.openfreemap.org https://*.open-meteo.com https://api.open-meteo.com https://api.weather.gov https://aviationweather.gov https://api.tidesandcurrents.noaa.gov https://api.bigdatacloud.net https://api.rainviewer.com https://*.rainviewer.com https://mesonet.agron.iastate.edu https://willhrom-weather-gtg.pages.dev https://realearth.ssec.wisc.edu https://willhrom-weather.pages.dev">
 <meta name="referrer" content="no-referrer">
 <title>Weather</title>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -210,6 +210,9 @@ body.mapopen .tabbar{display:none}
 .tr:last-child>*{border-bottom:0}
 .tr span{color:var(--muted)}
 .tr .fcv{color:var(--water)}
+.buoy{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-bottom:6px}
+.buoy b{font-size:13.5px;font-weight:600;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.buoy span{flex:none;font-size:11px;color:var(--faint)}
 .uv{margin-top:14px;padding-top:12px;border-top:1px solid var(--line)}
 .uvh{display:grid;grid-template-columns:1fr auto;align-items:baseline;row-gap:3px}
 .uvh small{font-size:9.5px;font-weight:600;letter-spacing:.13em;text-transform:uppercase;color:var(--faint)}
@@ -302,6 +305,16 @@ details.afd[open]>summary::after{content:"–"}
 .drow .d small{display:block;font-size:10px;font-weight:500;color:var(--faint);margin-top:1px;font-family:var(--mono)}
 .drow .c{color:var(--faint);font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-right:6px;line-height:1.2}
 .drow .c small{display:block;font-family:var(--mono);font-size:10.5px;color:var(--water);margin-top:1px}
+.drow .c .dnote{display:block;font-style:normal;font-size:10.5px;line-height:1.3;color:#9fb2c8;margin-top:3px;overflow:hidden;text-overflow:ellipsis}
+.drow .c .dnote.hz{color:#ffc27a}
+.drow .c .dnote b{font-weight:600;color:var(--faint)}
+.afdmark{display:inline-block;width:6px;height:6px;border-radius:50%;background:#7cc4ff;margin-right:5px;vertical-align:1px}
+.dnote.hz .afdmark{background:#ffb547}
+.afdmore.solo{border-top:0;padding-top:0;margin-top:0}
+.afdmore .h{font-size:12px;font-weight:400;color:var(--muted)}
+.dfc{margin:10px 0 4px;padding:9px 11px;border-radius:10px;background:rgba(124,196,255,.06);border:1px solid rgba(124,196,255,.14)}
+.dfc small{display:block;font-size:9.5px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--faint);margin-bottom:4px}
+.dfc p{margin:4px 0 0;font-size:12.5px;line-height:1.45;color:#c9d4df}
 .drow .p{font-family:var(--mono);font-size:11.5px;color:var(--water);text-align:right}
 .drow .p.z{color:var(--faint)}
 .drow .lo,.drow .hi{font-family:var(--mono);text-align:right}
@@ -931,6 +944,54 @@ async function renderFire(){
 }
 $("#fire").onclick=e=>{const b=e.target.closest("button[data-l]");if(!b)return;L[b.dataset.l]=true;saveLayers();renderChips();buildLayerPanel();setFull(true);applyLayers()};
 
+/* ---------- tie the forecasters' key messages to the days they talk about ----------
+   "Coastal flooding Wednesday through Sunday" → a note on Wed, Thu, Fri, Sat and Sun in the 10-day list. */
+let AFD_NOTES=null; // {byDate:{date:[note]}, loose:[text]}
+const DOW=["sunday","monday","tuesday","wednesday","thursday","friday","saturday"];
+const DAYTOK=/\b(this (?:morning|afternoon|evening)(?: and (?:evening|tonight))?|today|tonight|tomorrow(?: (?:morning|afternoon|evening|night))?|(?:early|late) next week|next week|(?:the )?weekend|mid-?week|(?:early|late)(?: this)? week|(?:next )?(?:sunday|monday|tuesday|wednesday|thursday|friday|saturday)(?: (?:morning|afternoon|evening|night))?)\b/gi;
+function dayRange(tok,dow0){ // → [from,to] day offsets from today, or null
+  const t=tok.toLowerCase(),nextDow=d=>(d-dow0+7)%7;
+  if(/^(this|today|tonight)/.test(t))return[0,0];
+  if(/^tomorrow/.test(t))return[1,1];
+  if(/weekend/.test(t)){const s=nextDow(6);return dow0===0?[0,0]:[s,s+1]}
+  if(/mid-?week/.test(t)){const w=nextDow(3);return w>4?null:[w,w]}
+  if(/^late( this)? week/.test(t)){const a=nextDow(4);return a>5?null:[a,a+1]}
+  if(/^early( this)? week/.test(t)){const a=nextDow(1);return a>2?null:[a,a+1]}
+  if(/^early next week/.test(t)){const a=nextDow(1)||7;return[a,a+1]}
+  if(/^late next week/.test(t)){const a=(nextDow(1)||7)+3;return[a,a+1]}
+  if(/^next week/.test(t)){const a=nextDow(1)||7;return[a,a+4]}
+  const m=t.match(/(sunday|monday|tuesday|wednesday|thursday|friday|saturday)/);if(m){let k=nextDow(DOW.indexOf(m[1]));if(/^next /.test(t)&&k<2)k+=7;return[k,k]}
+  return null}
+function clauseDays(cl,dow0){
+  const toks=[];let m;DAYTOK.lastIndex=0;while((m=DAYTOK.exec(cl)))toks.push({s:m.index,e:m.index+m[0].length,r:dayRange(m[0],dow0)});
+  const days=new Set();let i=0;
+  while(i<toks.length){let a=toks[i];if(!a.r){i++;continue}let from=a.r[0],to=a.r[1];
+    // "Thursday through Saturday", "late week into the weekend"
+    while(i+1<toks.length&&toks[i+1].r&&/^\s*(through|thru|into|to|until|and|-|–)\s*(the\s+)?(early\s+)?$/i.test(cl.slice(toks[i].e,toks[i+1].s))&&!/^\s*and\s*$/i.test(cl.slice(toks[i].e,toks[i+1].s))){i++;to=Math.max(to,toks[i].r[1])}
+    // a lone "through Tuesday" with nothing before it runs from today
+    if(i===toks.indexOf(a)&&/(through|until)\s*(the\s+)?$/i.test(cl.slice(Math.max(0,a.s-12),a.s))&&!toks.slice(0,toks.indexOf(a)).some(x=>x.r))from=0;
+    for(let k=from;k<=to;k++)days.add(k);i++}
+  // a label: the clause with the time words taken out
+  let label=cl;for(const t of toks.slice().reverse())label=label.slice(0,t.s)+label.slice(t.e);
+  label=label.replace(/\b(through|thru|into|until|and again|again|from|by|as of|on|the)\s*(?=[,.;]|$)/gi,"").replace(/\b(through|thru|into|until|and again)\b\s*(?=\b(and|through|into)\b)/gi,"")
+    .replace(/\s{2,}/g," ").replace(/[\s,;:.–-]+$/,"").replace(/\s+(and|through|into|until|again|to|from)$/i,"").replace(/\s+(and|through|into|until|again)$/i,"").trim();
+  return{days:[...days].sort((x,y)=>x-y),label:label.charAt(0).toUpperCase()+label.slice(1)}}
+function buildAfdNotes(leadBody,issued){ // day words are relative to when the discussion was written
+  const notes={byDate:{},loose:[]};if(!W||!leadBody)return notes;
+  const d=W.daily,ti=todayIndex(),base=Number.isFinite(issued)?dayStart(issued+off*1000):wall(d.time[ti]),dow0=new Date(base).getUTCDay();
+  const bullets=leadBody.replace(/^(Updated|Issued) at .*$/gm,"").split(/\n\s*\n/).map(x=>x.trim().replace(/^-\s+/,"").replace(/\s*\n\s*/g," ")).filter(x=>x&&x.length>8);
+  for(const b of bullets){let used=false;
+    for(const cl of b.split(/;\s*/)){const r=clauseDays(cl,dow0);if(!r.days.length||!r.label)continue;used=true;
+      const hz=/hazard|flood|warning|advisor|gale|storm|heat|fire|red flag|surf|rip|sneaker|gust|strong wind|freez|frost|snow|thunder|heavy|dense fog|smoke/i.test(r.label);
+      for(const k of r.days){const date=ymd(base+k*864e5);if(d.time.indexOf(date)<ti)continue;(notes.byDate[date]=notes.byDate[date]||[]).push({label:r.label,text:b,hz})}}
+    if(!used)notes.loose.push(b)}
+  return notes}
+// a 1–3 word tag for the day row; the full sentence is in the day's details
+const TAGS=[[/sneaker|beach/i,"Beach hazards"],[/coastal flood|king tide/i,"Coastal flood"],[/high surf|large swell|big swell/i,"High surf"],[/red flag|fire/i,"Fire weather"],
+  [/thunder|lightning/i,"Thunderstorms"],[/heavy rain|atmospheric river|flood/i,"Heavy rain"],[/snow/i,"Snow"],[/freez|frost/i,"Frost"],[/heat|hot\b/i,"Heat"],[/dense fog|\bfog/i,"Fog"],
+  [/gust|wind/i,"Windy"],[/smoke/i,"Smoke"],[/shower|rain|drizzle/i,"Rain"],[/(warm|above normal|above seasonal)/i,"Warmer"],[/(cool|below normal|below seasonal)/i,"Cooler"],[/seasonal|near normal/i,"Near normal"],[/dry/i,"Dry"]];
+const shortLbl=s=>{for(const [re,t] of TAGS)if(re.test(s))return t;const w=s.split(/\s+/).slice(0,3).join(" ");return w.length>22?w.slice(0,20)+"…":w};
+
 /* ---------- NWS forecast discussion, split where it's useful ----------
    10-Day tab: the forecasters' key points (+ full text in a sheet).  Sky tab: aviation notes.
    Tides tab: marine & beach notes.  Nothing is shown if the office hasn't written that section. */
@@ -955,8 +1016,11 @@ async function renderAFD(){
     // 10-Day: key messages (or the synopsis), never the whole thing
     const lead=find(/KEY MESSAGES/)||find(/SYNOPSIS/)||find(/SHORT TERM/);
     $("#afdNote").textContent=when;
-    $("#afd").innerHTML=`<div class="afd fade">${lead?para(lead[1]):""}</div><button class="afdmore" id="afdOpen">Read the full discussion<span>NWS ${esc(office)}</span></button>`;
-    $("#afdPanel").style.display=lead?"":"none";
+    AFD_NOTES=lead&&/KEY MESSAGES/.test(lead[0])?buildAfdNotes(lead[1],t):{byDate:{},loose:[]};
+    const mapped=Object.keys(AFD_NOTES.byDate).length>0,loose=mapped?AFD_NOTES.loose:null;
+    const body=loose==null?(lead?para(lead[1]):""):loose.length?`<ul>${loose.map(b=>`<li>${esc(b)}</li>`).join("")}</ul>`:"";
+    $("#afd").innerHTML=`${body?`<div class="afd fade">${body}</div>`:""}<button class="afdmore${body?"":" solo"}" id="afdOpen">${mapped?`<span class="h"><i class="afdmark"></i>Their notes are on each day below</span>`:""}Full discussion ›</button>`;
+    $("#afdPanel").style.display=lead?"":"none";if(W)try{renderDaily()}catch(e){}
     $("#afdFull").innerHTML=`<div class="afd"><p class="dim">NWS ${esc(office)}${when?" · "+esc(when):""}</p>${secs.map(x=>`<h4>${esc(nice(x[0]))}</h4>${/WATCHES|WARNINGS/.test(x[0])?`<pre>${esc(x[1].trim())}</pre>`:para(x[1])}`).join("")}</div>`;
     $("#afdOpen").onclick=()=>{$("#afdSheet").classList.add("on");$("#scrim").classList.add("on");$("#afdSheet").scrollTop=0};
     // topic notes, collapsed by default
@@ -1007,14 +1071,33 @@ async function renderCurrents(){
 }
 
 /* ---------- waves & swell ---------- */
-let waveReq=0;
+let waveReq=0,NDBC=null;
+const NDBC_API="https://willhrom-weather.pages.dev/api/ndbc";
+async function ndbcData(){
+  if(NDBC&&Date.now()-NDBC.t<10*6e4)return NDBC;
+  let st=store.get("wx.ndbcSt",null);
+  if(!st||Date.now()-st.t>7*864e5){const tx=await (await fetch(NDBC_API+"?f=stations")).text();const m={};tx.split("\n").forEach(l=>{const p=l.split("|");if(p.length>=4)m[p[0]]=p[3]});st={t:Date.now(),m};store.set("wx.ndbcSt",st)}
+  const tx=await (await fetch(NDBC_API+"?f=latest")).text(),lines=tx.split("\n"),hd=(lines[0]||"").replace(/^#/,"").trim().split(/\s+/),ix=k=>hd.indexOf(k),obs=[];
+  for(const l of lines){if(!l||l[0]==="#")continue;const f=l.trim().split(/\s+/),g=k=>{const v=f[ix(k)];return v==null||v==="MM"?null:+v};
+    const t=Date.UTC(g("YYYY"),g("MM")-1,g("DD"),g("hh"),g("mm"));obs.push({id:f[0],lat:g("LAT"),lon:g("LON"),t,wvht:g("WVHT"),dpd:g("DPD"),apd:g("APD"),mwd:g("MWD"),wtmp:g("WTMP"),name:st.m[f[0]]||""})}
+  NDBC={t:Date.now(),obs};return NDBC}
+async function nearestBuoy(lat,lon){
+  const D=await ndbcData();let best=null,bd=1e9;
+  for(const o of D.obs){if(o.wvht==null||o.lat==null||Date.now()-o.t>3*36e5)continue;const d=km(lat,lon,o.lat,o.lon);if(d<bd){bd=d;best=o}}
+  return best&&bd<=160?{...best,km:bd,name:best.name.replace(/,\s*[A-Z]{2}$/,"")}:null}
 async function renderWaves(){
   const el=$("#waves"),panel=$("#wavePanel"),my=++waveReq;if(!el)return;
-  // the wave model has no values on land or in narrow bays: try the spot itself, then rings of nearby points
-  const cand=[[place.lat,place.lon]];for(const r of [.15,.3,.5,.8])for(let k=0;k<8;k++){const an=k*Math.PI/4;cand.push([place.lat+r*Math.sin(an),place.lon+r*Math.cos(an)/Math.cos(place.lat*Math.PI/180)])}
-  try{const j=await getJSON(`https://marine-api.open-meteo.com/v1/marine?latitude=${cand.map(c=>c[0].toFixed(3)).join(",")}&longitude=${cand.map(c=>c[1].toFixed(3)).join(",")}&current=wave_height,wave_period,wave_direction,swell_wave_height,swell_wave_period,swell_wave_direction,wind_wave_height&hourly=wave_height,swell_wave_height&forecast_days=3&timezone=auto`,25000);
-    if(my!==waveReq)return;const arr=Array.isArray(j)?j:[j];let best=null,bd=1e9;
-    arr.forEach((r,k)=>{if(!r||!r.current||r.current.wave_height==null)return;const d=km(place.lat,place.lon,r.latitude,r.longitude);if(d<bd){bd=d;best=r}});
+  // 1) the nearest NOAA buoy that's measuring waves right now (via our /api/ndbc relay)
+  let buoy=null;try{buoy=await nearestBuoy(place.lat,place.lon)}catch(e){console.warn("ndbc",e)}
+  if(my!==waveReq)return;
+  const MV="current=wave_height,wave_period,wave_direction,swell_wave_height,swell_wave_period,swell_wave_direction,wind_wave_height&hourly=wave_height,swell_wave_height&forecast_days=3&timezone=auto";
+  try{let best=null,bd=1e9;
+    if(buoy){const r=await getJSON(`https://marine-api.open-meteo.com/v1/marine?latitude=${buoy.lat}&longitude=${buoy.lon}&${MV}`,25000);if(r&&r.current&&r.current.wave_height!=null){best=r;bd=buoy.km}}
+    // 2) no buoy nearby: the wave model's nearest ocean point (it has no values on land or in narrow bays)
+    if(!best){const cand=[[place.lat,place.lon]];for(const r of [.15,.3,.5,.8])for(let k=0;k<8;k++){const an=k*Math.PI/4;cand.push([place.lat+r*Math.sin(an),place.lon+r*Math.cos(an)/Math.cos(place.lat*Math.PI/180)])}
+      const j=await getJSON(`https://marine-api.open-meteo.com/v1/marine?latitude=${cand.map(c=>c[0].toFixed(3)).join(",")}&longitude=${cand.map(c=>c[1].toFixed(3)).join(",")}&${MV}`,25000);
+      (Array.isArray(j)?j:[j]).forEach(r=>{if(!r||!r.current||r.current.wave_height==null)return;const d=km(place.lat,place.lon,r.latitude,r.longitude);if(d<bd){bd=d;best=r}});buoy=null}
+    if(my!==waveReq)return;
     if(!best){panel.style.display="none";return}
     const c=best.current,ft=v=>v==null?null:S.rain==="in"?v*3.2808:v,hl=U.hl(),h=best.hourly,n=nowWall();
     // visibility over the water at the same point (fog), from the weather model
@@ -1042,13 +1125,21 @@ async function renderWaves(){
       let fogS=null,fogE=null;for(let q=k;q<vis.length&&vis[q][0]<=n+24*36e5;q++){if(vis[q][1]<1852){if(fogS==null)fogS=vis[q][0];fogE=vis[q][0]}else if(fogS!=null)break}
       const note=nm<1?"fog":fogS!=null?`fog ${fogS<=n?"now":fT(fogS)}–${fT(fogE+36e5)}`:nm<5?"haze or mist":"clear";
       visRow=`<div class="tr"><span>Visibility on the water</span><b>${fmt(nm)}<small class="tsub">${note}</small></b></div>`}
-    $("#waveNote").textContent=bd<3?"here":`${Math.round(bd*.621)} mi offshore`;
-    el.innerHTML=`<div class="split fade"><div class="v">${wh.toFixed(1)}<em>${hl}</em></div><span>${feel} seas${c.wave_period?` · ${Math.round(c.wave_period)} s`:""}</span></div>
-      <div class="tbl" style="margin-top:6px"><div class="tr"><span>Swell</span><b>${c.swell_wave_height!=null?ft(c.swell_wave_height).toFixed(1)+" "+hl+" @ "+Math.round(c.swell_wave_period)+" s":"--"}</b></div>
+    const brg=(a,b,c2,d2)=>{const r=Math.PI/180,y=Math.sin((d2-b)*r)*Math.cos(c2*r),x=Math.cos(a*r)*Math.sin(c2*r)-Math.sin(a*r)*Math.cos(c2*r)*Math.cos((d2-b)*r);return(Math.atan2(y,x)/r+360)%360};
+    const away=bd<3?"here":`${Math.round(bd*.621)} mi ${dirName(brg(place.lat,place.lon,best.latitude,best.longitude))}`;
+    $("#waveNote").textContent=buoy?`Buoy ${buoy.id} · ${away}`:`Model · ${away}`;
+    // measured at the buoy beats the model for "now"
+    const mWh=buoy&&buoy.wvht!=null?ft(buoy.wvht):null,shownWh=mWh!=null?mWh:wh,shownFt=S.rain==="in"?shownWh:shownWh*3.28,
+      feel2=shownFt<2?"Calm":shownFt<4?"Small":shownFt<7?"Moderate":shownFt<11?"Large":"Very large";
+    const ago=buoy?Math.max(0,Math.round((Date.now()-buoy.t)/6e4)):null;
+    el.innerHTML=`${buoy?`<div class="buoy"><b>${esc(buoy.name||"NOAA buoy "+buoy.id)}</b><span>${mWh!=null?`measured ${ago<60?ago+" min":Math.round(ago/60)+" h"} ago`:"no wave reading"} · NDBC ${esc(buoy.id)}</span></div>`:""}
+      <div class="split fade"><div class="v">${shownWh.toFixed(1)}<em>${hl}</em></div><span>${feel2} seas${buoy&&buoy.dpd?` · ${Math.round(buoy.dpd)} s`:c.wave_period?` · ${Math.round(c.wave_period)} s`:""}</span></div>
+      <div class="tbl" style="margin-top:6px">${buoy&&buoy.dpd?`<div class="tr"><span>Dominant waves</span><b>${Math.round(buoy.dpd)} s${buoy.mwd!=null?` from ${dirName(buoy.mwd)} ${String(Math.round(buoy.mwd)).padStart(3,"0")}°`:""}</b></div>`:""}
+      ${buoy&&buoy.wtmp!=null?`<div class="tr"><span>Water temp at buoy</span><b>${Math.round(S.temp==="F"?buoy.wtmp*9/5+32:buoy.wtmp)}°${S.temp}</b></div>`:""}<div class="tr"><span>Swell${buoy?" (model)":""}</span><b>${c.swell_wave_height!=null?ft(c.swell_wave_height).toFixed(1)+" "+hl+" @ "+Math.round(c.swell_wave_period)+" s":"--"}</b></div>
       <div class="tr"><span>Swell from</span><b>${c.swell_wave_direction!=null?dirName(c.swell_wave_direction)+" "+String(Math.round(c.swell_wave_direction)).padStart(3,"0")+"°":"--"}</b></div>
-      <div class="tr"><span>Wind waves</span><b>${c.wind_wave_height!=null?ft(c.wind_wave_height).toFixed(1)+" "+hl:"--"}</b></div>${visRow}</div>
+      <div class="tr"><span>Wind waves${buoy?" (model)":""}</span><b>${c.wind_wave_height!=null?ft(c.wind_wave_height).toFixed(1)+" "+hl:"--"}</b></div>${visRow}</div>
       <svg class="chart" viewBox="0 0 ${Wd} ${H}" style="margin-top:12px">${g}</svg><div class="legendrow"><span><i style="background:#4cc9f0"></i>Wave height</span><span><i style="background:#c792ea"></i>Swell</span>${fogHrs.length?'<span><i style="background:#9fb2c8"></i>Fog (&lt;1 nm)</span>':""}</div>
-      <div class="foot">Open-Meteo marine model (ECMWF WAM / NOAA WW3) · visibility from the weather model</div>`;
+      <div class="foot">${buoy?"Now: NOAA National Data Buoy Center · forecast: ":""}Open-Meteo marine model at ${buoy?"the buoy":"this point"} · visibility from the weather model</div>`;
     panel.style.display="";
   }catch(e){console.warn("waves",e);if(my===waveReq)panel.style.display="none"}
 }
@@ -1095,7 +1186,7 @@ function renderDaily(){
   for(let j=ti;j<ti+n;j++){const a=(d.temperature_2m_min[j]-lo)/sp*100,b=(d.temperature_2m_max[j]-lo)/sp*100,p=d.precipitation_probability_max[j],open=openDay===d.time[j];
     s+=`<div class="day${open?" open":""}" data-date="${d.time[j]}"><button class="drow dgrid" aria-expanded="${open}">
       <span class="d">${j===ti?"Today":fDay(wall(d.time[j]))}<small>${fMD(wall(d.time[j]))}</small></span>
-      <span class="c">${wxText(d.weather_code[j])}${d.precipitation_sum[j]>=wet()?`<small>${U.r(d.precipitation_sum[j])} ${U.rl()}</small>`:""}</span>
+      <span class="c">${wxText(d.weather_code[j])}${d.precipitation_sum[j]>=wet()?`<small>${U.r(d.precipitation_sum[j])} ${U.rl()}</small>`:""}${dayNoteLine(d.time[j])}</span>
       <span class="p${p?"":" z"}">${p==null?"--":p+"%"}</span><span class="lo">${Math.round(d.temperature_2m_min[j])}</span>
       <span class="rc"><span class="rng"><i style="left:${a}%;right:${100-b}%"></i>${j===ti?`<b style="left:${Math.min(100,Math.max(0,(cur-lo)/sp*100))}%"></b>`:""}</span></span>
       <span class="hi">${Math.round(d.temperature_2m_max[j])}</span><span class="chev">${CHEV}</span></button>
@@ -1107,6 +1198,12 @@ $("#daily").onclick=e=>{const row=e.target.closest(".drow");if(!row)return;const
   if(was){openDay=null;return}
   openDay=date;const j=W.daily.time.indexOf(date),inner=day.querySelector(".ddin");inner.innerHTML=dayDetail(j);
   requestAnimationFrame(()=>{day.classList.add("open");row.setAttribute("aria-expanded","true");setTimeout(()=>{const r=day.getBoundingClientRect();if(r.bottom>innerHeight)scrollBy({top:Math.min(r.bottom-innerHeight+16,r.top-80),behavior:"smooth"})},320)})};
+function dayForecasterBox(date){const ns=AFD_NOTES&&AFD_NOTES.byDate[date];if(!ns||!ns.length)return"";
+  const seen=new Set(),items=ns.filter(n=>!seen.has(n.text)&&seen.add(n.text));
+  return `<div class="dfc"><small><i class="afdmark"></i>NWS forecasters${AFD&&AFD.when?` · ${esc(AFD.when.replace(/^Updated /,""))}`:""}</small>${items.map(n=>`<p>${esc(n.text)}</p>`).join("")}</div>`}
+function dayNoteLine(date){const ns=AFD_NOTES&&AFD_NOTES.byDate[date];if(!ns||!ns.length)return"";
+  const u=[];ns.forEach(n=>{const t=shortLbl(n.label);if(!u.some(x=>x.t===t))u.push({t,hz:n.hz})});u.sort((a,b)=>b.hz-a.hz);
+  return `<em class="dnote${u[0].hz?" hz":""}"><i class="afdmark"></i>${esc(u[0].t)}</em>`}
 function dayDetail(j){
   const d=W.daily,h=W.hourly,date=d.time[j],idx=[];h.time.forEach((t,k)=>{if(t.slice(0,10)===date)idx.push(k)});if(!idx.length)return"";
   const col=k=>idx.map(i=>(h[k]||[])[i]).filter(v=>v!=null),avg=a=>a.length?a.reduce((x,y)=>x+y,0)/a.length:null,mx=a=>a.length?Math.max(...a):null,mn=a=>a.length?Math.min(...a):null;
@@ -1152,7 +1249,7 @@ function dayDetail(j){
   const sec=(t,body)=>`<div class="dsec"><h5>${t}</h5>${body}</div>`;
   return `<div class="dbox">
     <div class="dstrip">${st("High",U.t(d.temperature_2m_max[j]),`low ${U.t(d.temperature_2m_min[j])}`)}${st("Rain",`${chance}%`,wetDay?`${U.r(d.precipitation_sum[j])} ${U.rl()}`:"dry")}${st("Wind",`${U.w(mx(ws))}<em style="font-style:normal;font-size:10px;color:var(--muted);margin-left:2px">${U.wl()}</em>`,`gust ${U.w(mx(wg))}`)}${st("Clouds",ct==null?"--":Math.round(ct)+"%","avg cover")}</div>
-    <div class="dsum">${sum}</div>
+    <div class="dsum">${sum}</div>${dayForecasterBox(date)}
     <svg class="chart" viewBox="0 0 ${Wd} ${H}">${g}</svg>
     ${sec("Clouds by altitude",`${lay("High",F?"above 20k ft":"above 6 km",ch)}${lay("Mid",F?"6.5k – 20k ft":"2 – 6 km",cm)}${lay("Low",F?"below 6.5k ft":"below 2 km",cl)}
       <div class="kg" style="margin-top:10px">${st("Cloud base","~"+fmtAlt(base)+" AGL","afternoon estimate")}${st("Freezing level",fmtAlt(fzv)+" MSL","lowest today")}</div>`)}
