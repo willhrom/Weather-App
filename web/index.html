@@ -8,12 +8,12 @@
 <meta name="referrer" content="no-referrer">
 <title>Weather</title>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
 <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" integrity="sha384-MinO0mNliZ3vwppuPOUnGa+iq619pfMhLVUXfC4LHwSCvF9H+6P/KO4Q7qBOYV5V" crossorigin="anonymous">
 <style>
 :root{
   --bg:#08121f;--panel:rgba(16,32,54,.62);--panel2:rgba(255,255,255,.05);--line:rgba(140,190,255,.11);--line2:rgba(140,190,255,.2);
-  --text:#f0f5fb;--muted:#9fb2c8;--faint:#64799a;
+  --text:#f0f5fb;--muted:#b4c3d4;--faint:#8597b3;
   --accent:#7cc4ff;--water:#4cc9f0;--gust:#c792ea;--warn:#ff8a3d;--bad:#ff5468;
   --mono:"JetBrains Mono",ui-monospace,Menlo,monospace;
   --safe-top:env(safe-area-inset-top,0px);--safe-bot:env(safe-area-inset-bottom,0px);
@@ -43,10 +43,10 @@ body.mapopen .tabbar{display:none}
 .skyhead span{font-size:12px;color:var(--muted)}
 .lyr{display:grid;grid-template-columns:40px minmax(0,1fr) auto;align-items:center;gap:10px;padding:8px 0;border-top:1px solid var(--line);font-size:13px}
 .lyr .cv{font-family:var(--mono);font-size:11px;font-weight:500;text-align:center;padding:3px 0;border-radius:6px;background:rgba(255,255,255,.08)}
-.lyr .ci img{display:block;width:36px;height:22px;object-fit:contain}
+.lyr .ci img{display:block;width:44px;height:27px;object-fit:contain}
 .lyr .rg{color:var(--faint);font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.lyr .rg b{color:var(--text);font-weight:600;font-size:14px}
 .lyr .pc em{font-style:normal;color:var(--water);font-family:"Inter Tight",sans-serif;font-weight:600}
-.skykey .ki{display:inline-flex;align-items:center;gap:4px}.skykey .ki img{width:28px;height:17px;object-fit:contain}
+.skykey .ki{display:inline-flex;align-items:center;gap:4px}.skykey .ki img{width:34px;height:21px;object-fit:contain}
 .lyr .pc{font-family:var(--mono);color:var(--muted);font-size:12px}
 .skykey{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:11px;color:var(--muted);margin-top:10px}
 .skykey i{display:inline-block;width:14px;height:0;border-top:2px dashed #6fd3ff;vertical-align:middle;margin-right:5px}
@@ -67,7 +67,7 @@ body.mapopen .tabbar{display:none}
 
 /* panels */
 .panel{background:var(--panel);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid var(--line);border-radius:14px;margin-top:10px;overflow:hidden}
-.ph{display:flex;align-items:center;gap:8px;padding:11px 14px 0;font-size:10.5px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--faint)}
+.ph{display:flex;align-items:center;gap:8px;padding:11px 14px 0;font-size:11.5px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--faint)}
 .ph .r{margin-left:auto;letter-spacing:.04em;text-transform:none;font-weight:500;font-size:11.5px;color:var(--muted)}
 .pb{padding:12px 14px 14px}
 .err{color:var(--faint);font-size:13px;padding:4px 0}
@@ -95,21 +95,21 @@ body.mapopen .tabbar{display:none}
 .today{margin:14px 14px 0;border:1px solid var(--line);border-radius:12px;background:rgba(255,255,255,.035);padding:6px 12px 8px}
 .today p.ol{margin:4px 0 4px;font-size:14px;line-height:1.5;color:var(--text);font-weight:450}
 .today p.ol b{font-weight:650}
-.today h4{display:flex;align-items:center;justify-content:space-between;margin:6px 0 4px;font-size:10px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--faint)}
+.today h4{display:flex;align-items:center;justify-content:space-between;margin:6px 0 4px;font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--faint)}
 .today h4 b{font-family:var(--mono);font-size:11.5px;letter-spacing:0;text-transform:none;font-weight:500;color:var(--water);padding:2px 7px;border-radius:6px;background:rgba(76,201,240,.12)}
 .today h4 b.dry{color:var(--muted);background:rgba(255,255,255,.06)}
 .trow{display:grid;grid-template-columns:50px minmax(0,1fr);gap:8px;padding:6px 0;border-top:1px solid var(--line);font-size:13px;line-height:1.4;color:var(--muted)}
-.trow small{font-size:9.5px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--faint);padding-top:3px}
+.trow small{font-size:10.5px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--faint);padding-top:3px}
 .trow b{color:var(--text);font-weight:600}
 .outlook{font-size:13px;color:var(--muted);padding:12px 14px 0;line-height:1.45}
 .outlook b{color:var(--text);font-weight:600}
 .readouts{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:14px}
 @media (max-width:400px){.readouts{grid-template-columns:repeat(2,1fr)}}
 .ro{padding:10px 12px 11px;border:1px solid var(--line);border-radius:12px;background:rgba(255,255,255,.035);min-width:0}
-.ro small{display:block;font-size:9.5px;font-weight:600;letter-spacing:.13em;text-transform:uppercase;color:var(--faint)}
+.ro small{display:block;font-size:10.5px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--faint)}
 .ro b{display:block;font-family:var(--mono);font-size:22px;font-weight:400;letter-spacing:-.02em;margin-top:6px;white-space:nowrap;color:var(--text)}
 .ro b em{font-style:normal;font-size:11px;letter-spacing:0;color:var(--faint);margin-left:3px}
-.ro span{display:block;font-size:10.5px;color:var(--faint);margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ro span{display:block;font-size:11.5px;color:var(--faint);margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
 /* map (no blur behind the map — it can clip map rendering on Android) */
 #mapPanel{backdrop-filter:none;-webkit-backdrop-filter:none;background:#0b1a2c}
@@ -139,16 +139,16 @@ body.mapopen .tabbar{display:none}
 .player input{flex:1;accent-color:var(--accent);min-width:0}
 .player #ftime{font-family:var(--mono);font-size:11.5px;color:var(--muted);min-width:58px;text-align:right}
 .player #ftime.fut{color:#c792ea}
-.player.fut::before{content:"FORECAST";position:absolute;top:-20px;right:10px;font-size:9px;font-weight:700;letter-spacing:.14em;color:#c792ea;background:rgba(8,18,32,.86);padding:2px 6px;border-radius:5px}
+.player.fut::before{content:"FORECAST";position:absolute;top:-20px;right:10px;font-size:10.5px;font-weight:700;letter-spacing:.1em;color:#c792ea;background:rgba(8,18,32,.86);padding:2px 6px;border-radius:5px}
 .player input{border-radius:4px}
-.player .tl{flex:1;min-width:0;position:relative;padding:4px 0 14px}
+.player .tl{flex:1;min-width:0;position:relative;padding:4px 0 16px}
 .player .tl input{width:100%;margin:0;display:block}
-.tls{position:absolute;left:0;right:0;bottom:0;height:11px;font-family:var(--mono);font-size:9px;color:var(--faint)}
+.tls{position:absolute;left:0;right:0;bottom:0;height:13px;font-family:var(--mono);font-size:10.5px;color:var(--faint)}
 .tls span{position:absolute;top:0;white-space:nowrap}
 .tls .a{left:0}.tls .z{right:0}.tls .tnow{transform:translateX(-50%)}
 .tls span.tnow{color:var(--text);font-weight:600}
 .tls i{position:absolute;top:-13px;width:2px;height:10px;margin-left:-1px;border-radius:1px;background:#f0f5fb;opacity:.8}
-.legend{position:absolute;left:10px;z-index:6;bottom:62px;display:flex;flex-direction:column;gap:4px;font-size:10px;color:var(--muted);background:rgba(8,18,32,.86);border:1px solid var(--line2);border-radius:9px;padding:6px 8px;max-width:70%}
+.legend{position:absolute;left:10px;z-index:6;bottom:62px;display:flex;flex-direction:column;gap:4px;font-size:11px;color:var(--muted);background:rgba(8,18,32,.86);border:1px solid var(--line2);border-radius:9px;padding:6px 8px;max-width:70%}
 .mapfull .legend{bottom:calc(var(--safe-bot) + 68px)}
 .legend .lg{display:flex;align-items:center;gap:6px}
 .legend .lg i{display:block;width:84px;height:6px;border-radius:2px}
@@ -158,17 +158,17 @@ body.mapopen .tabbar{display:none}
 .edr{position:absolute;right:10px;top:56px;z-index:6;display:none;flex-direction:column;align-items:stretch;gap:6px;width:50px;background:rgba(8,18,32,.88);border:1px solid var(--line2);border-radius:12px;padding:7px 5px;user-select:none;-webkit-user-select:none}
 .edr.on{display:flex}
 .mapfull .edr{top:calc(var(--safe-top) + 152px)}
-.edr .eh{text-align:center;font-size:9px;font-weight:700;letter-spacing:.12em;color:var(--faint)}
+.edr .eh{text-align:center;font-size:10.5px;font-weight:700;letter-spacing:.12em;color:var(--faint)}
 .edr .eh b{display:block;font-family:var(--mono);font-size:15px;letter-spacing:0;color:var(--text);font-weight:600;margin-top:1px}
 .edr .rail{display:none;flex-direction:column;touch-action:none;position:relative;padding:2px 0}
 .mapfull .edr .rail{display:flex}
 .edr .rail::before{content:"";position:absolute;left:50%;top:6px;bottom:6px;width:2px;margin-left:-1px;background:var(--line2);border-radius:1px}
-.edr .rail span{position:relative;height:15px;line-height:15px;text-align:center;font-family:var(--mono);font-size:9.5px;color:var(--faint)}
+.edr .rail span{position:relative;height:15px;line-height:15px;text-align:center;font-family:var(--mono);font-size:10.5px;color:var(--faint)}
 .edr .rail span em{position:relative;font-style:normal;background:rgba(8,18,32,.95);padding:0 3px;border-radius:4px}
 .edr .rail span.on em{background:var(--accent);color:#06121f;font-weight:700;padding:1px 5px}
 .edr .ac{display:none;flex-direction:column;gap:3px;border-top:1px solid var(--line2);padding-top:6px}
 .mapfull .edr .ac{display:flex}
-.edr .ac button{font-size:9.5px;font-weight:600;padding:4px 0;border-radius:6px;color:var(--muted);background:rgba(255,255,255,.04)}
+.edr .ac button{font-size:10.5px;font-weight:600;padding:4px 0;border-radius:6px;color:var(--muted);background:rgba(255,255,255,.04)}
 .edr .ac button.on{background:rgba(124,196,255,.18);color:var(--text)}
 .legend .edrt{display:flex;align-items:center;gap:6px}
 .legend .edrt button{width:22px;height:20px;border-radius:6px;background:rgba(255,255,255,.07);color:var(--text);font-size:12px;line-height:1}
@@ -177,7 +177,7 @@ body.mapopen .tabbar{display:none}
 .layers{position:absolute;z-index:7;top:calc(var(--safe-top) + 58px);right:56px;width:min(300px,calc(100vw - 76px));max-height:calc(100% - var(--safe-top) - 150px);overflow-y:auto;
   background:rgba(11,24,42,.97);border:1px solid var(--line2);border-radius:14px;padding:6px 12px 12px;display:none}
 .layers.on{display:block}
-.layers h4{font-size:10px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--faint);margin:12px 0 4px}
+.layers h4{font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--faint);margin:12px 0 4px}
 .lrow{display:flex;align-items:center;gap:10px;width:100%;padding:8px 0;text-align:left;font-size:14px;border-bottom:1px solid var(--line)}
 .lrow:last-child{border-bottom:0}
 .lrow .t{flex:1}
@@ -191,7 +191,7 @@ body.mapopen .tabbar{display:none}
 .maplibregl-popup-content pre{font-family:var(--mono);font-size:11px;white-space:pre-wrap;margin:6px 0 0;color:var(--muted)}
 .maplibregl-popup-tip{border-top-color:#10213a!important;border-bottom-color:#10213a!important}
 .maplibregl-popup-close-button{color:var(--muted);font-size:18px;padding:0 6px}
-.maplibregl-ctrl-attrib{background:rgba(8,18,32,.7)!important;font-size:9px}
+.maplibregl-ctrl-attrib{background:rgba(8,18,32,.7)!important;font-size:10.5px}
 .maplibregl-ctrl-attrib a{color:var(--muted)!important}
 .maplibregl-ctrl-attrib-button{filter:invert(1)}
 .me{width:12px;height:12px;border-radius:50%;background:var(--accent);border:2px solid #06121f;box-shadow:0 0 0 5px rgba(124,196,255,.25)}
@@ -199,7 +199,7 @@ body.mapopen .tabbar{display:none}
 /* charts */
 .chart{width:100%}
 .chart text{font-family:var(--mono)}
-.legendrow{display:flex;gap:14px;font-size:10.5px;color:var(--faint);margin-top:8px}
+.legendrow{display:flex;gap:14px;font-size:11.5px;color:var(--faint);margin-top:8px}
 .legendrow i{display:inline-block;width:9px;height:3px;border-radius:2px;margin-right:5px;vertical-align:middle}
 
 /* tables */
@@ -215,12 +215,12 @@ body.mapopen .tabbar{display:none}
 .buoy span{flex:none;font-size:11px;color:var(--faint)}
 .uv{margin-top:14px;padding-top:12px;border-top:1px solid var(--line)}
 .uvh{display:grid;grid-template-columns:1fr auto;align-items:baseline;row-gap:3px}
-.uvh small{font-size:9.5px;font-weight:600;letter-spacing:.13em;text-transform:uppercase;color:var(--faint)}
+.uvh small{font-size:10.5px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--faint)}
 .uvh b{grid-row:span 2;font-family:var(--mono);font-size:26px;font-weight:300;letter-spacing:-.02em;color:var(--text)}
 .uvh b em{font-style:normal;font-size:12px;color:var(--muted);margin-left:3px}
 .uvh span{font-size:12.5px;color:var(--muted)}
 .uvh .dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:6px}
-.uvs{font-size:10.5px;color:var(--faint);margin-top:7px;line-height:1.45}
+.uvs{font-size:11.5px;color:var(--faint);margin-top:7px;line-height:1.45}
 .tr .tsub{display:inline;font-family:"Inter Tight",sans-serif;font-size:11px;color:var(--faint);margin-left:6px}
 
 /* wind */
@@ -238,7 +238,7 @@ body.mapopen .tabbar{display:none}
 .apt span{font-size:12.5px;color:var(--muted);flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .apt .badge{flex:none}
 .raw{font-family:var(--mono);font-size:11.5px;line-height:1.55;color:#b9c3cd;background:var(--panel2);border:1px solid var(--line);border-radius:9px;padding:9px 10px;margin-top:10px;white-space:pre-wrap;word-break:break-word}
-.raw small{display:block;font-family:"Inter Tight",sans-serif;font-size:9.5px;font-weight:600;letter-spacing:.13em;color:var(--faint);margin-bottom:4px}
+.raw small{display:block;font-family:"Inter Tight",sans-serif;font-size:10.5px;font-weight:600;letter-spacing:.1em;color:var(--faint);margin-bottom:4px}
 
 /* tide, moon */
 .split{display:flex;align-items:baseline;justify-content:space-between}
@@ -247,10 +247,10 @@ body.mapopen .tabbar{display:none}
 .split span{font-size:12px;color:var(--faint)}
 .cells{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:10px;overflow:hidden;margin-top:10px}
 .cell{background:var(--panel);padding:8px 4px;text-align:center}
-.cell small{display:block;font-size:9.5px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--faint)}
+.cell small{display:block;font-size:10.5px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--faint)}
 .cell b{display:block;font-family:var(--mono);font-size:14px;font-weight:500;margin:4px 0 2px;color:var(--text)}
-.cell span{font-family:var(--mono);font-size:10.5px;color:var(--faint)}
-.foot{font-size:10.5px;color:var(--faint);margin-top:9px}
+.cell span{font-family:var(--mono);font-size:11.5px;color:var(--faint)}
+.foot{font-size:11.5px;color:var(--faint);margin-top:9px}
 #alerts:not(:empty)+.firecard{margin-top:10px}
 .firecard{margin:0 0 12px;padding:13px 14px;border:1px solid var(--line2);border-radius:16px;background:linear-gradient(180deg,rgba(255,138,61,.09),rgba(255,138,61,.03)),var(--panel)}
 .firecard .fh{display:flex;align-items:center;gap:9px}
@@ -265,11 +265,11 @@ body.mapopen .tabbar{display:none}
 .afdmore{display:flex;justify-content:space-between;align-items:center;width:100%;margin-top:4px;padding:11px 0 0;border-top:1px solid var(--line);font-size:13px;font-weight:600;color:var(--accent);text-align:left}
 .afdmore span{font-size:11px;font-weight:400;color:var(--faint)}
 .afdx{padding:0 16px}
-.afdx summary small{display:block;font-size:10.5px;font-weight:400;color:var(--faint);margin-top:2px}
+.afdx summary small{display:block;font-size:11.5px;font-weight:400;color:var(--faint);margin-top:2px}
 .afdx details[open]{padding-bottom:6px}
 #afdSheet .afd h4{margin:18px 0 6px}
 .afd{font-size:13px;line-height:1.55;color:#c9d4df}
-.afd h4{margin:0 0 6px;font-size:11px;font-weight:700;letter-spacing:.13em;text-transform:uppercase;color:var(--faint)}
+.afd h4{margin:0 0 6px;font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--faint)}
 .afd p{margin:0 0 9px}
 .afd ul{margin:0 0 6px;padding-left:18px}
 .afd li{margin:0 0 7px}
@@ -293,8 +293,8 @@ details.afd[open]>summary::after{content:"–"}
 .moon p b{color:var(--text);font-family:var(--mono);font-weight:500}
 
 /* 10-day */
-.dgrid{display:grid;grid-template-columns:54px minmax(0,1fr) 40px 30px 72px 30px 18px;align-items:center}
-.dhead{font-size:9px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--faint);padding-bottom:6px}
+.dgrid{display:grid;grid-template-columns:54px minmax(0,1fr) 40px 30px 60px 32px 16px;align-items:center}
+.dhead{font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--faint);padding-bottom:6px}
 .dhead span{white-space:nowrap}
 .dhead span:nth-child(3),.dhead span:nth-child(4),.dhead span:nth-child(6){text-align:right;margin-right:-.1em}
 .dhead span:nth-child(5){text-align:center}
@@ -302,10 +302,10 @@ details.afd[open]>summary::after{content:"–"}
 .drow{width:100%;text-align:left;padding:10px 0;font-size:13px}
 .drow>*{min-width:0}
 .drow .d{font-weight:600;font-size:14.5px;line-height:1.15}
-.drow .d small{display:block;font-size:10px;font-weight:500;color:var(--faint);margin-top:1px;font-family:var(--mono)}
+.drow .d small{display:block;font-size:11px;font-weight:500;color:var(--faint);margin-top:1px;font-family:var(--mono)}
 .drow .c{color:var(--faint);font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-right:6px;line-height:1.2}
-.drow .c small{display:block;font-family:var(--mono);font-size:10.5px;color:var(--water);margin-top:1px}
-.drow .c .dnote{display:block;font-style:normal;font-size:10.5px;line-height:1.3;color:#9fb2c8;margin-top:3px;overflow:hidden;text-overflow:ellipsis}
+.drow .c small{display:block;font-family:var(--mono);font-size:11.5px;color:var(--water);margin-top:1px}
+.drow .c .dnote{display:block;font-style:normal;font-size:11px;line-height:1.3;color:#9fb2c8;margin-top:3px;overflow:hidden;text-overflow:ellipsis}
 .drow .c .dnote.hz{color:#ffc27a}
 .drow .c .dnote b{font-weight:600;color:var(--faint)}
 .afdmark{display:inline-block;width:6px;height:6px;border-radius:50%;background:#7cc4ff;margin-right:5px;vertical-align:1px}
@@ -313,7 +313,7 @@ details.afd[open]>summary::after{content:"–"}
 .afdmore.solo{border-top:0;padding-top:0;margin-top:0}
 .afdmore .h{font-size:12px;font-weight:400;color:var(--muted)}
 .dfc{margin:10px 0 4px;padding:9px 11px;border-radius:10px;background:rgba(124,196,255,.06);border:1px solid rgba(124,196,255,.14)}
-.dfc small{display:block;font-size:9.5px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--faint);margin-bottom:4px}
+.dfc small{display:block;font-size:10.5px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--faint);margin-bottom:4px}
 .dfc p{margin:4px 0 0;font-size:12.5px;line-height:1.45;color:#c9d4df}
 .drow .p{font-family:var(--mono);font-size:11.5px;color:var(--water);text-align:right}
 .drow .p.z{color:var(--faint)}
@@ -338,14 +338,14 @@ details.afd[open]>summary::after{content:"–"}
 .dsum{font-size:12.5px;color:var(--muted);line-height:1.45;margin:12px 0 8px}
 .dsum b{color:var(--text);font-weight:600}
 .ks{min-width:0}
-.ks small{display:block;font-size:9px;font-weight:600;letter-spacing:.11em;text-transform:uppercase;color:var(--faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ks small{display:block;font-size:10.5px;font-weight:600;letter-spacing:.11em;text-transform:uppercase;color:var(--faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .ks b{display:block;font-family:var(--mono);font-size:17px;color:var(--text);font-weight:400;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.ks span{display:block;font-size:10.5px;color:var(--faint);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ks span{display:block;font-size:11.5px;color:var(--faint);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .dsec{border-top:1px solid var(--line);margin-top:14px;padding-top:12px}
-.dsec h5{margin:0 0 10px;font-size:10px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--faint)}
+.dsec h5{margin:0 0 10px;font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--faint)}
 .kg{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 16px}
 .clay{display:grid;grid-template-columns:96px minmax(0,1fr) 40px;align-items:center;gap:10px;font-size:12.5px;color:var(--text);padding:4px 0}
-.clay small{display:block;margin:1px 0 0;letter-spacing:0;text-transform:none;font-weight:500;font-size:10.5px;color:var(--faint)}
+.clay small{display:block;margin:1px 0 0;letter-spacing:0;text-transform:none;font-weight:500;font-size:11.5px;color:var(--faint)}
 .clay .bar{height:6px;border-radius:3px;background:var(--line2);overflow:hidden}
 .clay .bar i{display:block;height:100%;border-radius:3px;background:linear-gradient(90deg,#9fb2c8,#f0f5fb)}
 .clay b{font-family:var(--mono);font-weight:400;color:var(--text);text-align:right}
@@ -358,13 +358,17 @@ details.afd[open]>summary::after{content:"–"}
 .sheet.on{transform:none}
 .grab{width:36px;height:4px;border-radius:2px;background:var(--line2);margin:0 auto 14px}
 .sheet h2{font-size:20px;font-weight:600;margin:0 0 12px}
-.sheet h3{font-size:10px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--faint);margin:20px 0 6px}
+.sheet h3{font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--faint);margin:20px 0 6px}
 .search{display:flex;align-items:center;gap:8px;background:var(--panel2);border:1px solid var(--line2);border-radius:10px;padding:0 12px}
 .search svg{width:16px;height:16px;color:var(--muted);flex:none}
 .search input{flex:1;background:none;border:0;outline:0;color:var(--text);font:inherit;font-size:16px;padding:12px 0}
 .row{display:flex;align-items:center;gap:12px;padding:11px 12px;border-radius:10px;border:1px solid var(--line);background:var(--panel);margin-top:6px;width:100%;text-align:left}
 .row.on{border-color:var(--accent)}
 .row .t{flex:1;min-width:0}.row .t b{display:block;font-weight:500;font-size:15px}.row .t span{font-size:12px;color:var(--muted)}
+.h3r{float:right;font-size:10.5px;font-weight:500;letter-spacing:.06em;text-transform:none;color:var(--faint)}
+#placeList .row{transition:transform .18s cubic-bezier(.2,.8,.2,1);user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+#placeList .row.dragging{transition:none;position:relative;z-index:2;border-color:var(--accent);background:#14273f;box-shadow:0 10px 26px rgba(0,0,0,.45)}
+#placeList.sorting{touch-action:none}
 .row .x{width:28px;height:28px;display:grid;place-items:center;color:var(--muted)}
 .row svg{width:16px;height:16px}
 .set{display:flex;align-items:center;justify-content:space-between;margin-top:10px;font-size:14px;color:var(--muted)}
@@ -454,7 +458,7 @@ details.afd[open]>summary::after{content:"–"}
   <h2>Locations</h2>
   <div class="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg><input id="q" placeholder="City, town, ZIP or airport (KSFO)" autocomplete="off" enterkeyhint="search"></div>
   <div id="results"></div>
-  <h3>Your places</h3>
+  <h3>Your places<span class="h3r" id="reorderHint">hold to reorder</span></h3>
   <div id="placeList"></div>
   <h3>Settings</h3>
   <div class="set">Follow my location<button class="tg" id="gpsSwitch" aria-label="Follow my location"></button></div>
@@ -477,7 +481,49 @@ details.afd[open]>summary::after{content:"–"}
 </div>
 <div class="toast" id="toast"></div>
 
-<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js" integrity="sha384-SYKAG6cglRMN0RVvhNeBY0r3FYKNOJtznwA0v7B5Vp9tr31xAHsZC0DqkQ/pZDmj" crossorigin="anonymous"></script>
+<script type="text/plain" id="wxWorkerSrc">
+// Tile worker: turns radar / precip-type images into smooth tiles off the main thread,
+// so scrolling, tapping and the map stay responsive while frames load.
+let N0QM=null,N0QL=null,BAND=null,PTM=null,PTC=null;const memo=new Map(),fields=new Map();
+function init(o){N0QM=new Map();for(let i=1;i<256;i++){const k=parseInt(o.pal.substr(i*6,6),16);if(!N0QM.has(k))N0QM.set(k,i/2-32.5)}
+  N0QL=[];for(let i=65;i<200;i++){const k=parseInt(o.pal.substr(i*6,6),16);N0QL.push([i/2-32.5,k>>16,k>>8&255,k&255])}N0QL.push(...o.refs);
+  BAND=o.band;PTM=new Map(o.ptMap);PTC=o.ptCol}
+function toDbz(r,g,b,tol){const ex=N0QM.get(r<<16|g<<8|b);if(ex!==undefined)return ex;const key=(r>>2<<12)|(g>>2<<6)|(b>>2);let m=memo.get(key);
+  if(m===undefined){let bd=1e9,v=-1;for(const q of N0QL){const dr=q[1]-r,dg=q[2]-g,db=q[3]-b,d=dr*dr+dg*dg+db*db;if(d<bd){bd=d;v=q[0]}}m=[v,bd];memo.set(key,m)}return m[1]>tol?-1:m[0]}
+function blur(src,w,h){const n=w*h,t=new Float32Array(n),o=new Float32Array(n);
+  for(let y=0;y<h;y++)for(let x=0;x<w;x++){const i=y*w+x;t[i]=(src[i-(x>0)]+src[i]+src[i+(x<w-1)])/3}
+  for(let y=0;y<h;y++)for(let x=0;x<w;x++){const i=y*w+x;o[i]=(t[i-(y>0?w:0)]+t[i]+t[i+(y<h-1?w:0)])/3}return o}
+async function pixels(buf){const bmp=await createImageBitmap(new Blob([buf])),w=bmp.width,h=bmp.height,c=new OffscreenCanvas(w,h),g=c.getContext("2d",{willReadFrequently:true});g.drawImage(bmp,0,0);return{bmp,w,h,a:g.getImageData(0,0,w,h).data}}
+async function radarField(buf,tol){const{bmp,w,h,a}=await pixels(buf),n=w*h;let cov=new Float32Array(n),val=new Float32Array(n),op=0,hit=0;
+  for(let i=0,k=0;k<n;i+=4,k++){if(a[i+3]<128)continue;op++;const v=toDbz(a[i],a[i+1],a[i+2],tol);if(v>=0)hit++;if(v>=10){cov[k]=1;val[k]=v}}
+  if(op>150&&hit<op*.85)return{raw:bmp,w,h};
+  for(let k=0;k<n;k++)val[k]*=cov[k];for(let p=0;p<2;p++){cov=blur(cov,w,h);val=blur(val,w,h)}return{w,h,cov,val}}
+async function ptField(buf){const{w,h,a}=await pixels(buf),n=w*h;let cov=[0,1,2,3].map(()=>new Float32Array(n)),val=new Float32Array(n),any=false;
+  for(let i=0,k=0;k<n;i+=4,k++){if(a[i+3]<128)continue;const e=PTM.get(a[i]<<16|a[i+1]<<8|a[i+2]);if(!e)continue;cov[e[0]][k]=1;val[k]=e[1];any=true}
+  if(!any)return{empty:true};for(let p=0;p<2;p++){cov=cov.map(c=>blur(c,w,h));val=blur(val,w,h)}return{w,h,cov,val,pt:1}}
+const ptColor=(t,v)=>{let c=null;for(const b of PTC[t])if(v>=b[0]-5)c=b[1];return c};
+async function tile(F,d,ox,oy){const S=512,n=1<<d,sz=F.w/n,sx=ox*sz,sy=oy*sz,c=new OffscreenCanvas(S,S),g=c.getContext("2d");
+  if(F.raw){g.imageSmoothingQuality="high";g.drawImage(F.raw,sx,sy,sz,sz,0,0,S,S);return(await c.convertToBlob({type:"image/png"})).arrayBuffer()}
+  const img=g.createImageData(S,S),o=img.data,W0=F.w,H0=F.h,st=sz/S;let any=false;
+  for(let yy=0;yy<S;yy++){const fy=Math.min(H0-1.001,Math.max(0,sy+(yy+.5)*st-.5)),y0=fy|0,ty=fy-y0,r0=y0*W0,r1=Math.min(H0-1,y0+1)*W0;
+    for(let xx=0;xx<S;xx++){const fx=Math.min(W0-1.001,Math.max(0,sx+(xx+.5)*st-.5)),x0=fx|0,tx=fx-x0,x1=Math.min(W0-1,x0+1),w00=(1-tx)*(1-ty),w10=tx*(1-ty),w01=(1-tx)*ty,w11=tx*ty,i=(yy*S+xx)*4;
+      if(F.pt){let tot=0,bt=0,bc=-1;for(let t=0;t<4;t++){const cv=F.cov[t],v=cv[r0+x0]*w00+cv[r0+x1]*w10+cv[r1+x0]*w01+cv[r1+x1]*w11;tot+=v;if(v>bc){bc=v;bt=t}}
+        if(tot<.4)continue;const v=(F.val[r0+x0]*w00+F.val[r0+x1]*w10+F.val[r1+x0]*w01+F.val[r1+x1]*w11)/tot;
+        let col;if(bt===0){const b=BAND[Math.max(0,Math.min(80,Math.round(Math.max(v,10))))];col=b}else col=ptColor(bt,v);if(!col)continue;
+        o[i]=col[0];o[i+1]=col[1];o[i+2]=col[2];o[i+3]=Math.round(240*Math.min(1,(tot-.4)/.2));any=true;continue}
+      const cv=F.cov[r0+x0]*w00+F.cov[r0+x1]*w10+F.cov[r1+x0]*w01+F.cov[r1+x1]*w11;if(cv<.4)continue;
+      const v=(F.val[r0+x0]*w00+F.val[r0+x1]*w10+F.val[r1+x0]*w01+F.val[r1+x1]*w11)/cv,b=BAND[Math.max(0,Math.min(80,Math.round(v)))];if(!b)continue;
+      o[i]=b[0];o[i+1]=b[1];o[i+2]=b[2];o[i+3]=Math.round(255*b[3]*Math.min(1,(cv-.4)/.2));any=true}}
+  if(!any)return null;g.putImageData(img,0,0);return(await c.convertToBlob({type:"image/png"})).arrayBuffer()}
+onmessage=async e=>{const m=e.data;if(m.init){init(m.init);return}
+  try{let F=fields.get(m.url);
+    if(!F&&m.buf){F=await (m.kind==="pt"?ptField(m.buf):radarField(m.buf,m.tol||1200));fields.set(m.url,F);if(fields.size>90)fields.delete(fields.keys().next().value)}
+    if(!F){postMessage({id:m.id,miss:true});return}
+    if(F.empty){postMessage({id:m.id,data:null});return}
+    const data=await tile(F,m.d,m.ox,m.oy);postMessage({id:m.id,data},data?[data]:[])}
+  catch(err){postMessage({id:m.id,data:null,err:String(err)})}};
+</script>
+<script async onload="window.mlLoaded&&mlLoaded()" src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js" integrity="sha384-SYKAG6cglRMN0RVvhNeBY0r3FYKNOJtznwA0v7B5Vp9tr31xAHsZC0DqkQ/pZDmj" crossorigin="anonymous"></script>
 <script>
 "use strict";
 const REPO="__REPO__",BUILD="__BUILD__";
@@ -559,8 +605,18 @@ async function load(){
   }catch(e){console.error(e);const c=place&&store.get("wx.cache:"+place.id,null);if(c&&!W){W=c.W;off=W.utc_offset_seconds||0;renderAll()}$("#updated").textContent="Couldn't update — check your connection"}
   finally{loading=false;$("#refreshBtn").classList.remove("spin")}
 }
+/* Each tab's data loads when that tab is first opened (per place/refresh); the visible tab goes first,
+   light extras for the others are fetched once the app is idle. Keeps start-up fast on a phone. */
+const TABJOBS={now:[renderNow,renderHours,renderRain,renderWind,renderMoon,renderMap,renderAlerts],days:[renderDaily,renderAFD],sky:[renderAirport,renderAFD],
+  tides:[renderTide,renderCurrents,renderWaves,renderWater,renderAFD]},IDLEJOBS=[renderSeason,renderDaily,renderAFD,renderAirport,renderTide];
+let jobsDone=new Set(),jobGen=0;
+function runJob(f){if(jobsDone.has(f))return;jobsDone.add(f);try{const r=f();if(r&&r.catch)r.catch(e=>console.error(f.name,e))}catch(e){console.error(f.name,e)}}
+function runTabJobs(t){(TABJOBS[t]||[]).forEach(runJob)}
+const idle=(fn,t=2500)=>window.requestIdleCallback?requestIdleCallback(fn,{timeout:t}):setTimeout(fn,400);
 function renderAll(){
-  for(const f of [renderWater,fxFromWeather,renderSkyIfOpen,renderNow,renderHours,renderRain,renderWind,renderMoon,renderDaily,renderMap,renderTide,renderAirport,renderAlerts,renderSeason,renderAFD,renderCurrents,renderWaves]){try{f()}catch(e){console.error(f.name,e)}}
+  jobsDone=new Set();const gen=++jobGen;runJob(fxFromWeather);runTabJobs(TAB);try{renderSkyIfOpen()}catch(e){console.error(e)}
+  if(TAB!=="now")runTabJobs("now"); // the Today tab is cheap and is where people land
+  let i=0;const next=()=>{if(gen!==jobGen||i>=IDLEJOBS.length)return;runJob(IDLEJOBS[i++]);idle(next)};setTimeout(()=>idle(next),600);
   $("#updated").textContent=(place.sub?place.sub+" · ":"")+"Updated "+fTime(nowWall());
 }
 function hourIndex(){const t=W.hourly.time,n=nowWall();let i=0;while(i+1<t.length&&wall(t[i+1])<=n)i++;return i}
@@ -655,14 +711,14 @@ function renderToday(){
 /* ---------- next 24 h ---------- */
 function renderHours(){
   const h=W.hourly,i=hourIndex(),n=Math.min(25,h.time.length-i),T=h.temperature_2m.slice(i,i+n),PP=h.precipitation_probability.slice(i,i+n),WC=h.weather_code.slice(i,i+n);
-  const lo=Math.min(...T),hi=Math.max(...T),Wd=340,H=150,top=24,bot=94,X=k=>14+k*(Wd-28)/(n-1),Y=v=>bot-(v-lo)/((hi-lo)||1)*(bot-top);
+  const lo=Math.min(...T),hi=Math.max(...T),Wd=340,H=156,top=24,bot=94,X=k=>14+k*(Wd-28)/(n-1),Y=v=>bot-(v-lo)/((hi-lo)||1)*(bot-top);
   const pts=T.map((v,k)=>[X(k),Y(v)]);let path="M"+pts[0];for(let k=1;k<pts.length;k++){const [x0,y0]=pts[k-1],[x1,y1]=pts[k],mx=(x0+x1)/2;path+=`C${mx} ${y0} ${mx} ${y1} ${x1} ${y1}`}
   let g=`<defs><linearGradient id="tf" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7cc4ff" stop-opacity=".22"/><stop offset="1" stop-color="#7cc4ff" stop-opacity="0"/></linearGradient></defs>`;
   for(let k=0;k<n;k++){const p=PP[k]||0;if(p>0){const bh=p/100*30;g+=`<rect x="${X(k)-3.5}" y="${126-bh}" width="7" height="${bh}" rx="1.5" fill="#4cc9f0" opacity="${.25+p/140}"/>`}}
   g+=`<line x1="10" y1="126" x2="${Wd-10}" y2="126" stroke="#1c2d44"/><path d="${path}L${X(n-1)} ${bot+4}L${X(0)} ${bot+4}z" fill="url(#tf)"/><path d="${path}" fill="none" stroke="#f0f5fb" stroke-width="2"/>`;
-  for(let k=0;k<n-1;k++){const c=WC[k],col=c<=1?"#ffc94d":c<=3?"#64799a":c<=48?"#9fb2c8":c<=67||(c>=80&&c<=82)?"#4cc9f0":c<=86?"#e9eef3":"#c792ea";g+=`<rect x="${X(k)}" y="${H-12}" width="${X(k+1)-X(k)+.5}" height="3" fill="${col}" opacity=".85"/>`}
-  for(let k=0;k<n;k+=3){g+=`<circle cx="${X(k)}" cy="${Y(T[k])}" r="2.5" fill="#0b1a2c" stroke="#f0f5fb" stroke-width="1.5"/><text x="${X(k)}" y="${Y(T[k])-8}" fill="#e9eef3" font-size="10" text-anchor="middle">${Math.round(T[k])}°</text>`;
-    g+=`<text x="${X(k)}" y="${H-1}" fill="#64799a" font-size="9" text-anchor="middle">${k===0?"now":fHour(wall(h.time[i+k]))}</text>`;if(PP[k]>=20)g+=`<text x="${X(k)}" y="${120-PP[k]/100*30}" fill="#4cc9f0" font-size="8.5" text-anchor="middle">${PP[k]}</text>`}
+  for(let k=0;k<n-1;k++){const c=WC[k],col=c<=1?"#ffc94d":c<=3?"#8597b3":c<=48?"#9fb2c8":c<=67||(c>=80&&c<=82)?"#4cc9f0":c<=86?"#e9eef3":"#c792ea";g+=`<rect x="${X(k)}" y="${H-19}" width="${X(k+1)-X(k)+.5}" height="3" fill="${col}" opacity=".85"/>`}
+  for(let k=0;k<n;k+=3){g+=`<circle cx="${X(k)}" cy="${Y(T[k])}" r="2.5" fill="#0b1a2c" stroke="#f0f5fb" stroke-width="1.5"/><text x="${X(k)}" y="${Y(T[k])-8}" fill="#e9eef3" font-size="11" text-anchor="middle">${Math.round(T[k])}°</text>`;
+    g+=`<text x="${X(k)}" y="${H-2}" fill="#8597b3" font-size="10.5" text-anchor="middle">${k===0?"now":fHour(wall(h.time[i+k]))}</text>`;if(PP[k]>=20)g+=`<text x="${X(k)}" y="${120-PP[k]/100*30}" fill="#4cc9f0" font-size="10" text-anchor="middle">${PP[k]}</text>`}
   $("#hours").innerHTML=`<svg class="chart fade" viewBox="0 0 ${Wd} ${H}">${g}</svg><div class="legendrow"><span><i style="background:#f0f5fb"></i>Temp</span><span><i style="background:#4cc9f0"></i>Rain chance %</span><span><i style="background:linear-gradient(90deg,#ffc94d,#64799a,#4cc9f0)"></i>Sky</span></div>`;
   $("#hrsNote").textContent=`${U.t(lo)} – ${U.t(hi)}`;
 }
@@ -687,8 +743,8 @@ function renderRain(){
   const mx=Math.max(S.rain==="in"?.25:6,...vals.map(v=>v[1])),Wd=340,H=100,bw=(Wd-8)/vals.length;
   let g="";vals.forEach(([j,v],k)=>{const x=4+k*bw+bw*.2,w=bw*.6,bh=Math.max(v>0?2.5:1,v/mx*(H-34)),y=H-18-bh,isT=j===ti,fut=j>ti;
     g+=`<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${w.toFixed(1)}" height="${bh.toFixed(1)}" rx="1.5" fill="${isT?"#e9eef3":fut?"rgba(76,201,240,.4)":"#4cc9f0"}"${v===0?' opacity=".3"':""}/>`;
-    if(v>=(S.rain==="in"?.05:1))g+=`<text x="${(x+w/2).toFixed(1)}" y="${(y-4).toFixed(1)}" fill="#9fb2c8" font-size="8.5" text-anchor="middle">${U.r(v).replace(/^0\./,".")}</text>`;
-    g+=`<text x="${(x+w/2).toFixed(1)}" y="${H-4}" fill="${isT?"#e9eef3":"#64799a"}" font-size="9" text-anchor="middle">${isT?"today":fDay(wall(d.time[j]))[0]}</text>`});
+    if(v>=(S.rain==="in"?.05:1))g+=`<text x="${(x+w/2).toFixed(1)}" y="${(y-4).toFixed(1)}" fill="#b4c3d4" font-size="10" text-anchor="middle">${U.r(v).replace(/^0\./,".")}</text>`;
+    g+=`<text x="${(x+w/2).toFixed(1)}" y="${H-4}" fill="${isT?"#e9eef3":"#8597b3"}" font-size="10.5" text-anchor="middle">${isT?"today":fDay(wall(d.time[j]))[0]}</text>`});
   const tx=4+(ti-from)*bw;g+=`<line x1="${tx}" y1="4" x2="${tx}" y2="${H-18}" stroke="#2a3f5c" stroke-dasharray="2 3"/>`;
   const tr=(l,v,f)=>`<div class="tr"><span>${l}</span><b class="${f?"fcv":""}">${U.r(v)}</b></div>`;
   $("#rain").innerHTML=`<svg class="chart fade" viewBox="0 0 ${Wd} ${H}">${g}</svg><div class="legendrow"><span><i style="background:#4cc9f0"></i>Observed (7 days)</span><span><i style="background:rgba(76,201,240,.4)"></i>Forecast</span></div>
@@ -702,7 +758,7 @@ function vane(dir){
   const C=75,R=62;let t="";
   for(let a=0;a<360;a+=10){const r=a*Math.PI/180,card=a%90===0,len=card?7:a%30===0?5:2.5;
     t+=`<line x1="${C+Math.sin(r)*R}" y1="${C-Math.cos(r)*R}" x2="${C+Math.sin(r)*(R-len)}" y2="${C-Math.cos(r)*(R-len)}" stroke="${card?"#9fb2c8":"#24364f"}" stroke-width="${card?1.5:1}"/>`}
-  const lab=(s,a)=>{const r=a*Math.PI/180;return `<text x="${C+Math.sin(r)*(R+9)}" y="${C-Math.cos(r)*(R+9)}" fill="${s==="N"?"#e9eef3":"#64799a"}" font-size="9.5" font-weight="600" text-anchor="middle" dominant-baseline="central" font-family="Inter Tight">${s}</text>`};
+  const lab=(s,a)=>{const r=a*Math.PI/180;return `<text x="${C+Math.sin(r)*(R+9)}" y="${C-Math.cos(r)*(R+9)}" fill="${s==="N"?"#e9eef3":"#8597b3"}" font-size="11" font-weight="600" text-anchor="middle" dominant-baseline="central" font-family="Inter Tight">${s}</text>`};
   // tail sits at the direction the wind comes FROM, arrowhead points downwind
   return `<svg class="vane" viewBox="0 0 150 150"><circle cx="${C}" cy="${C}" r="${R}" fill="none" stroke="#1c2d44"/>${t}${lab("N",0)}${lab("E",90)}${lab("S",180)}${lab("W",270)}
    <g transform="rotate(${dir} ${C} ${C})"><path d="M${C} ${C-R+10} L${C+3.2} ${C-R+19} L${C} ${C-R+17} L${C-3.2} ${C-R+19}Z" fill="#7cc4ff" opacity=".35"/>
@@ -713,7 +769,7 @@ function renderWind(){
   const c=W.current,h=W.hourly,i=hourIndex(),n=Math.min(25,h.time.length-i),sp=h.wind_speed_10m.slice(i,i+n),gu=h.wind_gusts_10m.slice(i,i+n),dr=h.wind_direction_10m.slice(i,i+n);
   const mx=Math.max(10,...gu)*1.12,Wd=340,H=112,top=22,bot=H-16,X=k=>12+k*(Wd-24)/(n-1),Y=v=>bot-(v/mx)*(bot-top),line=a=>a.map((v,k)=>(k?"L":"M")+X(k).toFixed(1)+" "+Y(v).toFixed(1)).join("");
   let g=`<path d="${line(gu)}L${X(n-1)} ${bot}L${X(0)} ${bot}z" fill="#c792ea" opacity=".1"/><path d="${line(gu)}" fill="none" stroke="#c792ea" stroke-width="1.2" stroke-dasharray="3 3"/><path d="${line(sp)}" fill="none" stroke="#7cc4ff" stroke-width="2"/>`;
-  for(let k=0;k<n;k+=3)g+=`<g transform="translate(${X(k).toFixed(1)} 9) rotate(${dr[k]+180})"><path d="M0 -5.5L3 3.5L0 2L-3 3.5Z" fill="#9fb2c8"/></g><text x="${X(k).toFixed(1)}" y="${H-2}" fill="#64799a" font-size="9" text-anchor="middle">${k===0?"now":fHour(wall(h.time[i+k]))}</text>`;
+  for(let k=0;k<n;k+=3)g+=`<g transform="translate(${X(k).toFixed(1)} 9) rotate(${dr[k]+180})"><path d="M0 -5.5L3 3.5L0 2L-3 3.5Z" fill="#b4c3d4"/></g><text x="${X(k).toFixed(1)}" y="${H-2}" fill="#8597b3" font-size="10.5" text-anchor="middle">${k===0?"now":fHour(wall(h.time[i+k]))}</text>`;
   $("#wind").innerHTML=`<div class="wind fade">${vane(c.wind_direction_10m)}<div class="wv"><div class="big">${U.w(c.wind_speed_10m)}<em>${U.wl()}</em></div>
     <p>From <b>${dirName(c.wind_direction_10m)} ${String(Math.round(c.wind_direction_10m)).padStart(3,"0")}°</b></p><p>Gusts <b>${U.w(c.wind_gusts_10m)}</b> · peak today <b>${U.w(W.daily.wind_gusts_10m_max[todayIndex()])}</b></p><p>${beaufort(c.wind_speed_10m)}</p></div></div>
     <svg class="chart" viewBox="0 0 ${Wd} ${H}" style="margin-top:10px">${g}</svg><div class="legendrow"><span><i style="background:#7cc4ff"></i>Speed</span><span><i style="background:#c792ea"></i>Gusts</span><span style="margin-left:auto">arrows show heading</span></div>`;
@@ -793,10 +849,10 @@ async function renderTide(){
   let cur=null,rising=null;for(let k=1;k<T.pts.length;k++)if(T.pts[k][0]>=n){const p=T.pts[k-1],q=T.pts[k],f=(n-p[0])/(q[0]-p[0]);cur=p[1]+(q[1]-p[1])*f;rising=q[1]>p[1];break}
   let g=`<defs><linearGradient id="tg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4cc9f0" stop-opacity=".28"/><stop offset="1" stop-color="#4cc9f0" stop-opacity="0"/></linearGradient><clipPath id="tc"><rect width="${Wd}" height="${H}"/></clipPath></defs><g clip-path="url(#tc)">`;
   g+=`<path d="${path}L${X(pts[pts.length-1][0])} ${bot}L${X(pts[0][0])} ${bot}z" fill="url(#tg)"/><path d="${path}" fill="none" stroke="#4cc9f0" stroke-width="1.8"/><line x1="0" y1="${bot}" x2="${Wd}" y2="${bot}" stroke="#1c2d44"/>`;
-  for(let m=dayStart(a)+864e5;m<b;m+=864e5)g+=`<line x1="${X(m)}" y1="${top-6}" x2="${X(m)}" y2="${bot}" stroke="#2a3f5c" stroke-dasharray="2 3"/><text x="${X(m)+4}" y="${top-2}" fill="#64799a" font-size="9">${fDay(m)}</text>`;
-  for(const e of T.ext)if(e[0]>a&&e[0]<b){const x=X(e[0]),y=Y(e[1]);g+=`<circle cx="${x}" cy="${y}" r="2.5" fill="#e9eef3"/><text x="${x}" y="${e[2]==="High"?y-7:y+14}" fill="#9fb2c8" font-size="9" text-anchor="middle">${fT(e[0])}</text>`}
-  if(cur!=null)g+=`<line x1="${X(n)}" y1="${top-4}" x2="${X(n)}" y2="${bot}" stroke="#64799a"/><circle cx="${X(n)}" cy="${Y(cur)}" r="4.5" fill="#4cc9f0" stroke="#0b1a2c" stroke-width="2"/>`;
-  for(let t=dayStart(a)+Math.ceil((a-dayStart(a))/216e5)*216e5;t<b;t+=216e5)g+=`<text x="${X(t)}" y="${H-3}" fill="#64799a" font-size="9" text-anchor="middle">${fHour(t)}</text>`;
+  for(let m=dayStart(a)+864e5;m<b;m+=864e5)g+=`<line x1="${X(m)}" y1="${top-6}" x2="${X(m)}" y2="${bot}" stroke="#2a3f5c" stroke-dasharray="2 3"/><text x="${X(m)+4}" y="${top-2}" fill="#8597b3" font-size="10.5">${fDay(m)}</text>`;
+  for(const e of T.ext)if(e[0]>a&&e[0]<b){const x=X(e[0]),y=Y(e[1]);g+=`<circle cx="${x}" cy="${y}" r="2.5" fill="#e9eef3"/><text x="${x}" y="${e[2]==="High"?y-7:y+14}" fill="#b4c3d4" font-size="10.5" text-anchor="middle">${fT(e[0])}</text>`}
+  if(cur!=null)g+=`<line x1="${X(n)}" y1="${top-4}" x2="${X(n)}" y2="${bot}" stroke="#8597b3"/><circle cx="${X(n)}" cy="${Y(cur)}" r="4.5" fill="#4cc9f0" stroke="#0b1a2c" stroke-width="2"/>`;
+  for(let t=dayStart(a)+Math.ceil((a-dayStart(a))/216e5)*216e5;t<b;t+=216e5)g+=`<text x="${X(t)}" y="${H-3}" fill="#8597b3" font-size="10.5" text-anchor="middle">${fHour(t)}</text>`;
   g+="</g>";const next=T.ext.filter(e=>e[0]>n).slice(0,4),nx=next[0];
   $("#tideNote").textContent=T.dist;
   el.innerHTML=`<div class="split fade"><div class="v">${cur!=null?U.h(cur):"--"}<em>${U.hl()}</em></div><span>${rising==null?"":rising?"Rising":"Falling"}${nx?` · ${nx[2].toLowerCase()} ${fTime(nx[0])}`:""}</span></div>
@@ -851,7 +907,7 @@ async function renderWater(){
   const nF=F?now:now*9/5+32,feel=nF<55?["Cold","wetsuit needed"]:nF<62?["Chilly","wetsuit recommended"]:nF<70?["Cool","refreshing for most"]:nF<78?["Comfortable","good for swimming"]:["Warm","bath-like"];
   let chart="";if(series.length>6){const lo=Math.min(...series.map(p=>p[1])),hi=Math.max(...series.map(p=>p[1])),Wd=340,H=70,a=series[0][0],b=series[series.length-1][0],X=t=>8+(t-a)/(b-a)*(Wd-16),Y=v=>H-16-(v-lo)/((hi-lo)||1)*(H-30);
     const path=series.map((p,k)=>(k?"L":"M")+X(p[0]).toFixed(1)+" "+Y(p[1]).toFixed(1)).join("");let g=`<path d="${path}" fill="none" stroke="#4cc9f0" stroke-width="1.8"/>`;
-    for(let m=dayStart(a)+864e5;m<b;m+=864e5)g+=`<line x1="${X(m)}" y1="4" x2="${X(m)}" y2="${H-14}" stroke="#2a3f5c" stroke-dasharray="2 3"/><text x="${X(m)+3}" y="${H-3}" fill="#64799a" font-size="9">${fDay(m)}</text>`;
+    for(let m=dayStart(a)+864e5;m<b;m+=864e5)g+=`<line x1="${X(m)}" y1="4" x2="${X(m)}" y2="${H-14}" stroke="#2a3f5c" stroke-dasharray="2 3"/><text x="${X(m)+3}" y="${H-3}" fill="#8597b3" font-size="10.5">${fDay(m)}</text>`;
     const n=nowWall();if(n>a&&n<b){let k=0;while(k+1<series.length&&series[k+1][0]<=n)k++;g+=`<circle cx="${X(n)}" cy="${Y(series[k][1])}" r="3.5" fill="#4cc9f0" stroke="#0b1a2c" stroke-width="2"/>`}
     chart=`<svg class="chart" viewBox="0 0 ${Wd} ${H}" style="margin-top:12px">${g}</svg><div class="legendrow"><span>3-day forecast ${Math.round(lo)}°–${Math.round(hi)}°</span></div>`}
   $("#wtNote").textContent=ago!=null&&ago!==""?`${ago} min ago`:"";
@@ -886,11 +942,11 @@ async function renderSeason(){
   if(days.length&&days[days.length-1][0]===dayStart(nowWall())){const h=W.hourly,i=hourIndex(),t0=dayStart(nowWall());let s=0;for(let k=i;k>=0&&wall(h.time[k])>=t0;k--)s+=h.precipitation[k]||0;days[days.length-1][1]=s*mm}
   let run=0;const cum=days.map(([t,v])=>[t,run+=v]),total=run,dn=Math.min(365,Math.round((dayStart(nowWall())-ws)/864e5)),normTo=norm.c[dn],normAll=norm.c[365],pct=normTo>0?Math.round(total/normTo*100):null;
   const Wd=340,H=120,top=10,bot=H-18,X=k=>6+k/365*(Wd-12),mx=Math.max(normAll,total)*1.08||1,Y=v=>bot-v/mx*(bot-top);
-  let g=`<path d="${norm.c.map((v,k)=>(k?"L":"M")+X(k).toFixed(1)+" "+Y(v).toFixed(1)).join("")}" fill="none" stroke="#64799a" stroke-width="1.4" stroke-dasharray="3 3"/>`;
+  let g=`<path d="${norm.c.map((v,k)=>(k?"L":"M")+X(k).toFixed(1)+" "+Y(v).toFixed(1)).join("")}" fill="none" stroke="#8597b3" stroke-width="1.4" stroke-dasharray="3 3"/>`;
   g+=`<path d="${cum.map(([t,v],k)=>(k?"L":"M")+X((t-ws)/864e5).toFixed(1)+" "+Y(v).toFixed(1)).join("")}L${X(dn).toFixed(1)} ${bot}L${X(0)} ${bot}z" fill="#4cc9f0" opacity=".12"/>`;
   g+=`<path d="${cum.map(([t,v],k)=>(k?"L":"M")+X((t-ws)/864e5).toFixed(1)+" "+Y(v).toFixed(1)).join("")}" fill="none" stroke="#4cc9f0" stroke-width="2"/><circle cx="${X(dn)}" cy="${Y(total)}" r="3.5" fill="#4cc9f0" stroke="#0b1a2c" stroke-width="2"/>`;
   g+=`<line x1="0" y1="${bot}" x2="${Wd}" y2="${bot}" stroke="#1c2d44"/>`;
-  ["Oct","Dec","Feb","Apr","Jun","Aug"].forEach((m,k)=>{const x=X([0,61,123,182,243,304][k]);g+=`<text x="${x}" y="${H-3}" fill="#64799a" font-size="9">${m}</text>`});
+  ["Oct","Dec","Feb","Apr","Jun","Aug"].forEach((m,k)=>{const x=X([0,61,123,182,243,304][k]);g+=`<text x="${x}" y="${H-3}" fill="#8597b3" font-size="10.5">${m}</text>`});
   const tone=pct==null?"":pct>=115?"Wetter than normal":pct>=85?"About normal":pct>=50?"Drier than normal":"Much drier than normal";
   el.innerHTML=`<div class="split fade"><div class="v">${U.r(mmU(total))}<em>${U.rl()}</em></div><span>${pct!=null?`<b style="color:var(--text)">${pct}%</b> of normal · ${tone.toLowerCase()}`:""}</span></div>
     <svg class="chart" viewBox="0 0 ${Wd} ${H}" style="margin-top:8px">${g}</svg>
@@ -1019,10 +1075,10 @@ async function renderAFD(){
     AFD_NOTES=lead&&/KEY MESSAGES/.test(lead[0])?buildAfdNotes(lead[1],t):{byDate:{},loose:[]};
     const mapped=Object.keys(AFD_NOTES.byDate).length>0,loose=mapped?AFD_NOTES.loose:null;
     const body=loose==null?(lead?para(lead[1]):""):loose.length?`<ul>${loose.map(b=>`<li>${esc(b)}</li>`).join("")}</ul>`:"";
-    $("#afd").innerHTML=`${body?`<div class="afd fade">${body}</div>`:""}<button class="afdmore${body?"":" solo"}" id="afdOpen">${mapped?`<span class="h"><i class="afdmark"></i>Their notes are on each day below</span>`:""}Full discussion ›</button>`;
-    $("#afdPanel").style.display=lead?"":"none";if(W)try{renderDaily()}catch(e){}
+    // only key points that don't name a day get a card; the rest live on their days below
+    $("#afd").innerHTML=body?`<div class="afd fade">${body}</div>`:"";
+    $("#afdPanel").style.display=body?"":"none";if(W)try{renderDaily()}catch(e){}
     $("#afdFull").innerHTML=`<div class="afd"><p class="dim">NWS ${esc(office)}${when?" · "+esc(when):""}</p>${secs.map(x=>`<h4>${esc(nice(x[0]))}</h4>${/WATCHES|WARNINGS/.test(x[0])?`<pre>${esc(x[1].trim())}</pre>`:para(x[1])}`).join("")}</div>`;
-    $("#afdOpen").onclick=()=>{$("#afdSheet").classList.add("on");$("#scrim").classList.add("on");$("#afdSheet").scrollTop=0};
     // topic notes, collapsed by default
     const block=(id,title,parts)=>{const el=$(id);parts=parts.filter(Boolean);if(!parts.length){el.style.display="none";return}
       el.innerHTML=`<details class="afd"><summary><span>${title}<small>NWS ${esc(office)}${when?" · "+esc(when):""}</small></span></summary>${parts.map(x=>(parts.length>1?`<h4>${esc(nice(x[0]))}</h4>`:"")+para(x[1])).join("")}</details>`;el.style.display=""};
@@ -1055,10 +1111,10 @@ async function renderCurrents(){
     let g=`<defs><clipPath id="cc"><rect width="${Wd}" height="${H}"/></clipPath><clipPath id="cup"><rect width="${Wd}" height="${mid}"/></clipPath><clipPath id="cdn"><rect y="${mid}" width="${Wd}" height="${H}"/></clipPath></defs><g clip-path="url(#cc)">`;
     g+=`<path d="${path}L${X(vis[vis.length-1][0])} ${mid}L${X(vis[0][0])} ${mid}z" fill="#4cc9f0" opacity=".2" clip-path="url(#cup)"/><path d="${path}L${X(vis[vis.length-1][0])} ${mid}L${X(vis[0][0])} ${mid}z" fill="#ffb547" opacity=".24" clip-path="url(#cdn)"/>`;
     g+=`<line x1="0" y1="${mid}" x2="${Wd}" y2="${mid}" stroke="#2a3f5c"/><path d="${path}" fill="none" stroke="#e9eef3" stroke-width="1.6"/>`;
-    g+=`<text x="4" y="12" fill="#4cc9f0" font-size="9">FLOOD ${fd!=null?String(Math.round(fd)).padStart(3,"0")+"°":""}</text><text x="4" y="${H-22}" fill="#ffb547" font-size="9">EBB ${ed!=null?String(Math.round(ed)).padStart(3,"0")+"°":""}</text>`;
-    for(let m=dayStart(a)+864e5;m<b;m+=864e5)g+=`<line x1="${X(m)}" y1="0" x2="${X(m)}" y2="${H-16}" stroke="#2a3f5c" stroke-dasharray="2 3"/><text x="${X(m)+4}" y="${H-20}" fill="#64799a" font-size="9">${fDay(m)}</text>`;
-    if(cur!=null)g+=`<line x1="${X(n)}" y1="4" x2="${X(n)}" y2="${H-16}" stroke="#64799a"/><circle cx="${X(n)}" cy="${Y(cur)}" r="4.5" fill="${cur>=0?"#4cc9f0":"#ffb547"}" stroke="#0b1a2c" stroke-width="2"/>`;
-    for(let t=dayStart(a)+Math.ceil((a-dayStart(a))/216e5)*216e5;t<b;t+=216e5)g+=`<text x="${X(t)}" y="${H-3}" fill="#64799a" font-size="9" text-anchor="middle">${fHour(t)}</text>`;
+    g+=`<text x="4" y="12" fill="#4cc9f0" font-size="10.5">FLOOD ${fd!=null?String(Math.round(fd)).padStart(3,"0")+"°":""}</text><text x="4" y="${H-22}" fill="#ffb547" font-size="10.5">EBB ${ed!=null?String(Math.round(ed)).padStart(3,"0")+"°":""}</text>`;
+    for(let m=dayStart(a)+864e5;m<b;m+=864e5)g+=`<line x1="${X(m)}" y1="0" x2="${X(m)}" y2="${H-16}" stroke="#2a3f5c" stroke-dasharray="2 3"/><text x="${X(m)+4}" y="${H-20}" fill="#8597b3" font-size="10.5">${fDay(m)}</text>`;
+    if(cur!=null)g+=`<line x1="${X(n)}" y1="4" x2="${X(n)}" y2="${H-16}" stroke="#8597b3"/><circle cx="${X(n)}" cy="${Y(cur)}" r="4.5" fill="${cur>=0?"#4cc9f0":"#ffb547"}" stroke="#0b1a2c" stroke-width="2"/>`;
+    for(let t=dayStart(a)+Math.ceil((a-dayStart(a))/216e5)*216e5;t<b;t+=216e5)g+=`<text x="${X(t)}" y="${H-3}" fill="#8597b3" font-size="10.5" text-anchor="middle">${fHour(t)}</text>`;
     g+="</g>";
     const next=evs.map(e=>[wall(e.Time),e.Type,+e.Velocity_Major]).filter(e=>e[0]>n).slice(0,4),state=cur==null?"":Math.abs(cur)<.2?"Near slack":cur>0?"Flooding":"Ebbing",dir=cur==null?null:cur>0?fd:ed;
     $("#curNote").textContent=`${Math.round(st.km*.621)} mi`;
@@ -1111,13 +1167,13 @@ async function renderWaves(){
     let g=`<defs><clipPath id="wc"><rect width="${Wd}" height="${H}"/></clipPath></defs><g clip-path="url(#wc)">`;
     // fog band: hours with visibility under 1 nautical mile
     let fogHrs=[];if(vis)for(const [t,v] of vis)if(t>=a&&t<=b&&v<1852)fogHrs.push(t);
-    for(const t of fogHrs)g+=`<rect x="${X(t-18e5).toFixed(1)}" y="0" width="${(X(t+18e5)-X(t-18e5)).toFixed(1)}" height="${bot}" fill="#9fb2c8" opacity=".09"/><rect x="${X(t-18e5).toFixed(1)}" y="0" width="${(X(t+18e5)-X(t-18e5)).toFixed(1)}" height="3" fill="#9fb2c8" opacity=".55"/>`;
+    for(const t of fogHrs)g+=`<rect x="${X(t-18e5).toFixed(1)}" y="0" width="${(X(t+18e5)-X(t-18e5)).toFixed(1)}" height="${bot}" fill="#b4c3d4" opacity=".09"/><rect x="${X(t-18e5).toFixed(1)}" y="0" width="${(X(t+18e5)-X(t-18e5)).toFixed(1)}" height="3" fill="#b4c3d4" opacity=".55"/>`;
     g+=`<path d="${line(1)}L${X(ser[ser.length-1][0])} ${bot}L${X(ser[0][0])} ${bot}z" fill="#4cc9f0" opacity=".14"/><path d="${line(1)}" fill="none" stroke="#4cc9f0" stroke-width="1.8"/><path d="${line(2)}" fill="none" stroke="#c792ea" stroke-width="1.3" stroke-dasharray="3 3"/><line x1="0" y1="${bot}" x2="${Wd}" y2="${bot}" stroke="#1c2d44"/>`;
-    for(let m=dayStart(a)+864e5;m<b;m+=864e5)g+=`<line x1="${X(m)}" y1="6" x2="${X(m)}" y2="${bot}" stroke="#2a3f5c" stroke-dasharray="2 3"/><text x="${X(m)+4}" y="${top-4}" fill="#64799a" font-size="9">${fDay(m)}</text>`;
+    for(let m=dayStart(a)+864e5;m<b;m+=864e5)g+=`<line x1="${X(m)}" y1="6" x2="${X(m)}" y2="${bot}" stroke="#2a3f5c" stroke-dasharray="2 3"/><text x="${X(m)+4}" y="${top-4}" fill="#8597b3" font-size="10.5">${fDay(m)}</text>`;
     let k0=0;while(k0+1<ser.length&&ser[k0+1][0]<=n)k0++;
-    g+=`<line x1="${X(n)}" y1="6" x2="${X(n)}" y2="${bot}" stroke="#64799a"/><circle cx="${X(n)}" cy="${Y(ser[k0][1])}" r="4" fill="#4cc9f0" stroke="#0b1a2c" stroke-width="2"/>`;
-    for(let t=dayStart(a)+Math.ceil((a-dayStart(a))/108e5)*108e5;t<b;t+=108e5)if(Math.abs(t-n)>54e5)g+=`<text x="${X(t)}" y="${H-3}" fill="#64799a" font-size="9" text-anchor="middle">${fHour(t)}</text>`;
-    g+=`<text x="${X(n)}" y="${H-3}" fill="#e9eef3" font-size="9" text-anchor="middle">now</text></g>`;
+    g+=`<line x1="${X(n)}" y1="6" x2="${X(n)}" y2="${bot}" stroke="#8597b3"/><circle cx="${X(n)}" cy="${Y(ser[k0][1])}" r="4" fill="#4cc9f0" stroke="#0b1a2c" stroke-width="2"/>`;
+    for(let t=dayStart(a)+Math.ceil((a-dayStart(a))/108e5)*108e5;t<b;t+=108e5)if(Math.abs(t-n)>54e5)g+=`<text x="${X(t)}" y="${H-3}" fill="#8597b3" font-size="10.5" text-anchor="middle">${fHour(t)}</text>`;
+    g+=`<text x="${X(n)}" y="${H-3}" fill="#e9eef3" font-size="10.5" text-anchor="middle">now</text></g>`;
     WAVE_NOW={swellFt:(c.swell_wave_height||0)*3.2808};if($("#clar")&&CLAR)clarityAt(place.lat,place.lon).then(cl=>{if($("#clar"))$("#clar").innerHTML=clarityRow(cl)}).catch(()=>{});
     const wh=ft(c.wave_height),whFt=S.rain==="in"?wh:wh*3.28,feel=whFt<2?"Calm":whFt<4?"Small":whFt<7?"Moderate":whFt<11?"Large":"Very large";
     // visibility row: now, and the next spell of fog if any
@@ -1172,8 +1228,8 @@ function renderMoon(){
     <p><b>${Math.round(M.fraction*100)}%</b> lit · day <b>${(M.phase*29.53).toFixed(0)}</b> of 29.5</p><p>Rise <b>${aw(T.rise)}</b> · Set <b>${aw(T.set)}</b></p><p>Full <b>${md(full)}</b> · New <b>${md(nw)}</b></p></div></div>
     <svg class="chart" viewBox="0 0 340 82" style="margin-top:14px"><line x1="6" y1="58" x2="334" y2="58" stroke="#1c2d44"/><path d="${arc}" fill="none" stroke="#2a3f5c" stroke-width="1.5" stroke-dasharray="3 4"/>
      ${up?`<path d="${done}" fill="none" stroke="#ffc94d" stroke-width="2"/><circle cx="${ax(sf)}" cy="${ay(sf)}" r="5" fill="#ffc94d"/>`:""}
-     <text x="16" y="74" fill="#9fb2c8" font-size="10">↑ ${fTime(sr)}</text><text x="324" y="74" fill="#9fb2c8" font-size="10" text-anchor="end">${fTime(ss)} ↓</text>
-     <text x="170" y="74" fill="#64799a" font-size="10" text-anchor="middle">${Math.floor(dl/60)}h ${dl%60}m · ${dd>=0?"+":"−"}${Math.abs(dd)}m</text></svg>`;
+     <text x="16" y="74" fill="#b4c3d4" font-size="11">↑ ${fTime(sr)}</text><text x="324" y="74" fill="#b4c3d4" font-size="11" text-anchor="end">${fTime(ss)} ↓</text>
+     <text x="170" y="74" fill="#8597b3" font-size="11" text-anchor="middle">${Math.floor(dl/60)}h ${dl%60}m · ${dd>=0?"+":"−"}${Math.abs(dd)}m</text></svg>`;
 }
 
 /* ---------- 10-day ---------- */
@@ -1211,18 +1267,18 @@ function dayDetail(j){
   // chart: three tracks — temperature line, cloud-cover strip, rain-chance bars
   const T=col("temperature_2m"),CC=idx.map(i=>(h.cloud_cover||[])[i]??null),PP=idx.map(i=>h.precipitation_probability[i]||0),n=idx.length;
   const tl=mn(T),th=mx(T),Wd=340,L0=44,Rr=8,X=k=>L0+(k+.5)*(Wd-L0-Rr)/n,cw=(Wd-L0-Rr)/n,tTop=16,tBot=62,Y=v=>tBot-(v-tl)/((th-tl)||1)*(tBot-tTop);
-  const lab=(y,t)=>`<text x="0" y="${y}" fill="#64799a" font-size="8.5" font-family="Inter Tight" font-weight="600" letter-spacing=".08em">${t}</text>`;
+  const lab=(y,t)=>`<text x="0" y="${y}" fill="#8597b3" font-size="10" font-family="Inter Tight" font-weight="600" letter-spacing=".08em">${t}</text>`;
   let g=lab(42,"TEMP")+lab(83,"CLOUDS")+lab(109,"RAIN");
   for(let k=0;k<n;k+=6)g+=`<line x1="${X(k)-cw/2}" y1="8" x2="${X(k)-cw/2}" y2="116" stroke="#1c2d44"/>`;
   g+=`<path d="${T.map((v,k)=>(k?"L":"M")+X(k).toFixed(1)+" "+Y(v).toFixed(1)).join("")}" fill="none" stroke="#f0f5fb" stroke-width="1.8" stroke-linejoin="round"/>`;
   const kmax=T.indexOf(th),kmin=T.indexOf(tl);
-  if(kmax>=0)g+=`<circle cx="${X(kmax)}" cy="${Y(th)}" r="3" fill="#ffc94d"/><text x="${X(kmax)}" y="${Y(th)-6}" fill="#f0f5fb" font-size="9.5" text-anchor="middle">${Math.round(th)}°</text>`;
-  if(kmin>=0)g+=`<circle cx="${X(kmin)}" cy="${Y(tl)}" r="3" fill="#6fd3ff"/><text x="${X(kmin)}" y="${Y(tl)+13}" fill="#9fb2c8" font-size="9.5" text-anchor="middle">${Math.round(tl)}°</text>`;
+  if(kmax>=0)g+=`<circle cx="${X(kmax)}" cy="${Y(th)}" r="3" fill="#ffc94d"/><text x="${X(kmax)}" y="${Y(th)-6}" fill="#f0f5fb" font-size="11" text-anchor="middle">${Math.round(th)}°</text>`;
+  if(kmin>=0)g+=`<circle cx="${X(kmin)}" cy="${Y(tl)}" r="3" fill="#6fd3ff"/><text x="${X(kmin)}" y="${Y(tl)+13}" fill="#b4c3d4" font-size="11" text-anchor="middle">${Math.round(tl)}°</text>`;
   CC.forEach((v,k)=>{g+=`<rect x="${(X(k)-cw/2+.5).toFixed(1)}" y="76" width="${(cw-1).toFixed(1)}" height="9" rx="1.5" fill="#dfe8f3" opacity="${v==null?0:(.06+v/100*.7).toFixed(2)}"/>`});
   g+=`<line x1="${L0}" y1="116" x2="${Wd-Rr}" y2="116" stroke="#2a3f5c"/>`;
   let pk=-1;PP.forEach((p,k)=>{if(p>0){const bh=Math.max(1.5,p/100*20);g+=`<rect x="${(X(k)-cw*.32).toFixed(1)}" y="${116-bh}" width="${(cw*.64).toFixed(1)}" height="${bh}" rx="1" fill="#4cc9f0" opacity="${(.35+p/160).toFixed(2)}"/>`}if(pk<0||p>PP[pk])pk=k});
-  if(pk>=0&&PP[pk]>=10)g+=`<text x="${X(pk)}" y="${116-PP[pk]/100*20-4}" fill="#4cc9f0" font-size="9" text-anchor="middle">${PP[pk]}%</text>`;
-  [0,6,12,18].forEach(k=>{if(k<n)g+=`<text x="${X(k)-cw/2+2}" y="129" fill="#64799a" font-size="9">${fHour(wall(h.time[idx[k]]))}</text>`});
+  if(pk>=0&&PP[pk]>=10)g+=`<text x="${X(pk)}" y="${116-PP[pk]/100*20-4}" fill="#4cc9f0" font-size="10.5" text-anchor="middle">${PP[pk]}%</text>`;
+  [0,6,12,18].forEach(k=>{if(k<n)g+=`<text x="${X(k)-cw/2+2}" y="129" fill="#8597b3" font-size="10.5">${fHour(wall(h.time[idx[k]]))}</text>`});
   const H=132;
   // clouds by altitude
   const cl=avg(col("cloud_cover_low")),cm=avg(col("cloud_cover_mid")),ch=avg(col("cloud_cover_high")),ct=avg(col("cloud_cover"));
@@ -1248,7 +1304,7 @@ function dayDetail(j){
     (wetDay?`, rain heaviest around <b>${fT(wall(h.time[idx[kP]]))}</b>`:"")+`${wd!=null?`, wind from the ${dirName(wd)}`:""}.`;
   const sec=(t,body)=>`<div class="dsec"><h5>${t}</h5>${body}</div>`;
   return `<div class="dbox">
-    <div class="dstrip">${st("High",U.t(d.temperature_2m_max[j]),`low ${U.t(d.temperature_2m_min[j])}`)}${st("Rain",`${chance}%`,wetDay?`${U.r(d.precipitation_sum[j])} ${U.rl()}`:"dry")}${st("Wind",`${U.w(mx(ws))}<em style="font-style:normal;font-size:10px;color:var(--muted);margin-left:2px">${U.wl()}</em>`,`gust ${U.w(mx(wg))}`)}${st("Clouds",ct==null?"--":Math.round(ct)+"%","avg cover")}</div>
+    <div class="dstrip">${st("High",U.t(d.temperature_2m_max[j]),`low ${U.t(d.temperature_2m_min[j])}`)}${st("Rain",`${chance}%`,wetDay?`${U.r(d.precipitation_sum[j])} ${U.rl()}`:"dry")}${st("Wind",`${U.w(mx(ws))}<em style="font-style:normal;font-size:11px;color:var(--muted);margin-left:2px">${U.wl()}</em>`,`gust ${U.w(mx(wg))}`)}${st("Clouds",ct==null?"--":Math.round(ct)+"%","avg cover")}</div>
     <div class="dsum">${sum}</div>${dayForecasterBox(date)}
     <svg class="chart" viewBox="0 0 ${Wd} ${H}">${g}</svg>
     ${sec("Clouds by altitude",`${lay("High",F?"above 20k ft":"above 6 km",ch)}${lay("Mid",F?"6.5k – 20k ft":"2 – 6 km",cm)}${lay("Low",F?"below 6.5k ft":"below 2 km",cl)}
@@ -1318,13 +1374,27 @@ function radarField(url,tol){
     return{w,h,cov,val}})();
   fieldCache.set(url,p);if(fieldCache.size>80)fieldCache.delete(fieldCache.keys().next().value);p.catch(()=>fieldCache.delete(url));return p;
 }
+/* tile worker bridge (falls back to the main thread when workers / OffscreenCanvas aren't available) */
+let WXW,wxSeq=0;const wxPend=new Map(),wxFetch=new Map();
+function wxWorker(){if(WXW!==undefined)return WXW;WXW=null;
+  try{if(!window.Worker||typeof OffscreenCanvas==="undefined")return null;
+    const w=new Worker(URL.createObjectURL(new Blob([$("#wxWorkerSrc").textContent],{type:"text/javascript"})));
+    w.onmessage=e=>{const r=wxPend.get(e.data.id);if(r){wxPend.delete(e.data.id);r(e.data)}};w.onerror=()=>{WXW=null};
+    const ptMap=[...PT_MAP.entries()],ptCol=[null,...["snow","frzr","icep"].map(t=>PT_STOPS[t].map(([v,h])=>[v,[parseInt(h.slice(1,3),16),parseInt(h.slice(3,5),16),parseInt(h.slice(5,7),16)]]))];
+    w.postMessage({init:{pal:N0Q_PAL,refs:REFS,band:BAND_LUT.map(b=>b&&[b[0],b[1],b[2],b[3]]),ptMap,ptCol}});WXW=w}catch(e){WXW=null}return WXW}
+const wxCall=(m,tr)=>new Promise(res=>{const id=++wxSeq;wxPend.set(id,res);WXW.postMessage({...m,id},tr||[])});
+async function wxTile(kind,url,tol,d,ox,oy){
+  let r=await wxCall({kind,url,tol,d,ox,oy});
+  if(r.miss){let p=wxFetch.get(url);if(!p){p=fetch(via(url)).then(x=>{if(!x.ok)throw new Error("HTTP "+x.status);return x.arrayBuffer()});wxFetch.set(url,p);p.then(()=>setTimeout(()=>wxFetch.delete(url),3e4),()=>wxFetch.delete(url))}
+    let buf;try{buf=await p}catch(e){return null}r=await wxCall({kind,url,tol,d,ox,oy,buf:buf.slice(0)})}
+  return r.data||null}
 let EMPTY_TILE=null;
 function emptyTile(){if(!EMPTY_TILE)EMPTY_TILE=new Promise(r=>{const c=document.createElement("canvas");c.width=c.height=1;c.toBlob(b=>b.arrayBuffer().then(r),"image/png")});return EMPTY_TILE}
 function registerRadar(){
   maplibregl.addProtocol("wxp",async params=>{
     const m=/^wxp:\/\/(\d+)\/(\d+)\/(\d+)\?(.*)$/.exec(params.url),z=+m[1],x=+m[2],y=+m[3],q=new URLSearchParams(m[4]);
     const nz=+q.get("nz"),d=Math.max(0,z-nz),px=x>>d,py=y>>d,url=q.get("u").replace("{z}",z-d).replace("{x}",px).replace("{y}",py);
-    let d2=null;try{d2=await ptypeTile(url,d,x-px*(1<<d),y-py*(1<<d))}catch(e){}return{data:d2||await emptyTile()}});
+    let d2=null;try{d2=wxWorker()?await wxTile("pt",url,0,d,x-px*(1<<d),y-py*(1<<d)):await ptypeTile(url,d,x-px*(1<<d),y-py*(1<<d))}catch(e){}return{data:d2||await emptyTile()}});
   maplibregl.addProtocol("wxc",async params=>{
     const m=/^wxc:\/\/(\d+)\/(\d+)\/(\d+)\?(.*)$/.exec(params.url),q=new URLSearchParams(m[4]);
     const url=q.get("u").replace("{z}",m[1]).replace("{x}",m[2]).replace("{y}",m[3]);let d=null;try{d=await recolorTile(url,q.get("m"))}catch(e){}return{data:d||await emptyTile()}});
@@ -1335,6 +1405,7 @@ function registerRadar(){
   maplibregl.addProtocol("wxr",async params=>{
     const m=/^wxr:\/\/(\d+)\/(\d+)\/(\d+)\?(.*)$/.exec(params.url),z=+m[1],x=+m[2],y=+m[3],q=new URLSearchParams(m[4]);
     const nz=+q.get("nz"),d=Math.max(0,z-nz),px=x>>d,py=y>>d,url=q.get("u").replace("{z}",z-d).replace("{x}",px).replace("{y}",py);
+    if(wxWorker()){const dd=await wxTile("radar",url,+q.get("tol")||1200,d,x-px*(1<<d),y-py*(1<<d));return{data:dd||await emptyTile()}}
     let F;try{F=await radarField(url,+q.get("tol")||1200)}catch(e){return{data:await emptyTile()}}
     if(F.raw){const n=1<<d,sz=F.w/n,c=document.createElement("canvas");c.width=c.height=512;const g=c.getContext("2d");g.imageSmoothingQuality="high";
       g.drawImage(F.raw,(x-px*n)*sz,(y-py*n)*sz,sz,sz,0,0,512,512);const blob=await new Promise(r=>c.toBlob(r,"image/png"));return{data:await blob.arrayBuffer()}}
@@ -1351,6 +1422,8 @@ function registerRadar(){
 }
 const smoothRadar=(tpl,nz,tol)=>`wxr://{z}/{x}/{y}?nz=${nz}${tol?`&tol=${tol}`:""}&u=${encodeURIComponent(tpl)}`;
 function beforeLabels(){const s=map.getStyle().layers.find(l=>l.type==="symbol");return s?s.id:undefined}
+// the map library loads in parallel with the forecast; whichever finishes second draws the map
+window.mlLoaded=()=>{if(place&&W)try{renderMap()}catch(e){console.error(e)}};
 function initMap(){
   if(map||!window.maplibregl)return;
   registerRadar();
@@ -1425,10 +1498,10 @@ async function applyLayers(force){
   for(const d of LAYERS.filter(x=>x.k==="mrms")){const id="mrms-"+d.v;if(L.mrms===d.v&&us)raster(id,`https://mesonet.agron.iastate.edu/cache/tile.py/1.0.0/${d.v}-900913/{z}/{x}/{y}.png?${bust}`,{opacity:.75,maxzoom:8,attr:"MRMS via IEM"});else rmLayer(id)}
   const key=String(us);
   if(L.radar){if(force||!frames.length||key!==radarKey||Date.now()-radarStamp>4*6e4){radarKey=key;await loadRadar()}}else clearRadar();
-  for(const f of frames)if(map.getLayer(f.id))map.moveLayer(f.id,beforeLabels());
+  {const an=radarAnchor();for(const f of frames)if(map.getLayer(f.id))map.moveLayer(f.id,an)}
   updateAlertLayer();updateNationalAviation();loadBboxAviation();updateGtg();updateLegend();
 }
-function clearRadar(){clearTimeout(timer);frames.forEach(f=>rmLayer(f.id));frames=[];$("#player").style.display="none";$("#mapSrc").textContent=""}
+function clearRadar(){clearTimeout(timer);radarGen++;frames.forEach(f=>rmLayer(f.id));frames=[];$("#player").style.display="none";$("#mapSrc").textContent=""}
 async function loadRadar(){
   clearRadar();radarStamp=Date.now();const us=isCONUS(place);
   try{
@@ -1441,20 +1514,33 @@ async function loadRadar(){
         $("#mapSrc").textContent="NEXRAD past hour · HRRR next 3 h"}}
     else{const j=await getJSON("https://api.rainviewer.com/public/weather-maps.json");
       frames=j.radar.past.map((f,k)=>({id:"rad"+k,t:f.time*1000,url:`${j.host}${f.path}/256/{z}/{x}/{y}/2/1_1.png`,mz:7}));$("#mapSrc").textContent="RainViewer · last 2 h"}
-    for(const f of frames)raster(f.id,f.fut?smoothRadar(f.url,8):us?smoothRadar(f.url,8):f.url,{opacity:0,maxzoom:us?13:7,attr:f.fut?"HRRR via IEM":us?"NEXRAD via IEM":"RainViewer"});
+    // frames are added one at a time: "now" first, then the rest in the background as the map goes idle
+    for(const f of frames){f.src=us?smoothRadar(f.url,8):f.url;f.opts={opacity:0,maxzoom:us?13:7,attr:f.fut?"HRRR via IEM":us?"NEXRAD via IEM":"RainViewer"}}
     NOWF=frames.filter(f=>!f.fut).length-1;
     $("#slider").max=frames.length-1;const sl=$("#slider"),pct=frames.length>1?NOWF/(frames.length-1)*100:100;
     const hasF=frames.length>NOWF+1;sl.style.background=hasF?`linear-gradient(90deg,transparent ${pct}%,rgba(199,146,234,.35) ${pct}%)`:"";
     const pastMin=Math.round((frames[NOWF].t-frames[0].t)/6e4),futMin=hasF?Math.round((frames[frames.length-1].t-frames[NOWF].t)/6e4):0,hl=m=>m>=90?Math.round(m/60)+"h":m>=55?"1h":m+"m";
     $("#tls").innerHTML=`<span class="a">−${hl(pastMin)}</span>${hasF?`<i style="left:${pct}%"></i><span class="tnow" style="left:${pct}%">Now</span><span class="z" style="color:#c792ea">+${hl(futMin)}</span>`:`<span class="z tnow" style="transform:none">Now</span>`}`;
     $("#player").style.display="";showFrame(NOWF);tick();
+    const gen=++radarGen;setTimeout(()=>{if(gen===radarGen)prefetchFrames(gen)},900);
   }catch(e){console.error(e);$("#ftime").textContent="n/a"}
 }
-let NOWF=0;
-function showFrame(k){if(!frames.length)return;frames.forEach((f,j)=>map.getLayer(f.id)&&map.setPaintProperty(f.id,"raster-opacity",j===k?(f.fut?.8:.88):0));fi=k;$("#slider").value=k;
+let NOWF=0,radarGen=0;
+// keep radar frames just under the other overlays (alerts, aviation, turbulence, lightning…)
+function radarAnchor(){const L2=map.getStyle().layers;for(const l of L2)if(/^(gtg|lightning|fires|fireout|smoke-|ptype|alerts-|sigmet|gairmet|cwa|turb-|metar|pirep)/.test(l.id))return l.id;return beforeLabels()}
+function addFrame(k){const f=frames[k];if(!f||!f.src||map.getLayer(f.id))return;raster(f.id,f.src,f.opts);map.moveLayer(f.id,radarAnchor())}
+function prefetchFrames(gen){if(gen!==radarGen||!frames.length)return;
+  const order=frames.map((f,k)=>k).sort((a,b)=>Math.abs(a-NOWF)-Math.abs(b-NOWF)+(a<NOWF?.1:0)-(b<NOWF?.1:0)),k=order.find(k=>!map.getLayer(frames[k].id));
+  if(k==null)return;addFrame(k);map.once("idle",()=>setTimeout(()=>prefetchFrames(gen),120))}
+const frameReady=k=>{const f=frames[k];return f&&map.getLayer(f.id)&&map.isSourceLoaded(f.id)};
+function showFrame(k){if(!frames.length)return;addFrame(k);frames.forEach((f,j)=>map.getLayer(f.id)&&map.setPaintProperty(f.id,"raster-opacity",j===k?(f.fut?.8:.88):0));fi=k;$("#slider").value=k;
   const f=frames[k],el=$("#ftime");el.textContent=(f.fut?"+":"")+fT(f.t+off*1000);el.classList.toggle("fut",!!f.fut);$("#player").classList.toggle("fut",!!f.fut)}
 function setPlay(){$("#play").innerHTML=playing?'<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>':'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 4l13 8-13 8z"/></svg>'}
-function tick(){clearTimeout(timer);setPlay();if(!playing||!frames.length)return;timer=setTimeout(()=>{showFrame((fi+1)%frames.length);tick()},fi===frames.length-1||fi===NOWF?1500:450)}
+function tick(){clearTimeout(timer);setPlay();if(!playing||!frames.length)return;
+  // don't step onto a frame that hasn't loaded yet (no blank flashes); wait up to ~2 s for it
+  const nx=(fi+1)%frames.length;let waited=0;addFrame(nx);
+  const go=()=>{if(!playing)return;if(!frameReady(nx)&&waited<2000){waited+=150;timer=setTimeout(go,150);return}showFrame(nx);tick()};
+  timer=setTimeout(go,fi===frames.length-1||fi===NOWF?1500:450)}
 $("#play").onclick=e=>{e.stopPropagation();playing=!playing;tick()};
 $("#slider").oninput=e=>{playing=false;tick();showFrame(+e.target.value)};
 $("#player").onclick=e=>e.stopPropagation();
@@ -1589,7 +1675,8 @@ const PT_RAMPS={rain:"eef8ea e5f5e0 d6efd0 c7e9c0 b4e1ad a0d99b 8ace88 73c476 5a
   frzr:"ffeee6 fee6da fedecf fdd0bc fcc2aa fcb499 fca588 fc9576 fc8767 fb7858 fb694a f7593f f24734 ec382b de2b25 d11e1f c4161c b61319 a81016 940b13 7c0510 67000d",
   icep:"f8f6fa f3f1f7 eeecf4 e6e5f1 dedded d5d5e9 cacae3 bebfdd b4b4d7 a9a7cf 9e9ac8 9390c3 8885be 7e79b8 7669af 6e58a7 66499f 5e3a98 552a90 4e1c8a 460d83 3f007d"};
 const PT_MAP=(()=>{const m=new Map();["rain","snow","frzr","icep"].forEach((t,ti)=>PT_RAMPS[t].split(" ").forEach((h,k)=>{const v=parseInt(h,16);if(!m.has(v))m.set(v,[ti,k*2.5+1.25])}));return m})();
-const PT_COL=[null,[[10,"#9ccbff"],[20,"#6aa8f5"],[30,"#3f80e0"],[40,"#2a5cc0"],[50,"#e9f2ff"]],[[5,"#ffb3cf"],[20,"#ff7aa8"],[30,"#f0467f"],[40,"#c81e5a"]],[[5,"#d7b8ff"],[20,"#b48cf2"],[30,"#8d5fd6"],[40,"#6a3cb3"]]]
+const PT_STOPS={snow:[[10,"#9ccbff"],[20,"#6aa8f5"],[30,"#3f80e0"],[40,"#2a5cc0"],[50,"#e9f2ff"]],frzr:[[5,"#ffb3cf"],[20,"#ff7aa8"],[30,"#f0467f"],[40,"#c81e5a"]],icep:[[5,"#d7b8ff"],[20,"#b48cf2"],[30,"#8d5fd6"],[40,"#6a3cb3"]]};
+const PT_COL=[null,PT_STOPS.snow,PT_STOPS.frzr,PT_STOPS.icep]
   .map(r=>r&&(v=>{let c=null;for(const b of r)if(v>=b[0]-5)c=b[1];return c&&[parseInt(c.slice(1,3),16),parseInt(c.slice(3,5),16),parseInt(c.slice(5,7),16)]}));
 const ptCache=new Map();
 function ptField(url){
@@ -1739,6 +1826,7 @@ function showTab(t){
   document.querySelectorAll("#tabbar button").forEach(b=>b.classList.toggle("on",b.dataset.tab===t));
   if(isFull())setFull(false);
   if(t==="now"&&map)setTimeout(()=>map.resize(),30);
+  if(W)runTabJobs(t);
   if(t==="sky"){renderSkyIfOpen();if(SKA.regions.length&&!SKA.raf)SKA.raf=requestAnimationFrame(skyAnimFrame)}
   scrollTo({top:0});fxRun();
 }
@@ -1918,7 +2006,8 @@ const DRAW={
 const ICONS={};
 function cloudIcon(type,src){const key=CLOUD_STYLE+type+(src?1:0);if(ICONS[key])return ICONS[key];
   const c=document.createElement("canvas");c.width=84;c.height=52;const g=c.getContext("2d");g.scale(2,2);
-  const st=type==="Cb"?CSTYLE.storm:src?CSTYLE.wet:CSTYLE.day;if(SHEET[type])SHEET[type](g,2,40,20,30,st,5);else DRAW[type](g,21,4,38,type==="Cb"?24:20,type==="Cb"?14:28,st,2);
+  const st=type==="Cb"?CSTYLE.storm:src?CSTYLE.wet:CSTYLE.day;const draw=()=>{if(SHEET[type])SHEET[type](g,2,40,20,30,st,5);else DRAW[type](g,21,4,38,type==="Cb"?24:20,type==="Cb"?14:28,st,2)};
+  draw();if(type==="Ci"||type==="Cs"){draw();draw()} // wispy types are faint by design; darken them in small icons
   return ICONS[key]=c.toDataURL()}
 function drawSky(){
   const cv=$("#skyCv");if(!cv||!SKY||!cv.offsetWidth)return;
@@ -1929,9 +2018,9 @@ function drawSky(){
   g.clearRect(0,0,Wc,Hc);g.fillStyle=SKY.day[0]?"rgba(255,255,255,.03)":"rgba(0,4,14,.18)";g.fillRect(L0,T0,pw,ph);
   // altitude grid
   const ticks=(S.temp==="F"?[1000,3000,5000,10000,20000,30000].map(f=>[f/3.281,(f/1000)+"k"]):[[500,".5"],[1000,"1km"],[2000,"2"],[4000,"4"],[6000,"6"],[9000,"9"]]).map(([m,t])=>[m+EL,t]);
-  g.font="500 9.5px 'JetBrains Mono',monospace";g.textBaseline="middle";
-  ticks.forEach(([m,t])=>{const y=Y(m);g.strokeStyle="rgba(140,190,255,.07)";g.beginPath();g.moveTo(L0,y);g.lineTo(Wc-R0,y);g.stroke();g.fillStyle="#64799a";g.textAlign="right";g.fillText(t,L0-6,y)});
-  g.save();g.translate(10,T0+ph/2);g.rotate(-Math.PI/2);g.textAlign="center";g.fillStyle="#64799a";g.font="600 8.5px 'Inter Tight',sans-serif";g.fillText(S.temp==="F"?"FEET AGL":"KM AGL",0,0);g.restore();
+  g.font="500 11px 'JetBrains Mono',monospace";g.textBaseline="middle";
+  ticks.forEach(([m,t])=>{const y=Y(m);g.strokeStyle="rgba(140,190,255,.07)";g.beginPath();g.moveTo(L0,y);g.lineTo(Wc-R0,y);g.stroke();g.fillStyle="#8597b3";g.textAlign="right";g.fillText(t,L0-6,y)});
+  g.save();g.translate(10,T0+ph/2);g.rotate(-Math.PI/2);g.textAlign="center";g.fillStyle="#8597b3";g.font="600 10px 'Inter Tight',sans-serif";g.fillText(S.temp==="F"?"FEET AGL":"KM AGL",0,0);g.restore();
   // current layers; precipitation over the next hour decides the rain source
   const lay=nowLayers(),gy0=Y(EL),used=new Set(),later=[],precip=[];SKY.used=used;
   const pr=(SKY.pr[0]||0),wc=Math.max(SKY.wc[0]||0,SKY.wc[1]||0),src=pr>=.05&&lay.length?(lay.find(l=>l.c>=50)||lay[0]):null,storm=wc>=95,snow=isSnowCode(wc)||(SKY.fz[0]!=null&&SKY.fz[0]-EL<250);
@@ -1946,7 +2035,7 @@ function drawSky(){
   if(src)precip.push({x0:L0+pw*.12,x1:Wc-R0-pw*.12,top:Y(src.base)+1,bot:gy0,rate:pr,snow,storm,cx:L0+pw*.5,seed:1});
   // freezing level (MSL value, drawn at its height above ground)
   if(SKY.fz[0]!=null){const y=Y(SKY.fz[0]);g.setLineDash([3,4]);g.strokeStyle="rgba(124,196,255,.75)";g.lineWidth=1.2;g.beginPath();g.moveTo(L0,y);g.lineTo(Wc-R0,y);g.stroke();g.setLineDash([]);
-    g.fillStyle="#7cc4ff";g.textAlign="right";g.font="600 9px 'Inter Tight',sans-serif";g.fillText("0°C",Wc-R0-3,y-7)}
+    g.fillStyle="#7cc4ff";g.textAlign="right";g.font="600 10.5px 'Inter Tight',sans-serif";g.fillText("0°C",Wc-R0-3,y-7)}
   // ground
   g.fillStyle="rgba(124,196,255,.08)";g.fillRect(L0,gy0-3,pw,3);g.strokeStyle="#2a3f5c";g.lineWidth=1;g.beginPath();g.moveTo(L0,gy0);g.lineTo(Wc-R0,gy0);g.stroke();
   // layers reported by the nearest airport
@@ -2071,6 +2160,24 @@ function renderPlaceList(){
   const gps=S.gps?`<button class="row${sel==="gps"?" on":""}" data-id="gps"><svg viewBox="0 0 24 24" fill="#7cc4ff"><path d="M21 3L3 10.5l7.5 2.5L13 21z"/></svg><span class="t"><b>My location</b><span>${gpsPlace?esc(gpsPlace.name):"Uses your phone's GPS"}</span></span></button>`:"";
   $("#placeList").innerHTML=gps+places.map(p=>`<div class="row${sel===p.id?" on":""}" data-id="${esc(p.id)}"><span class="t"><b>${esc(p.name)}</b><span>${esc(p.sub)}</span></span><button class="x" data-del="${esc(p.id)}" aria-label="Remove"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>`).join("")+(!places.length&&!S.gps?'<div class="err">Search above to add a place.</div>':"");
 }
+/* hold a saved place, then drag it up or down to reorder */
+(()=>{const list=$("#placeList");let st=null,holdT=0,justDragged=0;
+  const rows=()=>[...list.querySelectorAll(".row[data-id]:not([data-id='gps'])")];
+  list.addEventListener("pointerdown",e=>{const r=e.target.closest(".row[data-id]");if(!r||r.dataset.id==="gps"||e.target.closest("[data-del]")||rows().length<2)return;
+    st={r,id:r.dataset.id,y0:e.clientY,x0:e.clientX,pid:e.pointerId,on:false};clearTimeout(holdT);
+    holdT=setTimeout(()=>{if(!st)return;st.on=true;const rs=rows();st.list=rs;st.from=rs.indexOf(r);st.to=st.from;st.h=r.getBoundingClientRect().height+6;
+      try{list.setPointerCapture(st.pid)}catch(_){}r.classList.add("dragging");list.classList.add("sorting");if(navigator.vibrate)try{navigator.vibrate(12)}catch(_){}},380)});
+  list.addEventListener("pointermove",e=>{if(!st)return;if(!st.on){if(Math.abs(e.clientY-st.y0)>8||Math.abs(e.clientX-st.x0)>8){clearTimeout(holdT);st=null}return}
+    const dy=e.clientY-st.y0,to=Math.max(0,Math.min(st.list.length-1,st.from+Math.round(dy/st.h)));st.to=to;st.r.style.transform=`translateY(${dy}px) scale(1.02)`;
+    st.list.forEach((x,k)=>{if(x===st.r)return;const sh=st.from<to&&k>st.from&&k<=to?-st.h:st.from>to&&k<st.from&&k>=to?st.h:0;x.style.transform=sh?`translateY(${sh}px)`:""})});
+  const end=()=>{clearTimeout(holdT);if(!st)return;const s0=st;st=null;if(!s0.on)return;
+    s0.list.forEach(x=>{x.style.transform="";x.classList.remove("dragging")});list.classList.remove("sorting");justDragged=Date.now();
+    if(s0.to!==s0.from){const ids=s0.list.map(x=>x.dataset.id);ids.splice(s0.to,0,ids.splice(s0.from,1)[0]);
+      places=ids.map(id=>places.find(x=>x.id===id)).filter(Boolean).concat(places.filter(x=>!ids.includes(x.id)));savePlaces();renderPlaceList();renderPills()}};
+  list.addEventListener("pointerup",end);list.addEventListener("pointercancel",end);
+  list.addEventListener("touchmove",e=>{if(st&&st.on)e.preventDefault()},{passive:false});
+  list.addEventListener("contextmenu",e=>{if(e.target.closest(".row[data-id]"))e.preventDefault()});
+  list.addEventListener("click",e=>{if(Date.now()-justDragged<400){e.stopImmediatePropagation();e.preventDefault()}},true)})();
 $("#placeList").onclick=e=>{const del=e.target.closest("[data-del]");
   if(del){places=places.filter(p=>p.id!==del.dataset.del);if(sel===del.dataset.del){sel=S.gps?"gps":(places[0]?places[0].id:"sf");savePlaces();renderPlaceList();load()}else{savePlaces();renderPlaceList()}renderPills();return}
   const r=e.target.closest("[data-id]");if(r)choose(r.dataset.id)};
