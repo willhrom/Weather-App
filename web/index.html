@@ -925,12 +925,19 @@ async function nearestStation(lat,lon){
   let best=null,bd=1e9;for(const s of c.s){const d=km(lat,lon,s[2],s[3]);if(d<bd){bd=d;best=s}}
   return best&&{id:best[0],name:best[1],state:best[4],km:bd};
 }
+function hiloCurve(ext){const pts=[];
+  for(let k=0;k+1<ext.length;k++){const [ta,va]=ext[k],[tb,vb]=ext[k+1];for(let t=Math.ceil(ta/9e5)*9e5;t<tb;t+=9e5){const f=(t-ta)/(tb-ta);pts.push([t,va+(vb-va)*(1-Math.cos(Math.PI*f))/2])}}
+  if(pts.length<12)throw new Error("too few tides");return pts}
 async function tideData(){
   const t0=dayStart(nowWall());
   if(isUS(place)){try{const st=await nearestStation(place.lat,place.lon);
     if(st&&st.km<90){wxn("tide",{id:st.id,name:st.name});const u=S.rain==="in"?"english":"metric",base=`https://api.tidesandcurrents.noaa.gov/api/prod/datagetter?product=predictions&datum=MLLW&time_zone=lst_ldt&units=${u}&format=json&application=weather_app&station=${st.id}`;
-      const [cv,hl]=await Promise.all([getJSON(`${base}&begin_date=${ymd(t0-864e5,"")}&range=72&interval=15`),getJSON(`${base}&begin_date=${ymd(t0-864e5,"")}&range=96&interval=hilo`)]);
-      return{src:`NOAA ${st.id} · ${st.name}${st.state?", "+st.state:""}`,dist:`${Math.round(st.km*.621)} mi`,pts:cv.predictions.map(p=>[wall(p.t),+p.v]),ext:hl.predictions.map(p=>[wall(p.t),+p.v,p.type==="H"?"High":"Low"])}}}catch(e){console.warn("NOAA",e)}}
+      const bd=ymd(t0-864e5,"");
+      const [cv,hl]=await Promise.all([getJSON(`${base}&begin_date=${bd}&range=72&interval=15`).catch(()=>null),getJSON(`${base}&begin_date=${bd}&range=96&interval=hilo`)]);
+      const ext=hl.predictions.map(p=>[wall(p.t),+p.v,p.type==="H"?"High":"Low"]);
+      // "subordinate" stations publish only high and low times; NOAA draws the curve between them as a cosine, so we do the same
+      const pts=cv&&cv.predictions&&cv.predictions.length?cv.predictions.map(p=>[wall(p.t),+p.v]):hiloCurve(ext);
+      return{src:`NOAA ${st.id} · ${st.name}${st.state?", "+st.state:""}`,dist:`${Math.round(st.km*.621)} mi`,pts,ext}}}catch(e){console.warn("NOAA",e)}}
   const j=await getJSON(`https://marine-api.open-meteo.com/v1/marine?latitude=${place.lat}&longitude=${place.lon}&hourly=sea_level_height_msl&timezone=auto&past_days=1&forecast_days=3`);
   const k=S.rain==="in"?3.2808:1,pts=j.hourly.time.map((t,i)=>[wall(t),j.hourly.sea_level_height_msl[i]]).filter(p=>p[1]!=null).map(p=>[p[0],p[1]*k]);
   if(pts.length<12||Math.max(...pts.map(p=>p[1]))-Math.min(...pts.map(p=>p[1]))<.05)throw new Error("inland");
@@ -983,16 +990,27 @@ let WAVE_NOW=null;
 
 /* ---------- water temperature ---------- */
 let waterReq=0;
+// NOAA stations that actually have a water-temperature sensor (many tide-prediction stations don't)
+async function nearestWaterStation(lat,lon){
+  let c=store.get("wx.wtStations",null);
+  if(!c||Date.now()-c.t>30*864e5){const j=await getJSON("https://api.tidesandcurrents.noaa.gov/mdapi/prod/webapi/stations.json?type=watertemp",25000);
+    c={t:Date.now(),s:j.stations.map(s=>[s.id,s.name,+(+s.lat).toFixed(4),+(+s.lng).toFixed(4),s.state||""])};store.set("wx.wtStations",c)}
+  let best=null,bd=1e9;for(const s of c.s){const d=km(lat,lon,s[2],s[3]);if(d<bd){bd=d;best=s}}
+  return best&&{id:best[0],name:best[1],state:best[4],km:bd};
+}
 async function renderWater(){
   const my=++waterReq,el=$("#water");if(!el)return;$("#wtNote").textContent="";WATER_KM=null;
   const F=S.temp==="F",toU=c=>F?c*9/5+32:c;let now=null,src="",ago="",series=[];
   // 1) measured at the nearest NOAA station (US), if it has a water sensor
-  if(isUS(place)){try{const st=await nearestStation(place.lat,place.lon);
-    if(st&&st.km<60){const j=await getJSON(`https://api.tidesandcurrents.noaa.gov/api/prod/datagetter?product=water_temperature&range=24&station=${st.id}&units=${F?"english":"metric"}&time_zone=gmt&format=json&application=weather_app`);
+  let measured=false;
+  if(isUS(place)){try{const st=await nearestWaterStation(place.lat,place.lon);
+    if(st&&st.km<60){const j=await getJSON(`https://api.tidesandcurrents.noaa.gov/api/prod/datagetter?product=water_temperature&range=72&interval=h&station=${st.id}&units=${F?"english":"metric"}&time_zone=gmt&format=json&application=weather_app`);
       const d=(j&&j.data||[]).filter(x=>x.v!==""&&Number.isFinite(+x.v));
-      if(d.length){const last=d[d.length-1];now=+last.v;WATER_KM=st.km;src=`Measured at NOAA ${st.id} · ${esc(st.name)}`;const t=Date.parse(last.t.replace(" ","T")+"Z");ago=Number.isFinite(t)?Math.max(0,Math.round((Date.now()-t)/6e4)):null}}}catch(e){}}
-  // 2) sea-surface temperature forecast (also gives the 3-day trend)
-  try{const j=await getJSON(`https://marine-api.open-meteo.com/v1/marine?latitude=${place.lat}&longitude=${place.lon}&hourly=sea_surface_temperature&timezone=auto&forecast_days=3`);
+      if(d.length){const last=d[d.length-1];now=+last.v;WATER_KM=st.km;wxn("water",{id:st.id});src=`Measured at NOAA ${st.id} · ${esc(st.name)}`;const t=Date.parse(last.t.replace(" ","T")+"Z");ago=Number.isFinite(t)?Math.max(0,Math.round((Date.now()-t)/6e4)):null;
+        // the last three days as measured, for the chart
+        if(d.length>=6){series=d.map(x=>[Date.parse(x.t.replace(" ","T")+"Z")+off*1000,+x.v]).filter(p=>Number.isFinite(p[0]));measured=series.length>=6}}}}catch(e){}}
+  // 2) otherwise the sea-surface temperature forecast (also gives a 3-day trend)
+  if(!measured)try{const j=await getJSON(`https://marine-api.open-meteo.com/v1/marine?latitude=${place.lat}&longitude=${place.lon}&hourly=sea_surface_temperature&timezone=auto&forecast_days=3`);
     const h=j.hourly||{};series=(h.time||[]).map((t,i)=>[wall(t),h.sea_surface_temperature[i]]).filter(p=>Number.isFinite(p[1])).map(p=>[p[0],toU(p[1])]);
     if(now==null&&series.length){let k=0;const n=nowWall();while(k+1<series.length&&series[k+1][0]<=n)k++;now=series[k][1];src="Sea-surface forecast (Open-Meteo)"}}catch(e){}
   if(my!==waterReq)return;
@@ -1005,11 +1023,12 @@ async function renderWater(){
     let g=`<path d="${path}L${X(b)} ${bot}L${X(a)} ${bot}z" fill="#4cc9f0" opacity=".16"/><path d="${path}" fill="none" stroke="#4cc9f0" stroke-width="2"/><line x1="0" y1="${bot}" x2="${Wd}" y2="${bot}" stroke="#1c2d44"/>`;
     for(let m=dayStart(a)+864e5;m<b;m+=864e5)g+=`<line x1="${X(m)}" y1="${top-14}" x2="${X(m)}" y2="${bot}" stroke="#2a3f5c" stroke-dasharray="2 3"/>`;
     for(let m=dayStart(a);m<b;m+=864e5){const c=Math.max(a,m)+Math.min(864e5,b-Math.max(a,m))/2;g+=`<text x="${X(c)}" y="${H-3}" fill="${m===dayStart(n)?"#e9eef3":"#8597b3"}" font-size="10.5" text-anchor="middle">${m===dayStart(n)?"Today":fDay(m)}</text>`}
-    if(n>a&&n<b){let k=0;while(k+1<series.length&&series[k+1][0]<=n)k++;g+=`<line x1="${X(n)}" y1="${top-14}" x2="${X(n)}" y2="${bot}" stroke="#8597b3" opacity=".8"/><circle cx="${X(n)}" cy="${Y(series[k][1])}" r="4.5" fill="#4cc9f0" stroke="#0b1a2c" stroke-width="2"/>`}
+    if(measured){const p=series[series.length-1];g+=`<circle cx="${X(p[0])}" cy="${Y(p[1])}" r="4.5" fill="#4cc9f0" stroke="#0b1a2c" stroke-width="2"/>`}
+    else if(n>a&&n<b){let k=0;while(k+1<series.length&&series[k+1][0]<=n)k++;g+=`<line x1="${X(n)}" y1="${top-14}" x2="${X(n)}" y2="${bot}" stroke="#8597b3" opacity=".8"/><circle cx="${X(n)}" cy="${Y(series[k][1])}" r="4.5" fill="#4cc9f0" stroke="#0b1a2c" stroke-width="2"/>`}
     chart=tSvg("wtc",g)}
   $("#wtNote").textContent=WATER_KM!=null?`${Math.round(WATER_KM*.621)} mi`:"";
   WATER={now,rng,src,ago,feel};
-  el.innerHTML=tHero(Math.round(now),"°"+S.temp,feel[0],feel[1])+chart+`<div id="wcells">${waterCells(null)}</div>`+tFoot(`${src}${ago!=null&&ago!==""?` · ${ago} min ago`:""}`)+`<div class="foot" id="clarNote"></div><div id="clar"></div>`;
+  el.innerHTML=tHero(Math.round(now),"°"+S.temp,feel[0],feel[1])+chart+`<div id="wcells">${waterCells(null)}</div>`+tFoot(`${src}${ago!=null&&ago!==""?` · ${ago} min ago`:""}${measured?" · last 3 days":""}`)+`<div class="foot" id="clarNote"></div><div id="clar"></div>`;
   if(isCONUS(place))renderWaterExtras();
 }
 let WATER=null,WATER_KM=null;
@@ -1493,6 +1512,11 @@ function registerRadar(){
   maplibregl.addProtocol("wxc",async params=>{
     const m=/^wxc:\/\/(\d+)\/(\d+)\/(\d+)\?(.*)$/.exec(params.url),q=new URLSearchParams(m[4]);
     const url=q.get("u").replace("{z}",m[1]).replace("{x}",m[2]).replace("{y}",m[3]);let d=null;try{d=await recolorTile(url,q.get("m"))}catch(e){}return{data:d||await emptyTile()}});
+  // satellite: read each image at its true resolution, smooth out the speckle, then scale up smoothly
+  maplibregl.addProtocol("wxs",async params=>{
+    const m=/^wxs:\/\/(\d+)\/(\d+)\/(\d+)\?(.*)$/.exec(params.url),z=+m[1],x=+m[2],y=+m[3],q=new URLSearchParams(m[4]);
+    const nz=+q.get("nz"),d=Math.max(0,z-nz),px=x>>d,py=y>>d,url=q.get("u").replace("{z}",z-d).replace("{x}",px).replace("{y}",py);
+    let dd=null;try{dd=await satTile(url,q.get("m")||"",d,x-px*(1<<d),y-py*(1<<d))}catch(e){}return{data:dd||await emptyTile()}});
   maplibregl.addProtocol("gtg",async params=>{
     const m=/^gtg:\/\/(\d+)\/(\d+)\/(\d+)\?k=([^&]+)&ac=([LMH])$/.exec(params.url);
     let d=null;if(m){try{d=await gtgTile(+m[1],+m[2],+m[3],decodeURIComponent(m[4]),m[5])}catch(e){}}
@@ -1583,12 +1607,11 @@ function raster(id,url,o={}){
 }
 async function applyLayers(force){
   if(!mapReady)return;const us=isCONUS(place),bust=Math.floor(Date.now()/3e5);
-  // satellite: a standard-resolution layer underneath, and a high-definition layer on top that
-  // requests deeper zoom levels at double pixel density (sharp on phone screens). If the HD tiles
-  // aren't available somewhere, the standard layer still shows through.
+  // satellite: each image is read at its true resolution, de-speckled and scaled up smoothly (wxs protocol)
   for(const k of ["ir","vis"]){const id="sat-"+k,hd="sat-"+k+"-hd",u=`https://mesonet.agron.iastate.edu/cache/tile.py/1.0.0/goes_east_conus_ch${k==="ir"?"13":"02"}/{z}/{x}/{y}.png?${bust}`;
-    if(L[k]&&us){raster(id,u,{opacity:k==="ir"?.6:.75,maxzoom:k==="ir"?7:8,attr:"GOES via IEM"});raster(hd,u,{opacity:k==="ir"?.6:.78,tileSize:128,minzoom:4,maxzoom:k==="ir"?9:11})}
-    else{rmLayer(hd);rmLayer(id)}}
+    rmLayer(hd); // older builds layered a second, sharper copy on top; the smoothed single layer replaces it
+    if(L[k]&&us)raster(id,`wxs://{z}/{x}/{y}?nz=${k==="ir"?6:8}&u=${encodeURIComponent(u)}`,{opacity:k==="ir"?.6:.75,maxzoom:12,attr:"GOES via IEM"});
+    else rmLayer(id)}
   applyExtraLayers(us,bust);
   for(const d of LAYERS.filter(x=>x.k==="mrms")){const id="mrms-"+d.v;if(L.mrms===d.v&&us)raster(id,`https://mesonet.agron.iastate.edu/cache/tile.py/1.0.0/${d.v}-900913/{z}/{x}/{y}.png?${bust}`,{opacity:.75,maxzoom:8,attr:"MRMS via IEM"});else rmLayer(id)}
   const key=String(us);
@@ -1724,7 +1747,7 @@ async function smokeTime(){ // the HRRR smoke hour closest to now
   smokeT={t:Date.now(),v:best};return best}
 async function applyExtraLayers(us,bust){
   const wv="sat-wv",pt="ptype",lt="lightning",sm="smoke",fi="fires",fo="fireout",run=Math.floor((Date.now()-55*6e4)/36e5)*36e5,fm=Math.ceil((Date.now()-run)/9e5)*15;
-  if(L.wv&&us)raster(wv,`wxc://{z}/{x}/{y}?m=wv&u=${encodeURIComponent(`${RE}/tiles/${isWest()?"G18":"G19"}-ABI-CONUS-BAND09/{z}/{x}/{y}.png?${bust}`)}`,{opacity:.9,maxzoom:8,attr:"GOES via SSEC RealEarth"});else rmLayer(wv);
+  if(L.wv&&us)raster(wv,`wxs://{z}/{x}/{y}?m=wv&nz=6&u=${encodeURIComponent(`${RE}/tiles/${isWest()?"G18":"G19"}-ABI-CONUS-BAND09/{z}/{x}/{y}.png?${bust}`)}`,{opacity:.9,maxzoom:12,attr:"GOES via SSEC RealEarth"});else rmLayer(wv);
   const ptu=`https://mesonet.agron.iastate.edu/cache/tile.py/1.0.0/hrrr::REFP-F${String(fm).padStart(4,"0")}-0/{z}/{x}/{y}.png?${run}`,ptid=pt+fm;
   for(const l of (map.getStyle().layers||[]))if(/^ptype\d+$/.test(l.id)&&(l.id!==ptid||!(L.ptype&&us)))rmLayer(l.id);
   if(L.ptype&&us)raster(ptid,`wxp://{z}/{x}/{y}?nz=8&u=${encodeURIComponent(ptu)}`,{opacity:.9,maxzoom:13,attr:"HRRR via IEM"});
@@ -1748,6 +1771,29 @@ function extraLegend(us,rows){
   if(L.fires||L.fireout)rows.push(`<div class="key">${L.fires?'<span><i style="background:#ff5a1f;border-radius:50%"></i>Wildfire</span>':""}${L.fireout?'<span><i style="background:#ffb547"></i>Elevated</span><span><i style="background:#ff5468"></i>Critical</span><span><i style="background:#e05cff"></i>Extreme</span>':""}</div>`);
 }
 // lightning tiles are grayscale flash density: redraw them as glowing yellow so they stand out on the dark map
+const satCache=new Map();
+function satBase(url,mode){
+  if(satCache.has(url+mode))return satCache.get(url+mode);
+  const p=(async()=>{const r=await fetch(/mesonet\.agron/.test(url)?via(url):url);if(!r.ok)return null;
+    const bmp=await createImageBitmap(await r.blob()),w=bmp.width,h=bmp.height,c=document.createElement("canvas");c.width=w;c.height=h;
+    const g=c.getContext("2d",{willReadFrequently:true});g.drawImage(bmp,0,0);const img=g.getImageData(0,0,w,h),a=img.data,src=new Float32Array(a);
+    // 3x3 smoothing weighted by opacity (edges clamp, so tiles still meet cleanly); removes palette speckle and dithering
+    let any=false;
+    for(let yy=0;yy<h;yy++)for(let xx=0;xx<w;xx++){let R=0,G=0,B=0,A=0,n=0;
+      for(let dy=-1;dy<=1;dy++){const sy=Math.min(h-1,Math.max(0,yy+dy));for(let dx=-1;dx<=1;dx++){const sx=Math.min(w-1,Math.max(0,xx+dx)),i=(sy*w+sx)*4,wt=(dx||dy?(dx&&dy?1:2):8),al=src[i+3]*wt;R+=src[i]*al;G+=src[i+1]*al;B+=src[i+2]*al;A+=al;n+=wt}}
+      const o=(yy*w+xx)*4;if(A<=0){a[o+3]=0;continue}a[o]=R/A;a[o+1]=G/A;a[o+2]=B/A;a[o+3]=src[o+3]?A/n:Math.min(A/n,a[o+3]);if(a[o+3]>8)any=true}
+    if(!any)return null;
+    if(mode==="wv")wvColour(a);
+    g.putImageData(img,0,0);return c})().catch(()=>null);
+  satCache.set(url+mode,p);if(satCache.size>96)satCache.delete(satCache.keys().next().value);return p}
+async function satTile(url,mode,d,qx,qy){
+  const c=await satBase(url,mode);if(!c)return null;const n=1<<d,sz=c.width/n,o=document.createElement("canvas");o.width=o.height=512;
+  const g=o.getContext("2d");g.imageSmoothingEnabled=true;g.imageSmoothingQuality="high";g.drawImage(c,qx*sz,qy*sz,sz,sz,0,0,512,512);
+  const b=await new Promise(res=>o.toBlob(res,"image/png"));return b.arrayBuffer()}
+// water vapor: brightness = moisture; dry air brown, moist air blue to white
+function wvColour(a){const st=[[0,138,90,46,.55],[.32,58,63,90,.32],[.5,47,111,214,.55],[.72,124,196,255,.75],[1,242,248,255,.92]];
+  for(let i=0;i<a.length;i+=4){if(a[i+3]<8)continue;const al=a[i+3]/255,v=(a[i]+a[i+1]+a[i+2])/765;let k=0;while(k<st.length-2&&v>st[k+1][0])k++;const p=st[k],q=st[k+1],f=Math.max(0,Math.min(1,(v-p[0])/(q[0]-p[0])));
+    a[i]=p[1]+(q[1]-p[1])*f;a[i+1]=p[2]+(q[2]-p[2])*f;a[i+2]=p[3]+(q[3]-p[3])*f;a[i+3]=255*al*(p[4]+(q[4]-p[4])*f)}}
 async function recolorTile(url,mode){
   const r=await fetch(url);if(!r.ok)return null;const bmp=await createImageBitmap(await r.blob()),w=bmp.width,h=bmp.height,c=document.createElement("canvas");c.width=w;c.height=h;
   const g=c.getContext("2d",{willReadFrequently:true});g.drawImage(bmp,0,0);const img=g.getImageData(0,0,w,h),a=img.data;let any=false;
@@ -2292,7 +2338,7 @@ document.querySelectorAll(".seg").forEach(seg=>seg.onclick=e=>{const b=e.target.
 /* ---------- background notifications (Android app) ---------- */
 const NB=window.WxNative;
 function wxn(k,v){if(!place)return;if(WXN.pid!==place.id)WXN={pid:place.id};if(JSON.stringify(WXN[k])===JSON.stringify(v))return;WXN[k]=v;clearTimeout(wxnT);wxnT=setTimeout(pushWatch,1500)}
-function pushWatch(){if(!NB||!place)return;const x=WXN.pid===place.id?WXN:{};try{NB.setWatch(JSON.stringify({lat:place.lat,lon:place.lon,name:place.name,rain:!!S.nRain,alerts:!!S.nAlerts,unit:S.rain,temp:S.temp,wind:S.wind,apt:x.apt||null,tide:x.tide||null,wave:x.wave||null}))}catch(e){}}
+function pushWatch(){if(!NB||!place)return;const x=WXN.pid===place.id?WXN:{};try{NB.setWatch(JSON.stringify({lat:place.lat,lon:place.lon,name:place.name,rain:!!S.nRain,alerts:!!S.nAlerts,unit:S.rain,temp:S.temp,wind:S.wind,apt:x.apt||null,tide:x.tide||null,water:x.water||null,wave:x.wave||null}))}catch(e){}}
 function notifUI(){if(!NB)return;$("#notifSet").style.display="";$("#nRain").classList.toggle("on",!!S.nRain);$("#nAlerts").classList.toggle("on",!!S.nAlerts);
   let ok=true;try{ok=NB.notificationsAllowed()}catch(e){}
   $("#notifNote").textContent=ok?`Checks about every 15 minutes for ${place?place.name:"the place you have open"}.`:"Notifications are blocked — allow them for Weather in Android settings.";}

@@ -119,8 +119,10 @@ final class WidgetData {
     JSONObject st = watch.optJSONObject("tide");
     if (st != null && st.optString("id").matches("[A-Za-z0-9]{4,12}")) {
       try { out.put("tide", tide(st.getString("id"), st.optString("name"), english, now.optString("time", "").replace("-", ""))); } catch (Exception ignored) {}
-      try { out.put("water", waterTemp(st.getString("id"), F)); } catch (Exception ignored) {}
     }
+    JSONObject ws = watch.optJSONObject("water");
+    String wid = ws != null && ws.optString("id").matches("[A-Za-z0-9]{4,12}") ? ws.optString("id") : st != null ? st.optString("id") : "";
+    if (wid.matches("[A-Za-z0-9]{4,12}")) { try { out.put("water", waterTemp(wid, F)); } catch (Exception ignored) {} }
     JSONObject wp = watch.optJSONObject("wave");
     if (wp != null) {
       try {
@@ -198,15 +200,29 @@ final class WidgetData {
   static JSONObject tide(String id, String name, boolean english, String localNow) throws Exception {
     String day = localNow.length() >= 8 ? localNow.substring(0, 8) : new java.text.SimpleDateFormat("yyyyMMdd", Locale.US).format(new java.util.Date());
     String base = "https://api.tidesandcurrents.noaa.gov/api/prod/datagetter?product=predictions&datum=MLLW&time_zone=lst_ldt&format=json&application=weather_app&station=" + id + "&units=" + (english ? "english" : "metric");
-    JSONObject cv = new JSONObject(WeatherJob.get(base + "&begin_date=" + day + "&range=48&interval=30"));
     JSONObject hl = new JSONObject(WeatherJob.get(base + "&begin_date=" + day + "&range=48&interval=hilo"));
     JSONObject o = new JSONObject();
     o.put("name", name);
-    JSONArray pts = new JSONArray(), p = cv.getJSONArray("predictions");
-    for (int i = 0; i < p.length(); i++) { JSONObject q = p.getJSONObject(i); pts.put(new JSONArray().put(q.getString("t")).put(q.getDouble("v"))); }
-    o.put("pts", pts);
     JSONArray ext = new JSONArray(), e = hl.getJSONArray("predictions");
     for (int i = 0; i < e.length(); i++) { JSONObject q = e.getJSONObject(i); ext.put(new JSONArray().put(q.getString("t")).put(q.getDouble("v")).put(q.optString("type"))); }
+    JSONArray pts = new JSONArray();
+    try {
+      JSONArray p = new JSONObject(WeatherJob.get(base + "&begin_date=" + day + "&range=48&interval=30")).getJSONArray("predictions");
+      for (int i = 0; i < p.length(); i++) { JSONObject q = p.getJSONObject(i); pts.put(new JSONArray().put(q.getString("t")).put(q.getDouble("v"))); }
+    } catch (Exception noCurve) {
+      // subordinate stations publish only highs and lows: draw NOAA's cosine curve between them
+      java.text.SimpleDateFormat f = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.US);
+      f.setTimeZone(java.util.TimeZone.getTimeZone("UTC"));
+      for (int k = 0; k + 1 < ext.length(); k++) {
+        long ta = f.parse(ext.getJSONArray(k).getString(0)).getTime(), tb = f.parse(ext.getJSONArray(k + 1).getString(0)).getTime();
+        double va = ext.getJSONArray(k).getDouble(1), vb = ext.getJSONArray(k + 1).getDouble(1);
+        for (long t = (ta / 1800000L + 1) * 1800000L; t < tb; t += 1800000L) {
+          double fr = (t - ta) / (double) (tb - ta);
+          pts.put(new JSONArray().put(f.format(new java.util.Date(t))).put(va + (vb - va) * (1 - Math.cos(Math.PI * fr)) / 2));
+        }
+      }
+    }
+    o.put("pts", pts);
     o.put("ext", ext);
     return o;
   }
