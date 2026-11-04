@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
 <meta name="theme-color" content="#0f2a4a">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://unpkg.com; style-src 'self' 'unsafe-inline' https://unpkg.com https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob: https:; worker-src blob:; child-src blob:; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'; connect-src 'self' blob: data: wxr: https://tiles.openfreemap.org https://*.open-meteo.com https://api.open-meteo.com https://api.weather.gov https://aviationweather.gov https://api.tidesandcurrents.noaa.gov https://api.bigdatacloud.net https://api.rainviewer.com https://*.rainviewer.com https://mesonet.agron.iastate.edu https://willhrom-weather-gtg.pages.dev">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://unpkg.com; style-src 'self' 'unsafe-inline' https://unpkg.com https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob: https:; worker-src blob:; child-src blob:; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'; connect-src 'self' blob: data: wxr: https://tiles.openfreemap.org https://*.open-meteo.com https://api.open-meteo.com https://api.weather.gov https://aviationweather.gov https://api.tidesandcurrents.noaa.gov https://api.bigdatacloud.net https://api.rainviewer.com https://*.rainviewer.com https://mesonet.agron.iastate.edu https://willhrom-weather-gtg.pages.dev https://realearth.ssec.wisc.edu">
 <meta name="referrer" content="no-referrer">
 <title>Weather</title>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -239,6 +239,27 @@ body.mapopen .tabbar{display:none}
 .cell b{display:block;font-family:var(--mono);font-size:14px;font-weight:500;margin:4px 0 2px;color:var(--text)}
 .cell span{font-family:var(--mono);font-size:10.5px;color:var(--faint)}
 .foot{font-size:10.5px;color:var(--faint);margin-top:9px}
+.firehd{display:flex;gap:11px;align-items:center}
+.firehd i{flex:none;width:10px;height:10px;border-radius:50%;box-shadow:0 0 0 4px rgba(255,255,255,.06)}
+.firehd b{display:block;font-size:15px;font-weight:600}
+.firehd span{font-size:12px;color:var(--faint)}
+.aq{display:flex;gap:12px;align-items:center;margin-top:12px;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:var(--panel2)}
+.aqv{flex:none;width:52px;height:52px;border-radius:50%;border:3px solid var(--c);display:grid;place-content:center;text-align:center;line-height:1}
+.aqv b{font-family:var(--mono);font-size:17px;font-weight:500}
+.aqv small{font-size:8.5px;letter-spacing:.12em;color:var(--faint);margin-top:2px}
+.aq>div:last-child b{display:block;font-size:13.5px;font-weight:600}
+.aq>div:last-child span{font-size:11.5px;color:var(--faint)}
+.afd{font-size:13px;line-height:1.55;color:#c9d4df}
+.afd h4{margin:0 0 6px;font-size:11px;font-weight:700;letter-spacing:.13em;text-transform:uppercase;color:var(--faint)}
+.afd p{margin:0 0 9px}
+.afd ul{margin:0 0 6px;padding-left:18px}
+.afd li{margin:0 0 7px}
+.afd details{border-top:1px solid var(--line)}
+.afd summary{cursor:pointer;list-style:none;padding:10px 0;font-size:13px;font-weight:600;color:var(--text);display:flex;justify-content:space-between}
+.afd summary::-webkit-details-marker{display:none}
+.afd summary::after{content:"+";color:var(--faint);font-weight:400}
+.afd details[open] summary::after{content:"–"}
+.afd pre{white-space:pre-wrap;font-family:var(--mono);font-size:11px;color:#b9c3cd;margin:0 0 10px}
 .wt{display:flex;align-items:flex-end;gap:14px}
 .wt .v{font-family:var(--mono);font-size:44px;font-weight:300;letter-spacing:-.04em;line-height:.9}
 .wt .v sup{font-size:20px;color:var(--muted);vertical-align:top;margin-left:2px}
@@ -368,7 +389,10 @@ body.mapopen .tabbar{display:none}
   </div>
   <div class="panel"><div class="ph">Next 24 hours<span class="r" id="hrsNote"></span></div><div class="pb" id="hours"></div></div>
   <div class="panel"><div class="ph">Rainfall<span class="r" id="rainUnit"></span></div><div class="pb" id="rain"><div class="err">Loading…</div></div></div>
+  <div class="panel"><div class="ph">Rain season<span class="r">since Oct 1</span></div><div class="pb" id="season"><div class="err">Loading…</div></div></div>
   <div class="panel"><div class="ph">Wind</div><div class="pb" id="wind"><div class="err">Loading…</div></div></div>
+  <div class="panel"><div class="ph">Fire weather &amp; air</div><div class="pb" id="fire"><div class="err">Loading…</div></div></div>
+  <div class="panel" id="afdPanel" style="display:none"><div class="ph">Forecaster discussion<span class="r" id="afdNote"></span></div><div class="pb" id="afd"></div></div>
   <div class="panel"><div class="ph">Moon &amp; sun</div><div class="pb" id="moon"></div></div>
   </section>
   <section class="tab" data-tab="days">
@@ -381,6 +405,8 @@ body.mapopen .tabbar{display:none}
   </section>
   <section class="tab" data-tab="tides">
   <div class="panel"><div class="ph">Tide<span class="r" id="tideNote"></span></div><div class="pb" id="tide"><div class="err">Loading…</div></div></div>
+  <div class="panel" id="curPanel" style="display:none"><div class="ph">Tidal current<span class="r" id="curNote"></span></div><div class="pb" id="cur"></div></div>
+  <div class="panel" id="wavePanel" style="display:none"><div class="ph">Waves &amp; swell<span class="r" id="waveNote"></span></div><div class="pb" id="waves"></div></div>
   <div class="panel"><div class="ph">Water temperature<span class="r" id="wtNote"></span></div><div class="pb" id="water"><div class="err">Loading…</div></div></div>
   </section>
 </div>
@@ -426,7 +452,7 @@ const UA=navigator.userAgent,NATIVE=/WeatherApp\//.test(UA);
 const store={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
 const DEFAULT={id:"sf",name:"San Francisco",sub:"California",lat:37.7749,lon:-122.4194};
 let S=Object.assign({temp:"F",wind:"mph",rain:"in",gps:true,nRain:true,nAlerts:true},store.get("wx.settings",{}));
-let L=Object.assign({radar:true,future:false,turb:false,ir:false,vis:false,mrms:"",alerts:true,metar:false,gairmet:false,sigmet:false,cwa:false,pirep:false},store.get("wx.layers",{}));
+let L=Object.assign({radar:true,future:false,turb:false,ir:false,vis:false,wv:false,ptype:false,lightning:false,smoke:false,fires:false,fireout:false,mrms:"",alerts:true,metar:false,gairmet:false,sigmet:false,cwa:false,pirep:false},store.get("wx.layers",{}));
 let places=store.get("wx.places",[]);
 let sel=store.get("wx.sel",S.gps?"gps":(places[0]?places[0].id:"sf"));
 let gpsPlace=store.get("wx.gpsPlace",null);
@@ -500,7 +526,7 @@ async function load(){
   finally{loading=false;$("#refreshBtn").classList.remove("spin")}
 }
 function renderAll(){
-  for(const f of [renderWater,fxFromWeather,renderSkyIfOpen,renderNow,renderHours,renderRain,renderWind,renderMoon,renderDaily,renderMap,renderTide,renderAirport,renderAlerts]){try{f()}catch(e){console.error(f.name,e)}}
+  for(const f of [renderWater,fxFromWeather,renderSkyIfOpen,renderNow,renderHours,renderRain,renderWind,renderMoon,renderDaily,renderMap,renderTide,renderAirport,renderAlerts,renderSeason,renderAFD,renderCurrents,renderWaves]){try{f()}catch(e){console.error(f.name,e)}}
   $("#updated").textContent=(place.sub?place.sub+" · ":"")+"Updated "+fTime(nowWall());
 }
 function hourIndex(){const t=W.hourly.time,n=nowWall();let i=0;while(i+1<t.length&&wall(t[i+1])<=n)i++;return i}
@@ -632,9 +658,8 @@ function renderRain(){
   const tx=4+(ti-from)*bw;g+=`<line x1="${tx}" y1="4" x2="${tx}" y2="${H-18}" stroke="#2a3f5c" stroke-dasharray="2 3"/>`;
   const tr=(l,v,f)=>`<div class="tr"><span>${l}</span><b class="${f?"fcv":""}">${U.r(v)}</b></div>`;
   $("#rain").innerHTML=`<svg class="chart fade" viewBox="0 0 ${Wd} ${H}">${g}</svg><div class="legendrow"><span><i style="background:#4cc9f0"></i>Observed (7 days)</span><span><i style="background:rgba(76,201,240,.4)"></i>Forecast</span></div>
-    <div class="tbl" style="margin-top:6px">${tr("Last hour",P[i]||0)}${tr("Today so far",today)}${tr("Last 24 hours",l24)}${tr("Last 7 days",l7)}<div class="tr"><span>Season · since Oct 1</span><b id="seasonV">…</b></div>
+    <div class="tbl" style="margin-top:6px">${tr("Last hour",P[i]||0)}${tr("Today so far",today)}${tr("Last 24 hours",l24)}${tr("Last 7 days",l7)}
     ${tr("Next 24 hours",n24,1)}${tr("Next 7 days",n7,1)}${tr("Next 10 days",n10,1)}</div>`;
-  const pid=place.id;seasonOlder().then(v=>{if(place.id===pid&&$("#seasonV"))$("#seasonV").textContent=U.r(v+recent+today)}).catch(()=>{if($("#seasonV"))$("#seasonV").textContent="--"});
 }
 
 /* ---------- wind ---------- */
@@ -662,13 +687,13 @@ function renderWind(){
 
 /* ---------- NWS alerts ---------- */
 async function renderAlerts(){
-  const el=$("#alerts");el.innerHTML="";ALERTS=[];if(!isUS(place)){updateAlertLayer();return}const pid=place.id;
+  const el=$("#alerts");el.innerHTML="";ALERTS=[];if(!isUS(place)){updateAlertLayer();renderFire();return}const pid=place.id;
   try{const j=await getJSON(`https://api.weather.gov/alerts/active?point=${place.lat},${place.lon}`);if(place.id!==pid)return;
-    ALERTS=(j.features||[]).filter(f=>f.properties&&f.properties.status==="Actual");
+    ALERTS=(j.features||[]).filter(f=>f.properties&&f.properties.status==="Actual");setTimeout(renderFire,0);
     el.innerHTML=ALERTS.map((f,k)=>{const p=f.properties,sev=/Extreme|Severe/.test(p.severity),until=p.ends||p.expires;
       return `<button class="alert${sev?" sev":""}"><b>${esc(p.event)}</b><span>${until?"Until "+esc(new Date(until).toLocaleString([],{weekday:"short",hour:"numeric",minute:"2-digit"}))+" · ":""}tap for details</span><p>${esc((p.headline?p.headline+"\n\n":"")+(p.description||"")+(p.instruction?"\n\n"+p.instruction:""))}</p></button>`}).join("");
     updateAlertLayer();
-  }catch(e){console.warn("alerts",e)}
+  }catch(e){console.warn("alerts",e);renderFire()}
 }
 $("#alerts").onclick=e=>{const b=e.target.closest(".alert");if(b)b.classList.toggle("open")};
 
@@ -769,6 +794,165 @@ async function renderWater(){
     chart=`<svg class="chart" viewBox="0 0 ${Wd} ${H}" style="margin-top:12px">${g}</svg><div class="legendrow"><span>3-day forecast ${Math.round(lo)}°–${Math.round(hi)}°</span></div>`}
   $("#wtNote").textContent=ago!=null&&ago!==""?`${ago} min ago`:"";
   el.innerHTML=`<div class="wt fade"><div class="v">${Math.round(now)}<sup>°${S.temp}</sup></div><div class="lbl"><b>${feel[0]}</b><span>${feel[1]}</span></div></div>${chart}<div class="foot">${src}</div>`;
+}
+
+/* ---------- rain season vs normal (water year from Oct 1) ---------- */
+let normCache={};
+async function seasonNormal(){ // 1991–2020 average cumulative rain by day of season (mm)
+  const key=place.lat.toFixed(2)+","+place.lon.toFixed(2);if(normCache[key])return normCache[key];
+  const c=store.get("wx.norm:"+key,null);if(c&&c.v===1)return normCache[key]=c;
+  const j=await getJSON(`https://archive-api.open-meteo.com/v1/archive?latitude=${place.lat}&longitude=${place.lon}&start_date=1990-10-01&end_date=2020-09-30&daily=precipitation_sum&timezone=GMT`,40000);
+  const t=j.daily.time,p=j.daily.precipitation_sum,cum=new Float64Array(366);let years=0,day=0,run=0,acc=new Float64Array(366);
+  for(let i=0;i<t.length;i++){if(t[i].slice(5)==="10-01"){if(day>=365){for(let k=0;k<366;k++)cum[k]+=acc[Math.min(k,day-1)];years++}day=0;run=0;acc=new Float64Array(366)}
+    run+=p[i]||0;if(day<366)acc[day]=run;day++}
+  if(day>=365){for(let k=0;k<366;k++)cum[k]+=acc[Math.min(k,day-1)];years++}
+  const out={v:1,years,c:[...cum].map(x=>+(x/Math.max(1,years)).toFixed(2))};store.set("wx.norm:"+key,out);return normCache[key]=out}
+let seasonSer={};
+async function seasonSeries(){ // this season's daily rain (mm) up to 8 days ago, from the archive
+  const ws=waterYearStart(),end=dayStart(nowWall())-8*864e5,key=place.lat+","+place.lon+","+ymd(end);if(end<ws)return[];if(seasonSer[key])return seasonSer[key];
+  const j=await getJSON(`https://archive-api.open-meteo.com/v1/archive?latitude=${place.lat}&longitude=${place.lon}&start_date=${ymd(ws)}&end_date=${ymd(end)}&daily=precipitation_sum&timezone=auto`);
+  return seasonSer[key]=j.daily.time.map((t,i)=>[wall(t),j.daily.precipitation_sum[i]||0])}
+async function renderSeason(){
+  const el=$("#season");if(!el)return;const pid=place.id,mmU=v=>S.rain==="in"?v/25.4:v;
+  let norm,ser;try{[norm,ser]=await Promise.all([seasonNormal(),seasonSeries()])}catch(e){if(place.id===pid)el.innerHTML='<div class="err">Season totals unavailable right now.</div>';return}
+  if(place.id!==pid)return;
+  // stitch: archive up to 8 days ago, then the forecast model's recent days (observed) through today
+  const d=W.daily,ws=waterYearStart(),ti=todayIndex(),last=ser.length?ser[ser.length-1][0]:ws-864e5,days=[...ser];
+  const mm=S.rain==="in"?25.4:1;for(let j=0;j<=ti;j++){const t=wall(d.time[j]);if(t>last&&t>=ws)days.push([t,(d.precipitation_sum[j]||0)*mm])}
+  // today so far rather than the whole day's forecast
+  if(days.length&&days[days.length-1][0]===dayStart(nowWall())){const h=W.hourly,i=hourIndex(),t0=dayStart(nowWall());let s=0;for(let k=i;k>=0&&wall(h.time[k])>=t0;k--)s+=h.precipitation[k]||0;days[days.length-1][1]=s*mm}
+  let run=0;const cum=days.map(([t,v])=>[t,run+=v]),total=run,dn=Math.min(365,Math.round((dayStart(nowWall())-ws)/864e5)),normTo=norm.c[dn],normAll=norm.c[365],pct=normTo>0?Math.round(total/normTo*100):null;
+  const Wd=340,H=120,top=10,bot=H-18,X=k=>6+k/365*(Wd-12),mx=Math.max(normAll,total)*1.08||1,Y=v=>bot-v/mx*(bot-top);
+  let g=`<path d="${norm.c.map((v,k)=>(k?"L":"M")+X(k).toFixed(1)+" "+Y(v).toFixed(1)).join("")}" fill="none" stroke="#64799a" stroke-width="1.4" stroke-dasharray="3 3"/>`;
+  g+=`<path d="${cum.map(([t,v],k)=>(k?"L":"M")+X((t-ws)/864e5).toFixed(1)+" "+Y(v).toFixed(1)).join("")}L${X(dn).toFixed(1)} ${bot}L${X(0)} ${bot}z" fill="#4cc9f0" opacity=".12"/>`;
+  g+=`<path d="${cum.map(([t,v],k)=>(k?"L":"M")+X((t-ws)/864e5).toFixed(1)+" "+Y(v).toFixed(1)).join("")}" fill="none" stroke="#4cc9f0" stroke-width="2"/><circle cx="${X(dn)}" cy="${Y(total)}" r="3.5" fill="#4cc9f0" stroke="#0b1a2c" stroke-width="2"/>`;
+  g+=`<line x1="0" y1="${bot}" x2="${Wd}" y2="${bot}" stroke="#1c2d44"/>`;
+  ["Oct","Dec","Feb","Apr","Jun","Aug"].forEach((m,k)=>{const x=X([0,61,123,182,243,304][k]);g+=`<text x="${x}" y="${H-3}" fill="#64799a" font-size="9">${m}</text>`});
+  const tone=pct==null?"":pct>=115?"Wetter than normal":pct>=85?"About normal":pct>=50?"Drier than normal":"Much drier than normal";
+  el.innerHTML=`<div class="split fade"><div class="v">${U.r(mmU(total))}<em>${U.rl()}</em></div><span>${pct!=null?`<b style="color:var(--text)">${pct}%</b> of normal · ${tone.toLowerCase()}`:""}</span></div>
+    <svg class="chart" viewBox="0 0 ${Wd} ${H}" style="margin-top:8px">${g}</svg>
+    <div class="legendrow"><span><i style="background:#4cc9f0"></i>This season</span><span><i style="background:#64799a"></i>Normal (1991–2020)</span></div>
+    <div class="tbl" style="margin-top:6px"><div class="tr"><span>Normal by today</span><b>${U.r(mmU(normTo))}</b></div><div class="tr"><span>${total>=normTo?"Ahead of normal":"Behind normal"}</span><b>${U.r(mmU(Math.abs(total-normTo)))}</b></div><div class="tr"><span>Normal full season (Oct–Sep)</span><b>${U.r(mmU(normAll))}</b></div><div class="tr"><span>Season so far vs full-season normal</span><b>${normAll>0?Math.round(total/normAll*100)+"%":"--"}</b></div></div>
+    <div class="foot">Water year starts Oct 1 · ERA5 reanalysis via Open-Meteo, this season's last week from the forecast model</div>`;
+}
+
+/* ---------- fire weather & smoke ---------- */
+let fireReq=0;
+async function renderFire(){
+  const el=$("#fire");if(!el)return;const my=++fireReq;
+  const red=(ALERTS||[]).filter(f=>/Red Flag|Fire Weather|Extreme Fire/i.test(f.properties.event));
+  let fw=null,aq=null;
+  try{[fw,aq]=await Promise.all([
+    getJSON(`https://api.open-meteo.com/v1/forecast?latitude=${place.lat}&longitude=${place.lon}&hourly=relative_humidity_2m,vapour_pressure_deficit,wind_gusts_10m,precipitation&wind_speed_unit=mph&past_days=7&forecast_days=2&timezone=auto`).catch(()=>null),
+    getJSON(`https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${place.lat}&longitude=${place.lon}&current=us_aqi,pm2_5&hourly=pm2_5,us_aqi&forecast_days=2&timezone=auto`).catch(()=>null)])}catch(e){}
+  if(my!==fireReq)return;
+  let rows="",level=null;
+  if(fw&&fw.hourly){const h=fw.hourly,n=nowWall();let i=0;while(i+1<h.time.length&&wall(h.time[i+1])<=n)i++;
+    const nx=k=>h[k].slice(i,i+24).filter(v=>v!=null),rh=nx("relative_humidity_2m"),gu=nx("wind_gusts_10m"),vpd=nx("vapour_pressure_deficit");
+    let crit=0,elev=0;for(let k=i;k<Math.min(i+24,h.time.length);k++){const r=h.relative_humidity_2m[k],g=h.wind_gusts_10m[k];if(r<=15&&g>=25)crit++;if(r<=25&&g>=15)elev++}
+    let since=null;for(let k=i;k>=0;k--){if((h.precipitation[k]||0)>=.25){since=Math.floor((i-k)/24);break}}
+    let wet3=0;for(let k=Math.max(0,i-72);k<=i;k++)wet3+=h.precipitation[k]||0;
+    level=wet3>=6?0:crit>=3?2:elev>=3||Math.min(...rh)<=15?1:0;
+    const gU=v=>S.wind==="kmh"?v*1.609:S.wind==="kn"?v*.869:v;
+    rows+=`<div class="tr"><span>Lowest humidity · next 24 h</span><b>${Math.round(Math.min(...rh))}%</b></div><div class="tr"><span>Strongest gust · next 24 h</span><b>${Math.round(gU(Math.max(...gu)))} ${U.wl()}</b></div>
+      <div class="tr"><span>Peak drying power (VPD)</span><b>${Math.max(...vpd).toFixed(1)} kPa</b></div><div class="tr"><span>Since meaningful rain</span><b>${since==null?"7+ days":since===0?"today":since+" day"+(since>1?"s":"")}</b></div>`}
+  let aqHtml="";if(aq&&aq.current){const a=aq.current.us_aqi,pm=aq.current.pm2_5,cat=a<=50?["Good","#3ddc97"]:a<=100?["Moderate","#ffd54a"]:a<=150?["Unhealthy for sensitive groups","#ff8a3d"]:a<=200?["Unhealthy","#ff5468"]:a<=300?["Very unhealthy","#c792ea"]:["Hazardous","#a3203f"];
+    const pmMax=Math.max(...(aq.hourly.pm2_5||[]).slice(0,48).filter(v=>v!=null));
+    aqHtml=`<div class="aq"><div class="aqv" style="--c:${cat[1]}"><b>${Math.round(a)}</b><small>AQI</small></div><div><b>${cat[0]}</b><span>PM2.5 ${pm.toFixed(0)} µg/m³${pmMax>=35?` · smoky air possible, peak ${Math.round(pmMax)}`:pm>=35?" · smoky":""}</span></div></div>`}
+  const lv=red.length?{t:red.map(f=>f.properties.event).join(" · "),c:"#ff5468",s:"Issued by the National Weather Service for your area"}:
+    level===2?{t:"Critical fire weather",c:"#ff5468",s:"Very dry air with strong gusts in the next 24 h"}:level===1?{t:"Elevated fire weather",c:"#ffb547",s:"Dry air and/or gusty wind in the next 24 h"}:level===0?{t:"Low fire weather concern",c:"#3ddc97",s:"Humid enough or recent rain"}:null;
+  el.innerHTML=(lv?`<div class="firehd fade"><i style="background:${lv.c}"></i><div><b>${esc(lv.t)}</b><span>${lv.s}</span></div></div>`:"")+aqHtml+(rows?`<div class="tbl" style="margin-top:6px">${rows}</div>`:"")+
+    `<div class="foot">${red.length?"":"A rough guide from the forecast — NWS Red Flag Warnings are the official call. "}Air quality: CAMS via Open-Meteo. Smoke and wildfire maps are on the radar's layer list.</div>`||'<div class="err">Fire weather unavailable.</div>';
+}
+
+/* ---------- NWS area forecast discussion ---------- */
+let afdReq=0;
+async function renderAFD(){
+  const el=$("#afd"),panel=$("#afdPanel");if(!el)return;const my=++afdReq;
+  if(!isUS(place)){panel.style.display="none";return}
+  try{const key="wx.cwa:"+place.lat.toFixed(2)+","+place.lon.toFixed(2);let cwa=store.get(key,null);
+    if(!cwa){const p=await getJSON(`https://api.weather.gov/points/${place.lat.toFixed(4)},${place.lon.toFixed(4)}`);cwa=p.properties&&p.properties.cwa;if(cwa)store.set(key,cwa)}
+    if(!cwa||!/^[A-Z]{3}$/.test(cwa))throw new Error("no office");
+    const list=await getJSON(`https://api.weather.gov/products/types/AFD/locations/${cwa}`),first=list["@graph"]&&list["@graph"][0];if(!first)throw new Error("no AFD");
+    const prod=await getJSON(first["@id"]);if(my!==afdReq)return;
+    const txt=String(prod.productText||""),lines=txt.split("\n"),office=(lines.find(l=>/^National Weather Service/.test(l))||"").replace("National Weather Service","NWS").trim(),issued=lines.find(l=>/^\d{3,4} [AP]M [A-Z]{3}/.test(l))||"";
+    const secs=[];txt.replace(/^\.([A-Z][A-Z0-9 \/]+?)\.\.\.([\s\S]*?)(?=^&&|^\$\$|^\.[A-Z][A-Z0-9 \/]+?\.\.\.)/gm,(m,name,body)=>{secs.push([name.trim(),body]);return m});
+    const para=b=>b.replace(/^(Updated|Issued) at .*$/m,"").split(/\n\s*\n/).map(x=>x.trim()).filter(Boolean).map(x=>/^-\s/.test(x)?`<li>${esc(x.replace(/^-\s+/,"").replace(/\s*\n\s*/g," "))}</li>`:`<p>${esc(x.replace(/\s*\n\s*/g," "))}</p>`).join("").replace(/(<li>.*?<\/li>)+/g,m=>`<ul>${m}</ul>`);
+    const nice=n=>n.replace(new RegExp("^"+cwa+" "),"").toLowerCase().replace(/(^|\s|\/)\w/g,c=>c.toUpperCase());
+    const lead=secs.find(s=>/KEY MESSAGES|SYNOPSIS/.test(s[0]))||secs[0];
+    $("#afdNote").textContent=office.replace(/^NWS /,"");
+    el.innerHTML=`<div class="afd fade">${lead?`<h4>${esc(nice(lead[0]))}</h4>${para(lead[1])}`:""}
+      ${secs.filter(s=>s!==lead).map(s=>`<details><summary>${esc(nice(s[0]))}</summary>${/WATCHES|WARNINGS/.test(s[0])?`<pre>${esc(s[1].trim())}</pre>`:para(s[1])}</details>`).join("")}</div>
+      <div class="foot">${esc(issued)} · forecaster's discussion from ${esc(office||"the NWS")}</div>`;
+    panel.style.display="";
+  }catch(e){console.warn("afd",e);if(my===afdReq)panel.style.display="none"}
+}
+
+/* ---------- tidal currents ---------- */
+let curReq=0;
+async function nearestCurrent(lat,lon){
+  let c=store.get("wx.curStations",null);
+  if(!c||Date.now()-c.t>30*864e5){const j=await getJSON("https://api.tidesandcurrents.noaa.gov/mdapi/prod/webapi/stations.json?type=currentpredictions",40000);
+    const seen=new Map();for(const s of j.stations){if(!s.id||seen.has(s.id))continue;seen.set(s.id,[s.id,s.name,+(+s.lat).toFixed(4),+(+s.lng).toFixed(4),s.currbin||""])}
+    c={t:Date.now(),s:[...seen.values()]};store.set("wx.curStations",c)}
+  let best=null,bd=1e9;for(const s of c.s){const d=km(lat,lon,s[2],s[3]);if(d<bd){bd=d;best=s}}
+  return best&&{id:best[0],name:best[1],bin:best[4],km:bd}}
+async function renderCurrents(){
+  const el=$("#cur"),panel=$("#curPanel"),my=++curReq;if(!el)return;
+  if(!isUS(place)){panel.style.display="none";return}
+  try{const st=await nearestCurrent(place.lat,place.lon);if(!st||st.km>40){if(my===curReq)panel.style.display="none";return}
+    const t0=dayStart(nowWall()),base=`https://api.tidesandcurrents.noaa.gov/api/prod/datagetter?product=currents_predictions&station=${encodeURIComponent(st.id)}${st.bin?"&bin="+st.bin:""}&units=english&time_zone=lst_ldt&format=json&application=weather_app`;
+    const [ser,ev]=await Promise.all([getJSON(`${base}&begin_date=${ymd(t0-864e5,"")}&range=72&interval=30`),getJSON(`${base}&begin_date=${ymd(t0,"")}&range=48&interval=MAX_SLACK`)]);
+    if(my!==curReq)return;
+    const cp=(ser.current_predictions||{}).cp||[],evs=((ev.current_predictions||{}).cp||[]);if(!cp.length)throw new Error("no currents");
+    const pts=cp.map(p=>[wall(p.Time),+p.Velocity_Major]),fd=cp[0].meanFloodDir,ed=cp[0].meanEbbDir,n=nowWall();
+    let cur=null;for(let k=1;k<pts.length;k++)if(pts[k][0]>=n){const p=pts[k-1],q=pts[k],f=(n-p[0])/(q[0]-p[0]);cur=p[1]+(q[1]-p[1])*f;break}
+    const a=n-4*36e5,b=n+20*36e5,vis=pts.filter(p=>p[0]>=a-36e5&&p[0]<=b+36e5),mx=Math.max(1,...vis.map(p=>Math.abs(p[1])))*1.15,Wd=340,H=124,mid=H/2-6;
+    const X=t=>(t-a)/(b-a)*Wd,Y=v=>mid-v/mx*(mid-10),path=vis.map((p,k)=>(k?"L":"M")+X(p[0]).toFixed(1)+" "+Y(p[1]).toFixed(1)).join("");
+    let g=`<defs><clipPath id="cc"><rect width="${Wd}" height="${H}"/></clipPath><clipPath id="cup"><rect width="${Wd}" height="${mid}"/></clipPath><clipPath id="cdn"><rect y="${mid}" width="${Wd}" height="${H}"/></clipPath></defs><g clip-path="url(#cc)">`;
+    g+=`<path d="${path}L${X(vis[vis.length-1][0])} ${mid}L${X(vis[0][0])} ${mid}z" fill="#4cc9f0" opacity=".2" clip-path="url(#cup)"/><path d="${path}L${X(vis[vis.length-1][0])} ${mid}L${X(vis[0][0])} ${mid}z" fill="#ffb547" opacity=".24" clip-path="url(#cdn)"/>`;
+    g+=`<line x1="0" y1="${mid}" x2="${Wd}" y2="${mid}" stroke="#2a3f5c"/><path d="${path}" fill="none" stroke="#e9eef3" stroke-width="1.6"/>`;
+    g+=`<text x="4" y="12" fill="#4cc9f0" font-size="9">FLOOD ${fd!=null?String(Math.round(fd)).padStart(3,"0")+"°":""}</text><text x="4" y="${H-22}" fill="#ffb547" font-size="9">EBB ${ed!=null?String(Math.round(ed)).padStart(3,"0")+"°":""}</text>`;
+    for(let m=dayStart(a)+864e5;m<b;m+=864e5)g+=`<line x1="${X(m)}" y1="0" x2="${X(m)}" y2="${H-16}" stroke="#2a3f5c" stroke-dasharray="2 3"/><text x="${X(m)+4}" y="${H-20}" fill="#64799a" font-size="9">${fDay(m)}</text>`;
+    if(cur!=null)g+=`<line x1="${X(n)}" y1="4" x2="${X(n)}" y2="${H-16}" stroke="#64799a"/><circle cx="${X(n)}" cy="${Y(cur)}" r="4.5" fill="${cur>=0?"#4cc9f0":"#ffb547"}" stroke="#0b1a2c" stroke-width="2"/>`;
+    for(let t=dayStart(a)+Math.ceil((a-dayStart(a))/216e5)*216e5;t<b;t+=216e5)g+=`<text x="${X(t)}" y="${H-3}" fill="#64799a" font-size="9" text-anchor="middle">${fHour(t)}</text>`;
+    g+="</g>";
+    const next=evs.map(e=>[wall(e.Time),e.Type,+e.Velocity_Major]).filter(e=>e[0]>n).slice(0,4),state=cur==null?"":Math.abs(cur)<.2?"Near slack":cur>0?"Flooding":"Ebbing",dir=cur==null?null:cur>0?fd:ed;
+    $("#curNote").textContent=`${Math.round(st.km*.621)} mi`;
+    el.innerHTML=`<div class="split fade"><div class="v">${cur!=null?Math.abs(cur).toFixed(1):"--"}<em>kt</em></div><span>${state}${dir!=null&&Math.abs(cur)>=.2?` · toward ${dirName(dir)} ${String(Math.round(dir)).padStart(3,"0")}°`:""}</span></div>
+      <svg class="chart" viewBox="0 0 ${Wd} ${H}" style="margin-top:6px">${g}</svg>
+      <div class="cells">${next.map(e=>`<div class="cell"><small>${e[1]==="slack"?"Slack":e[1]==="flood"?"Max flood":"Max ebb"}</small><b>${fTime(e[0]).replace(" ","&nbsp;")}</b><span>${e[1]==="slack"?"0.0":Math.abs(e[2]).toFixed(1)} kt</span></div>`).join("")}</div>
+      <div class="foot">NOAA ${esc(st.id)} · ${esc(st.name)} · predicted</div>`;
+    panel.style.display="";
+  }catch(e){console.warn("currents",e);if(my===curReq)panel.style.display="none"}
+}
+
+/* ---------- waves & swell ---------- */
+let waveReq=0;
+async function renderWaves(){
+  const el=$("#waves"),panel=$("#wavePanel"),my=++waveReq;if(!el)return;
+  // the wave model has no values on land or in narrow bays: try the spot itself, then rings of nearby points
+  const cand=[[place.lat,place.lon]];for(const r of [.15,.3,.5,.8])for(let k=0;k<8;k++){const an=k*Math.PI/4;cand.push([place.lat+r*Math.sin(an),place.lon+r*Math.cos(an)/Math.cos(place.lat*Math.PI/180)])}
+  try{const j=await getJSON(`https://marine-api.open-meteo.com/v1/marine?latitude=${cand.map(c=>c[0].toFixed(3)).join(",")}&longitude=${cand.map(c=>c[1].toFixed(3)).join(",")}&current=wave_height,wave_period,wave_direction,swell_wave_height,swell_wave_period,swell_wave_direction,wind_wave_height&hourly=wave_height,swell_wave_height&forecast_days=3&timezone=auto`,25000);
+    if(my!==waveReq)return;const arr=Array.isArray(j)?j:[j];let best=null,bd=1e9;
+    arr.forEach((r,k)=>{if(!r||!r.current||r.current.wave_height==null)return;const d=km(place.lat,place.lon,r.latitude,r.longitude);if(d<bd){bd=d;best=r}});
+    if(!best){panel.style.display="none";return}
+    const c=best.current,ft=v=>v==null?null:S.rain==="in"?v*3.2808:v,hl=U.hl(),h=best.hourly,ser=h.time.map((t,i)=>[wall(t),ft(h.wave_height[i]),ft(h.swell_wave_height[i])]).filter(p=>p[1]!=null);
+    const a=ser[0][0],b=ser[ser.length-1][0],mx=Math.max(...ser.map(p=>Math.max(p[1],p[2]||0)))*1.15||1,Wd=340,H=90,X=t=>6+(t-a)/(b-a)*(Wd-12),Y=v=>H-16-v/mx*(H-26);
+    const line=k=>ser.filter(p=>p[k]!=null).map((p,i)=>(i?"L":"M")+X(p[0]).toFixed(1)+" "+Y(p[k]).toFixed(1)).join("");
+    let g=`<path d="${line(1)}L${X(b)} ${H-16}L${X(a)} ${H-16}z" fill="#4cc9f0" opacity=".14"/><path d="${line(1)}" fill="none" stroke="#4cc9f0" stroke-width="1.8"/><path d="${line(2)}" fill="none" stroke="#c792ea" stroke-width="1.3" stroke-dasharray="3 3"/>`;
+    for(let m=dayStart(a)+864e5;m<b;m+=864e5)g+=`<line x1="${X(m)}" y1="4" x2="${X(m)}" y2="${H-14}" stroke="#2a3f5c" stroke-dasharray="2 3"/><text x="${X(m)+3}" y="${H-3}" fill="#64799a" font-size="9">${fDay(m)}</text>`;
+    const n=nowWall();if(n>a&&n<b){let k=0;while(k+1<ser.length&&ser[k+1][0]<=n)k++;g+=`<circle cx="${X(n)}" cy="${Y(ser[k][1])}" r="3.5" fill="#4cc9f0" stroke="#0b1a2c" stroke-width="2"/>`}
+    const wh=ft(c.wave_height),feel=(S.rain==="in"?wh:wh*3.28)<2?"Calm":(S.rain==="in"?wh:wh*3.28)<4?"Small":(S.rain==="in"?wh:wh*3.28)<7?"Moderate":(S.rain==="in"?wh:wh*3.28)<11?"Large":"Very large";
+    $("#waveNote").textContent=bd<3?"here":`${Math.round(bd*.621)} mi offshore`;
+    el.innerHTML=`<div class="split fade"><div class="v">${wh.toFixed(1)}<em>${hl}</em></div><span>${feel} seas${c.wave_period?` · ${Math.round(c.wave_period)} s`:""}</span></div>
+      <div class="tbl" style="margin-top:6px"><div class="tr"><span>Swell</span><b>${c.swell_wave_height!=null?ft(c.swell_wave_height).toFixed(1)+" "+hl+" @ "+Math.round(c.swell_wave_period)+" s":"--"}</b></div>
+      <div class="tr"><span>Swell from</span><b>${c.swell_wave_direction!=null?dirName(c.swell_wave_direction)+" "+String(Math.round(c.swell_wave_direction)).padStart(3,"0")+"°":"--"}</b></div>
+      <div class="tr"><span>Wind waves</span><b>${c.wind_wave_height!=null?ft(c.wind_wave_height).toFixed(1)+" "+hl:"--"}</b></div></div>
+      <svg class="chart" viewBox="0 0 ${Wd} ${H}" style="margin-top:12px">${g}</svg><div class="legendrow"><span><i style="background:#4cc9f0"></i>Wave height</span><span><i style="background:#c792ea"></i>Swell</span></div>
+      <div class="foot">Open-Meteo marine model (ECMWF WAM / NOAA WW3)</div>`;
+    panel.style.display="";
+  }catch(e){console.warn("waves",e);if(my===waveReq)panel.style.display="none"}
 }
 
 /* ---------- moon ---------- */
@@ -886,15 +1070,21 @@ const LAYERS=[
  {g:"Weather",k:"radar",n:"Radar loop",s:"Past hour + 3-hour forecast",c:"linear-gradient(135deg,#04e9e7,#02fd02,#fdf802,#fd0000)"},
  {g:"Weather",k:"ir",n:"Satellite · infrared",s:"GOES-East, clouds day & night",c:"linear-gradient(135deg,#222,#ddd)",us:1},
  {g:"Weather",k:"vis",n:"Satellite · visible",s:"GOES-East, daylight only",c:"linear-gradient(135deg,#556,#fff)",us:1},
+ {g:"Weather",k:"wv",n:"Satellite · water vapor",s:"GOES mid-level moisture, jet stream & storms",c:"linear-gradient(135deg,#1d2b6b,#3aa0d8,#e8f0ff,#d88a2a)",us:1},
+ {g:"Weather",k:"ptype",n:"Precip type",s:"Rain, snow, freezing rain, sleet · HRRR now",c:"linear-gradient(135deg,#3fcf5e 25%,#5b9cf0 25% 50%,#f0467f 50% 75%,#8d5fd6 75%)",us:1},
+ {g:"Weather",k:"lightning",n:"Lightning",s:"GOES lightning mapper · last few minutes",c:"linear-gradient(135deg,#fff7b0,#ffd54a,#ff8a3d)",us:1},
  {g:"Weather",k:"mrms",v:"q2-n1p",n:"Rain · last hour",s:"MRMS radar estimate",c:"linear-gradient(135deg,#0a8,#ff0,#f00)",us:1},
  {g:"Weather",k:"mrms",v:"q2-p24h",n:"Rain · last 24 h",s:"MRMS radar estimate",c:"linear-gradient(135deg,#0a8,#ff0,#f00)",us:1},
  {g:"Weather",k:"mrms",v:"q2-p72h",n:"Rain · last 72 h",s:"MRMS radar estimate",c:"linear-gradient(135deg,#0a8,#ff0,#f00)",us:1},
  {g:"Weather",k:"alerts",n:"NWS alerts",s:"Warnings & advisories here",c:"#ff8a3d",us:1},
+ {g:"Fire & smoke",k:"smoke",n:"Smoke",s:"HRRR near-surface smoke · now",c:"linear-gradient(135deg,#b1d5f5,#8abb48,#edd252,#cc6427,#7832cd)",us:1},
+ {g:"Fire & smoke",k:"fires",n:"Active wildfires",s:"Current incidents (NIFC)",c:"#ff5a1f",us:1},
+ {g:"Fire & smoke",k:"fireout",n:"Fire weather outlook",s:"NOAA Storm Prediction Center",c:"linear-gradient(135deg,#ffb547,#ff5468,#e05cff)",us:1},
  {g:"Aviation · aviationweather.gov",k:"metar",n:"METARs",s:"Flight category by airport",c:"linear-gradient(135deg,#3ddc97 25%,#4ca3ff 25% 50%,#ff5468 50% 75%,#e05cff 75%)",us:1},
  {g:"Aviation · aviationweather.gov",k:"gairmet",n:"G-AIRMETs",s:"IFR, mtn obsc, turb, icing, LLWS — now",c:"#c792ea",us:1},
  {g:"Aviation · aviationweather.gov",k:"sigmet",n:"SIGMETs",s:"Convective & non-convective",c:"#ff5468",us:1},
  {g:"Aviation · aviationweather.gov",k:"cwa",n:"Center Weather Advisories",s:"CWAs from ARTCCs",c:"#ffd54a",us:1},
- {g:"Aviation · aviationweather.gov",k:"turb",n:"Turbulence",s:"G-AIRMET & SIGMET areas + pilot reports",c:"linear-gradient(135deg,#ffb547,#ff8a3d,#c792ea)",us:1},
+ {g:"Aviation · aviationweather.gov",k:"turb",n:"Turbulence",s:"EDR forecast by flight level + G-AIRMETs, SIGMETs, PIREPs",c:"linear-gradient(135deg,#ffb547,#ff8a3d,#c792ea)",us:1},
  {g:"Aviation · aviationweather.gov",k:"pirep",n:"PIREPs",s:"Pilot reports, last 2 h",c:"#e9eef3",us:1}];
 const GCOL={"IFR":"#c792ea","MT_OBSC":"#d4a373","TURB-HI":"#ff8a3d","TURB-LO":"#7cc4ff","ICE":"#4cc9f0","LLWS":"#ff5468","SFC_WND":"#ffd54a"};
 let map=null,mapReady=false,meMarker=null,frames=[],fi=0,playing=false,timer=null,radarStamp=0,radarKey="",popup=null,avTimer=null;
@@ -904,18 +1094,26 @@ let map=null,mapReady=false,meMarker=null,frames=[],fi=0,playing=false,timer=nul
 const REF=[[5,4,233,231],[10,1,159,244],[15,3,0,244],[20,2,253,2],[25,1,197,1],[30,0,142,0],[35,253,248,2],[40,229,188,0],[45,253,149,0],[50,253,0,0],[55,212,0,0],[60,188,0,0],[65,248,0,253],[70,152,84,198],[75,253,253,253]];
 const REFS=(()=>{const o=[];for(let k=0;k<REF.length-1;k++){const a=REF[k],b=REF[k+1];for(let q=0;q<10;q++){const f=q/10;o.push([a[0]+(b[0]-a[0])*f,a[1]+(b[1]-a[1])*f,a[2]+(b[2]-a[2])*f,a[3]+(b[3]-a[3])*f])}}o.push(REF[REF.length-1]);return o})();
 const dbzMemo=new Map();
-function toDbz(r,g,b){const key=(r>>2<<12)|(g>>2<<6)|(b>>2);let v=dbzMemo.get(key);if(v===undefined){let bd=1e9;v=-1;
-  for(const q of REFS){const dr=q[1]-r,dg=q[2]-g,db=q[3]-b,d=dr*dr+dg*dg+db*db;if(d<bd){bd=d;v=q[0]}}if(bd>1200)v=-1;dbzMemo.set(key,v)}return v}
+// the exact colour table IEM uses for NEXRAD and HRRR reflectivity tiles: index i = (dBZ + 32.5) × 2
+const N0Q_PAL="00000085718f85728f86738d87758b87768b887789897987897a878a7b858b7d848b7e848c7f828d81808d82808e837e8f847c8f857c90877b918879918979928b77938d759691539894579b975b9d9a60a09d64a3a068a5a36da8a671aaa976adac7ab0af7eb2b283b7b88cbabb90bdbe94bfc199c2c49dc4c7a2c7caa6cacdaaccd0afd2d4b4cfd2b4c9ccb4c6c9b4c3c7b4c0c4b4bdc1b4b9beb4b6bbb4b3b9b4b0b6b4adb3b4aab0b4a4abb4a0a8b49da5b49aa2b497a0b4949db4919ab4949bb59098b48c95b38892b2808cb07c89af7886ae7483ac7080ab6c7daa6779a96376a85f73a75b70a6576da44f67a24b64a14761a0435e9f415b9e4361a24568a6486faa4a76ae4d7db24f84b6518bbb5699c3599fc75ba6cb5eadcf60b4d462bbd865c2dc67c9e06ad0e46fd6e868d6d759d6b352d6a24bd69043d67e3cd66d35d65b11d51811d11710cd1710c81610c4160fbc150fb7140eb3140eaf130eab130da6120da2120d9e110c99110c95100c91100b880f0b840e0a800e0a7c0d0a770d09730c096f0c096b0b08660b08620a095e09327308467d085b88076f9207849d0698a806adb205c1bd05d6c704ead204ffe200ffd800ffd300ffce00ffc900ffc400ffc000ffbb00ffb600ffb100ffac00ffa700ffa200ff9900ff9400ff8f00ff8a00ff8500ff8000ff0000f80000f10000ea0000e30000d50000cd0000c60000bf0000b80000b10000aa0000a300009b00009400008d00007f0000780000710000fffffffff5ffffeaffffdfffffd4ffffc9ffffbeffffb3ffff9dffff92ffff75fffc6bfdf960faf656f7f34bf4f040f1ed36efea2bece720e9e10be3b200ffac00fca400f79b00f49300ef8800ea8300e87900e27200dd6900db05ecf005ebf005eaf005dde005dce005dbe005cdd005ccd004bdc004bcc004bbc004aeb004adb0049ea0049da0049ca0038e90038d90038c90037e80037d80036f70036e70036d70025f60025e60024f50024e50024d50023f40023e40023d40013030012f30012020011f20011e203a67b53a66b53a65b53a64b53a63b53a62b5";
+const N0Q=(()=>{const m=new Map();for(let i=1;i<256;i++){const k=parseInt(N0Q_PAL.substr(i*6,6),16);if(!m.has(k))m.set(k,i/2-32.5)}
+  const list=[];for(let i=65;i<200;i++){const k=parseInt(N0Q_PAL.substr(i*6,6),16);list.push([i/2-32.5,k>>16,k>>8&255,k&255])}return{m,list}})();
+// nearest reflectivity colour; tol = how far (squared RGB distance) a pixel may be from the palette
+function toDbz(r,g,b,tol=1200){const ex=N0Q.m.get(r<<16|g<<8|b);if(ex!==undefined)return ex;
+  const key=(r>>2<<12)|(g>>2<<6)|(b>>2);let m=dbzMemo.get(key);if(m===undefined){let bd=1e9,v=-1;
+  for(const q of [...N0Q.list,...REFS]){const dr=q[1]-r,dg=q[2]-g,db=q[3]-b,d=dr*dr+dg*dg+db*db;if(d<bd){bd=d;v=q[0]}}m=[v,bd];dbzMemo.set(key,m)}return m[1]>tol?-1:m[0]}
 const BANDS=[[10,"#4fa9d8",.6],[15,"#3cc6a8",.8],[20,"#3fcf5e",.92],[25,"#24a84c",.95],[30,"#168a3c",.97],[35,"#f2d23a",1],[40,"#f5a524",1],[45,"#f2711c",1],[50,"#e53939",1],[55,"#b81d2a",1],[60,"#d64fd6",1],[65,"#f6d0ff",1]];
 const BAND_LUT=(()=>{const t=[];for(let v=0;v<=80;v++){let c=null;for(const b of BANDS)if(v>=b[0])c=b;if(c){const h=c[1];t.push([parseInt(h.slice(1,3),16),parseInt(h.slice(3,5),16),parseInt(h.slice(5,7),16),c[2]])}else t.push(null)}return t})();
 const fieldCache=new Map();
-function radarField(url){
+function radarField(url,tol){
   if(fieldCache.has(url))return fieldCache.get(url);
   const p=(async()=>{const r=await fetch(via(url));if(!r.ok)throw new Error("HTTP "+r.status);
     const bmp=await createImageBitmap(await r.blob()),w=bmp.width,h=bmp.height,c=document.createElement("canvas");c.width=w;c.height=h;
     const g=c.getContext("2d",{willReadFrequently:true});g.drawImage(bmp,0,0);const a=g.getImageData(0,0,w,h).data,n=w*h;
-    let cov=new Float32Array(n),val=new Float32Array(n);
-    for(let i=0,k=0;k<n;i+=4,k++){if(a[i+3]<128)continue;const v=toDbz(a[i],a[i+1],a[i+2]);if(v>=10){cov[k]=1;val[k]=v}}
+    let cov=new Float32Array(n),val=new Float32Array(n),op=0,hit=0;
+    for(let i=0,k=0;k<n;i+=4,k++){if(a[i+3]<128)continue;op++;const v=toDbz(a[i],a[i+1],a[i+2],tol);if(v>=0)hit++;if(v>=10){cov[k]=1;val[k]=v}}
+    // colours we can't read as rain intensity (a different palette): show the original tile instead
+    if(op>150&&hit<op*.85)return{raw:bmp,w,h};
     // two light box-blur passes = gentle rounding of the pixel steps (values weighted by coverage)
     const blur=(src)=>{const t=new Float32Array(n),o=new Float32Array(n);
       for(let y=0;y<h;y++)for(let x=0;x<w;x++){const i=y*w+x;t[i]=(src[i-(x>0)]+src[i]+src[i+(x<w-1)])/3}
@@ -928,6 +1126,13 @@ function radarField(url){
 let EMPTY_TILE=null;
 function emptyTile(){if(!EMPTY_TILE)EMPTY_TILE=new Promise(r=>{const c=document.createElement("canvas");c.width=c.height=1;c.toBlob(b=>b.arrayBuffer().then(r),"image/png")});return EMPTY_TILE}
 function registerRadar(){
+  maplibregl.addProtocol("wxp",async params=>{
+    const m=/^wxp:\/\/(\d+)\/(\d+)\/(\d+)\?(.*)$/.exec(params.url),z=+m[1],x=+m[2],y=+m[3],q=new URLSearchParams(m[4]);
+    const nz=+q.get("nz"),d=Math.max(0,z-nz),px=x>>d,py=y>>d,url=q.get("u").replace("{z}",z-d).replace("{x}",px).replace("{y}",py);
+    let d2=null;try{d2=await ptypeTile(url,d,x-px*(1<<d),y-py*(1<<d))}catch(e){}return{data:d2||await emptyTile()}});
+  maplibregl.addProtocol("wxc",async params=>{
+    const m=/^wxc:\/\/(\d+)\/(\d+)\/(\d+)\?(.*)$/.exec(params.url),q=new URLSearchParams(m[4]);
+    const url=q.get("u").replace("{z}",m[1]).replace("{x}",m[2]).replace("{y}",m[3]);let d=null;try{d=await recolorTile(url,q.get("m"))}catch(e){}return{data:d||await emptyTile()}});
   maplibregl.addProtocol("gtg",async params=>{
     const m=/^gtg:\/\/(\d+)\/(\d+)\/(\d+)\?k=([^&]+)&ac=([LMH])$/.exec(params.url);
     let d=null;if(m){try{d=await gtgTile(+m[1],+m[2],+m[3],decodeURIComponent(m[4]),m[5])}catch(e){}}
@@ -935,7 +1140,9 @@ function registerRadar(){
   maplibregl.addProtocol("wxr",async params=>{
     const m=/^wxr:\/\/(\d+)\/(\d+)\/(\d+)\?(.*)$/.exec(params.url),z=+m[1],x=+m[2],y=+m[3],q=new URLSearchParams(m[4]);
     const nz=+q.get("nz"),d=Math.max(0,z-nz),px=x>>d,py=y>>d,url=q.get("u").replace("{z}",z-d).replace("{x}",px).replace("{y}",py);
-    let F;try{F=await radarField(url)}catch(e){return{data:await emptyTile()}}
+    let F;try{F=await radarField(url,+q.get("tol")||1200)}catch(e){return{data:await emptyTile()}}
+    if(F.raw){const n=1<<d,sz=F.w/n,c=document.createElement("canvas");c.width=c.height=512;const g=c.getContext("2d");g.imageSmoothingQuality="high";
+      g.drawImage(F.raw,(x-px*n)*sz,(y-py*n)*sz,sz,sz,0,0,512,512);const blob=await new Promise(r=>c.toBlob(r,"image/png"));return{data:await blob.arrayBuffer()}}
     const n=1<<d,sz=F.w/n,sx=(x-px*n)*sz,sy=(y-py*n)*sz,S=512,c=document.createElement("canvas");c.width=c.height=S;
     const g=c.getContext("2d"),img=g.createImageData(S,S),o=img.data,W0=F.w,H0=F.h,cov=F.cov,val=F.val,st=sz/S;
     for(let oy=0;oy<S;oy++){const fy=Math.min(H0-1.001,Math.max(0,sy+(oy+.5)*st-.5)),y0=fy|0,ty=fy-y0,r0=y0*W0,r1=Math.min(H0-1,y0+1)*W0;
@@ -947,7 +1154,7 @@ function registerRadar(){
     g.putImageData(img,0,0);const blob=await new Promise(r=>c.toBlob(r,"image/png"));return{data:await blob.arrayBuffer()};
   });
 }
-const smoothRadar=(tpl,nz)=>`wxr://{z}/{x}/{y}?nz=${nz}&u=${encodeURIComponent(tpl)}`;
+const smoothRadar=(tpl,nz,tol)=>`wxr://{z}/{x}/{y}?nz=${nz}${tol?`&tol=${tol}`:""}&u=${encodeURIComponent(tpl)}`;
 function beforeLabels(){const s=map.getStyle().layers.find(l=>l.type==="symbol");return s?s.id:undefined}
 function initMap(){
   if(map||!window.maplibregl)return;
@@ -987,11 +1194,11 @@ function renderMap(){
   renderChips();if(mapReady){buildLayerPanel();applyLayers()}
 }
 function renderChips(){
-  const us=isCONUS(place),chips=[["radar","Radar"],...(us?[["turb","Turbulence"],["ir","Satellite"],["mrms","Rain 24h"],["metar","Flight cat"],["gairmet","G-AIRMET"],["sigmet","SIGMET"]]:[])];
+  const us=isCONUS(place),chips=[["radar","Radar"],...(us?[["turb","Turbulence"],["ir","Satellite"],["lightning","Lightning"],["smoke","Smoke"],["mrms","Rain 24h"],["metar","Flight cat"],["gairmet","G-AIRMET"],["sigmet","SIGMET"]]:[])];
   $("#chips").innerHTML=chips.map(([k,n])=>`<button class="chip${(k==="mrms"?L.mrms:L[k])?" on":""}" data-k="${k}">${n}</button>`).join("");
 }
 $("#chips").onclick=e=>{const b=e.target.closest(".chip");if(!b)return;e.stopPropagation();const k=b.dataset.k;if(k==="future")radarStamp=0;
-  if(k==="mrms")L.mrms=L.mrms?"":"q2-p24h";else L[k]=!L[k];if(k==="ir"&&L.ir)L.vis=false;saveLayers();renderChips();buildLayerPanel();applyLayers()};
+  if(k==="mrms")L.mrms=L.mrms?"":"q2-p24h";else L[k]=!L[k];if(k==="ir"&&L.ir){L.vis=false;L.wv=false}if(k==="vis"&&L.vis){L.ir=false;L.wv=false}if(k==="wv"&&L.wv){L.ir=false;L.vis=false}if(k==="ptype"&&L.ptype)L.radar=false;if(k==="radar"&&L.radar)L.ptype=false;saveLayers();renderChips();buildLayerPanel();applyLayers()};
 function buildLayerPanel(){
   const us=isCONUS(place);let s="",g="";
   for(const d of LAYERS){if(d.us&&!us)continue;if(d.g!==g){g=d.g;s+=`<h4>${g}</h4>`}
@@ -1001,7 +1208,7 @@ function buildLayerPanel(){
   $("#layerPanel").innerHTML=s;
 }
 $("#layerPanel").onclick=e=>{const b=e.target.closest(".lrow");if(!b)return;const k=b.dataset.k,v=b.dataset.v;if(k==="future"){radarStamp=0;if(!L.future)L.radar=true}
-  if(k==="mrms")L.mrms=L.mrms===v?"":v;else L[k]=!L[k];if(k==="ir"&&L.ir)L.vis=false;if(k==="vis"&&L.vis)L.ir=false;
+  if(k==="mrms")L.mrms=L.mrms===v?"":v;else L[k]=!L[k];if(k==="ir"&&L.ir){L.vis=false;L.wv=false}if(k==="vis"&&L.vis){L.ir=false;L.wv=false}if(k==="wv"&&L.wv){L.ir=false;L.vis=false}if(k==="ptype"&&L.ptype)L.radar=false;if(k==="radar"&&L.radar)L.ptype=false;
   saveLayers();buildLayerPanel();renderChips();applyLayers()};
 function saveLayers(){store.set("wx.layers",L)}
 
@@ -1019,6 +1226,7 @@ async function applyLayers(force){
   for(const k of ["ir","vis"]){const id="sat-"+k,hd="sat-"+k+"-hd",u=`https://mesonet.agron.iastate.edu/cache/tile.py/1.0.0/goes_east_conus_ch${k==="ir"?"13":"02"}/{z}/{x}/{y}.png?${bust}`;
     if(L[k]&&us){raster(id,u,{opacity:k==="ir"?.6:.75,maxzoom:k==="ir"?7:8,attr:"GOES via IEM"});raster(hd,u,{opacity:k==="ir"?.6:.78,tileSize:128,minzoom:4,maxzoom:k==="ir"?9:11})}
     else{rmLayer(hd);rmLayer(id)}}
+  applyExtraLayers(us,bust);
   for(const d of LAYERS.filter(x=>x.k==="mrms")){const id="mrms-"+d.v;if(L.mrms===d.v&&us)raster(id,`https://mesonet.agron.iastate.edu/cache/tile.py/1.0.0/${d.v}-900913/{z}/{x}/{y}.png?${bust}`,{opacity:.75,maxzoom:8,attr:"MRMS via IEM"});else rmLayer(id)}
   const key=String(us);
   if(L.radar){if(force||!frames.length||key!==radarKey||Date.now()-radarStamp>4*6e4){radarKey=key;await loadRadar()}}else clearRadar();
@@ -1038,7 +1246,7 @@ async function loadRadar(){
         $("#mapSrc").textContent="NEXRAD past hour · HRRR next 3 h"}}
     else{const j=await getJSON("https://api.rainviewer.com/public/weather-maps.json");
       frames=j.radar.past.map((f,k)=>({id:"rad"+k,t:f.time*1000,url:`${j.host}${f.path}/256/{z}/{x}/{y}/2/1_1.png`,mz:7}));$("#mapSrc").textContent="RainViewer · last 2 h"}
-    for(const f of frames)raster(f.id,f.fut?f.url:us?smoothRadar(f.url,8):f.url,{opacity:0,maxzoom:f.fut?8:us?13:7,attr:f.fut?"HRRR via IEM":us?"NEXRAD via IEM":"RainViewer"});
+    for(const f of frames)raster(f.id,f.fut?smoothRadar(f.url,8):us?smoothRadar(f.url,8):f.url,{opacity:0,maxzoom:us?13:7,attr:f.fut?"HRRR via IEM":us?"NEXRAD via IEM":"RainViewer"});
     NOWF=frames.filter(f=>!f.fut).length-1;
     $("#slider").max=frames.length-1;const sl=$("#slider"),pct=frames.length>1?NOWF/(frames.length-1)*100:100;
     const hasF=frames.length>NOWF+1;sl.style.background=hasF?`linear-gradient(90deg,transparent ${pct}%,rgba(199,146,234,.35) ${pct}%)`:"";
@@ -1126,6 +1334,94 @@ async function loadBboxAviation(){
       map.addLayer({id:"turb-pirep-lbl",type:"symbol",source:"turbpireps",minzoom:6,layout:{"text-field":["get","fl"],"text-size":10,"text-offset":[0,1.3],"text-font":["Noto Sans Regular"],"text-allow-overlap":false},paint:{"text-color":"#e6eef8","text-halo-color":"#0a1626","text-halo-width":1.2}})}}catch(e){console.warn("turb pirep",e)}}
   setVis(["metar"],L.metar);setVis(["pirep"],L.pirep);setVis(["turb-pirep","turb-pirep-lbl"],L.turb);gtgPirepFilter();for(const id of ["metar","pirep","turb-pirep","turb-pirep-lbl"])if(map.getLayer(id))map.moveLayer(id);
 }
+
+/* ---------- extra map layers: water vapor, precip type, lightning, smoke, fires ----------
+   Satellite, lightning, smoke and fire tiles come from SSEC RealEarth (Univ. of Wisconsin);
+   precip type is HRRR reflectivity coloured by type, from the Iowa Environmental Mesonet. */
+const RE="https://realearth.ssec.wisc.edu";
+const isWest=()=>place.lon<-104;
+let smokeT={t:0,v:null};
+async function smokeTime(){ // the HRRR smoke hour closest to now
+  if(smokeT.v&&Date.now()-smokeT.t<15*6e4)return smokeT.v;
+  const r=await fetch(`${RE}/api/times?products=HRRR-smoke-surface`);const j=await r.json(),ts=(j["HRRR-smoke-surface"]||[]);
+  let best=null,bd=1e15;for(const t of ts){const m=/^(\d{4})(\d\d)(\d\d)\.(\d\d)(\d\d)(\d\d)$/.exec(t);if(!m)continue;const ms=Date.UTC(+m[1],m[2]-1,+m[3],+m[4],+m[5]),d=Math.abs(ms-Date.now());if(d<bd){bd=d;best={d:t.slice(0,8),h:t.slice(9),ms}}}
+  smokeT={t:Date.now(),v:best};return best}
+async function applyExtraLayers(us,bust){
+  const wv="sat-wv",pt="ptype",lt="lightning",sm="smoke",fi="fires",fo="fireout",run=Math.floor((Date.now()-55*6e4)/36e5)*36e5,fm=Math.ceil((Date.now()-run)/9e5)*15;
+  if(L.wv&&us)raster(wv,`wxc://{z}/{x}/{y}?m=wv&u=${encodeURIComponent(`${RE}/tiles/${isWest()?"G18":"G19"}-ABI-CONUS-BAND09/{z}/{x}/{y}.png?${bust}`)}`,{opacity:.9,maxzoom:8,attr:"GOES via SSEC RealEarth"});else rmLayer(wv);
+  const ptu=`https://mesonet.agron.iastate.edu/cache/tile.py/1.0.0/hrrr::REFP-F${String(fm).padStart(4,"0")}-0/{z}/{x}/{y}.png?${run}`,ptid=pt+fm;
+  for(const l of (map.getStyle().layers||[]))if(/^ptype\d+$/.test(l.id)&&(l.id!==ptid||!(L.ptype&&us)))rmLayer(l.id);
+  if(L.ptype&&us)raster(ptid,`wxp://{z}/{x}/{y}?nz=8&u=${encodeURIComponent(ptu)}`,{opacity:.9,maxzoom:13,attr:"HRRR via IEM"});
+  if(L.lightning&&us)raster(lt,`wxc://{z}/{x}/{y}?m=glm&u=${encodeURIComponent(`${RE}/tiles/${isWest()?"GOESWest":"GOESEast"}GLMFEDRadC/{z}/{x}/{y}.png?${bust}`)}`,{opacity:1,maxzoom:8,attr:"GOES GLM via SSEC RealEarth"});else rmLayer(lt);
+  if(L.fireout&&us)raster(fo,`${RE}/tiles/NOAA-SPC-fire-wx/{z}/{x}/{y}.png?${bust}`,{opacity:.55,maxzoom:9,attr:"NOAA SPC via RealEarth"});else rmLayer(fo);
+  if(L.fires&&us)raster(fi,`wxc://{z}/{x}/{y}?m=fire&u=${encodeURIComponent(`${RE}/tiles/WFIGS-Points/{z}/{x}/{y}.png?${bust}`)}`,{opacity:1,maxzoom:11,attr:"NIFC via RealEarth"});else rmLayer(fi);
+  if(L.smoke&&us){try{const t=await smokeTime();const id=t?"smoke-"+t.d+t.h:null;
+      for(const l of (map.getStyle().layers||[]))if(l.id.startsWith("smoke-")&&l.id!==id)rmLayer(l.id);
+      if(t)raster(id,`${RE}/tiles/HRRR-smoke-surface/${t.d}/${t.h}/{z}/{x}/{y}.png`,{opacity:.75,maxzoom:8,attr:"HRRR-Smoke via SSEC RealEarth"});SMOKE_AT=t&&t.ms;updateLegend()}catch(e){console.warn("smoke",e)}}
+  else for(const l of (map.getStyle().layers||[]))if(l.id.startsWith("smoke-"))rmLayer(l.id);
+  // keep point-like layers on top of the image layers
+  for(const id of [lt,fi])if(map.getLayer(id))map.moveLayer(id,beforeLabels());
+}
+let SMOKE_AT=null;
+function extraLegend(us,rows){
+  if(!us)return;
+  if(L.ptype)rows.push(`<div class="key">${[["#3fcf5e","Rain"],["#5b9cf0","Snow"],["#f0467f","Freezing rain"],["#8d5fd6","Sleet"]].map(([c,n])=>`<span><i style="background:${c}"></i>${n}</span>`).join("")}</div>`);
+  if(L.lightning)rows.push(`<div class="lg">Lightning <i style="background:linear-gradient(90deg,rgba(255,213,74,.35),#ffd54a,#fff7d0)"></i>Frequent</div>`);
+  if(L.smoke)rows.push(`<div class="lg">Smoke <i style="background:linear-gradient(90deg,#d9ecfb,#88afdd,#71a478,#c9d654,#edd252,#dc9637,#cc6427,#a33121,#7832cd)"></i>Heavy${SMOKE_AT?` · ${fT(SMOKE_AT+off*1000)}`:""}</div>`);
+  if(L.wv)rows.push(`<div class="lg">Dry <i style="background:linear-gradient(90deg,#8a5a2e,#3a3f5a,#2f6fd6,#7cc4ff,#f2f8ff)"></i>Moist</div>`);
+  if(L.fires||L.fireout)rows.push(`<div class="key">${L.fires?'<span><i style="background:#ff5a1f;border-radius:50%"></i>Wildfire</span>':""}${L.fireout?'<span><i style="background:#ffb547"></i>Elevated</span><span><i style="background:#ff5468"></i>Critical</span><span><i style="background:#e05cff"></i>Extreme</span>':""}</div>`);
+}
+// lightning tiles are grayscale flash density: redraw them as glowing yellow so they stand out on the dark map
+async function recolorTile(url,mode){
+  const r=await fetch(url);if(!r.ok)return null;const bmp=await createImageBitmap(await r.blob()),w=bmp.width,h=bmp.height,c=document.createElement("canvas");c.width=w;c.height=h;
+  const g=c.getContext("2d",{willReadFrequently:true});g.drawImage(bmp,0,0);const img=g.getImageData(0,0,w,h),a=img.data;let any=false;
+  if(mode==="wv"){ // water vapor: brightness = moisture; dry air brown, moist air blue to white
+    const st=[[0,138,90,46,.55],[.32,58,63,90,.32],[.5,47,111,214,.55],[.72,124,196,255,.75],[1,242,248,255,.92]];
+    for(let i=0;i<a.length;i+=4){if(a[i+3]<8)continue;any=true;const v=(a[i]+a[i+1]+a[i+2])/765;let k=0;while(k<st.length-2&&v>st[k+1][0])k++;const p=st[k],q=st[k+1],f=Math.max(0,Math.min(1,(v-p[0])/(q[0]-p[0])));
+      a[i]=p[1]+(q[1]-p[1])*f;a[i+1]=p[2]+(q[2]-p[2])*f;a[i+2]=p[3]+(q[3]-p[3])*f;a[i+3]=255*(p[4]+(q[4]-p[4])*f)}
+    if(!any)return null;g.putImageData(img,0,0);const b=await new Promise(res=>c.toBlob(res,"image/png"));return b.arrayBuffer()}
+  for(let i=0;i<a.length;i+=4){if(a[i+3]<8)continue;const v=Math.max(a[i],a[i+1],a[i+2])/255;if(mode!=="fire"&&v<.02){a[i+3]=0;continue}any=true;
+    if(mode==="fire"){a[i]=255;a[i+1]=Math.round(90+120*v*v);a[i+2]=Math.round(31+60*v*v);a[i+3]=255;continue}
+    const t=Math.min(1,.25+v*1.6);a[i]=255;a[i+1]=Math.round(213+42*t);a[i+2]=Math.round(74+150*Math.max(0,t-.5)*2);a[i+3]=Math.round(255*Math.min(1,.45+v*2))}
+  if(!any)return null;
+  // a little glow: draw it twice, once blurred
+  g.putImageData(img,0,0);const o=document.createElement("canvas");o.width=w;o.height=h;const og=o.getContext("2d");og.filter="blur(2px)";og.drawImage(c,0,0);og.filter="none";og.drawImage(c,0,0);
+  const b=await new Promise(res=>o.toBlob(res,"image/png"));return b.arrayBuffer()}
+/* precip type: IEM colours HRRR reflectivity with one 22-colour ramp per type (0–55 dBZ in 2.5 dBZ steps);
+   read the type and intensity back, smooth them like the radar, and redraw in the app's colours */
+const PT_RAMPS={rain:"eef8ea e5f5e0 d6efd0 c7e9c0 b4e1ad a0d99b 8ace88 73c476 5ab769 40aa5d 319a50 228a44 117b38 006c2c 005723 00441b ffe81a ffd710 ffc505 ffb700 ffab00 ffa000",
+  snow:"b4dae6 99ccdd 81c0d5 66b3cc 4ea6c4 3399bb 1b8db3 0080aa 0073a2 006699 005a91 004d88 003f7f 003377 00266e 001a66 8d003b b80b4e d81b6a e53592 df66b0 cd8bc2",
+  frzr:"ffeee6 fee6da fedecf fdd0bc fcc2aa fcb499 fca588 fc9576 fc8767 fb7858 fb694a f7593f f24734 ec382b de2b25 d11e1f c4161c b61319 a81016 940b13 7c0510 67000d",
+  icep:"f8f6fa f3f1f7 eeecf4 e6e5f1 dedded d5d5e9 cacae3 bebfdd b4b4d7 a9a7cf 9e9ac8 9390c3 8885be 7e79b8 7669af 6e58a7 66499f 5e3a98 552a90 4e1c8a 460d83 3f007d"};
+const PT_MAP=(()=>{const m=new Map();["rain","snow","frzr","icep"].forEach((t,ti)=>PT_RAMPS[t].split(" ").forEach((h,k)=>{const v=parseInt(h,16);if(!m.has(v))m.set(v,[ti,k*2.5+1.25])}));return m})();
+const PT_COL=[null,[[10,"#9ccbff"],[20,"#6aa8f5"],[30,"#3f80e0"],[40,"#2a5cc0"],[50,"#e9f2ff"]],[[5,"#ffb3cf"],[20,"#ff7aa8"],[30,"#f0467f"],[40,"#c81e5a"]],[[5,"#d7b8ff"],[20,"#b48cf2"],[30,"#8d5fd6"],[40,"#6a3cb3"]]]
+  .map(r=>r&&(v=>{let c=null;for(const b of r)if(v>=b[0]-5)c=b[1];return c&&[parseInt(c.slice(1,3),16),parseInt(c.slice(3,5),16),parseInt(c.slice(5,7),16)]}));
+const ptCache=new Map();
+function ptField(url){
+  if(ptCache.has(url))return ptCache.get(url);
+  const p=(async()=>{const r=await fetch(via(url));if(!r.ok)throw new Error("HTTP "+r.status);
+    const bmp=await createImageBitmap(await r.blob()),w=bmp.width,h=bmp.height,c=document.createElement("canvas");c.width=w;c.height=h;
+    const g=c.getContext("2d",{willReadFrequently:true});g.drawImage(bmp,0,0);const a=g.getImageData(0,0,w,h).data,n=w*h;
+    let cov=[0,1,2,3].map(()=>new Float32Array(n)),val=new Float32Array(n),any=false;
+    for(let i=0,k=0;k<n;i+=4,k++){if(a[i+3]<128)continue;const e=PT_MAP.get(a[i]<<16|a[i+1]<<8|a[i+2]);if(!e)continue;cov[e[0]][k]=1;val[k]=e[1];any=true}
+    if(!any)return null;
+    const blur=(src)=>{const t=new Float32Array(n),o=new Float32Array(n);
+      for(let y=0;y<h;y++)for(let x=0;x<w;x++){const i=y*w+x;t[i]=(src[i-(x>0)]+src[i]+src[i+(x<w-1)])/3}
+      for(let y=0;y<h;y++)for(let x=0;x<w;x++){const i=y*w+x;o[i]=(t[i-(y>0?w:0)]+t[i]+t[i+(y<h-1?w:0)])/3}return o};
+    for(let pass=0;pass<2;pass++){cov=cov.map(blur);val=blur(val)}
+    return{w,h,cov,val}})();
+  ptCache.set(url,p);if(ptCache.size>40)ptCache.delete(ptCache.keys().next().value);p.catch(()=>ptCache.delete(url));return p}
+async function ptypeTile(url,d,ox,oy){
+  const F=await ptField(url);if(!F)return null;const n=1<<d,sz=F.w/n,sx=ox*sz,sy=oy*sz,S=512,st=sz/S,W0=F.w,H0=F.h;
+  const c=document.createElement("canvas");c.width=c.height=S;const g=c.getContext("2d"),img=g.createImageData(S,S),o=img.data;let any=false;
+  for(let yy=0;yy<S;yy++){const fy=Math.min(H0-1.001,Math.max(0,sy+(yy+.5)*st-.5)),y0=fy|0,ty=fy-y0,r0=y0*W0,r1=Math.min(H0-1,y0+1)*W0;
+    for(let xx=0;xx<S;xx++){const fx=Math.min(W0-1.001,Math.max(0,sx+(xx+.5)*st-.5)),x0=fx|0,tx=fx-x0,x1=Math.min(W0-1,x0+1);
+      const w00=(1-tx)*(1-ty),w10=tx*(1-ty),w01=(1-tx)*ty,w11=tx*ty;let tot=0,bt=0,bc=-1;
+      for(let t=0;t<4;t++){const cv=F.cov[t],v=cv[r0+x0]*w00+cv[r0+x1]*w10+cv[r1+x0]*w01+cv[r1+x1]*w11;tot+=v;if(v>bc){bc=v;bt=t}}
+      if(tot<.4)continue;const v=(F.val[r0+x0]*w00+F.val[r0+x1]*w10+F.val[r1+x0]*w01+F.val[r1+x1]*w11)/tot;
+      let col;if(bt===0){const b=BAND_LUT[Math.max(0,Math.min(80,Math.round(Math.max(v,10))))];col=b&&[b[0],b[1],b[2]]}else col=PT_COL[bt](v);if(!col)continue;
+      const i=(yy*S+xx)*4;o[i]=col[0];o[i+1]=col[1];o[i+2]=col[2];o[i+3]=Math.round(240*Math.min(1,(tot-.4)/.2));any=true}}
+  if(!any)return null;g.putImageData(img,0,0);const b=await new Promise(r=>c.toBlob(r,"image/png"));return b.arrayBuffer()}
 
 /* ---------- GTG turbulence forecast: eddy dissipation rate by flight level ----------
    NOAA/NCEP Graphical Turbulence Guidance (EDPARM), decoded from GRIB2 by the gtg workflow
@@ -1225,6 +1521,7 @@ function onMapClick(e){
 function updateLegend(){
   const us=isCONUS(place),rows=[];
   if(L.radar)rows.push(`<div class="lg">Light <i style="background:linear-gradient(90deg,${BANDS.map((b,k)=>`${b[1]} ${k/BANDS.length*100}% ${(k+1)/BANDS.length*100}%`).join(",")})"></i>Heavy</div>`);
+  extraLegend(us,rows);
   if(us&&L.mrms)rows.push(`<div class="lg">Rain <i style="background:linear-gradient(90deg,#00d0a0,#00a000,#ffff00,#ff9000,#ff0000,#c000c0)"></i>${S.rain==="in"?"→ 4+ in":"→ 100+ mm"}</div>`);
   if(us&&L.turb&&G.man){const t=G.man.times,ti=G.ti,v=Date.parse(t[ti].valid),[l,m,sv,x]=EDR_T[G.ac];
     rows.push(`<div class="key"><b style="color:var(--text);font-weight:600">EDR · FL${String(G.fl).padStart(3,"0")}</b><span><i style="background:#ffd54a"></i>Lgt ${l.toFixed(2)}</span><span><i style="background:#ff8a3d"></i>Mod ${m.toFixed(2)}</span><span><i style="background:#ff5468"></i>Sev ${sv.toFixed(2)}</span><span><i style="background:#e05cff"></i>Ext ${x.toFixed(2)}</span></div><div class="edrt"><button data-d="-1"${ti?"":" disabled"}>‹</button><b>${fT(v+off*1000)}</b><button data-d="1"${ti<t.length-1?"":" disabled"}>›</button><span>${v-Date.now()>45*6e4?"+"+Math.round((v-Date.now())/36e5)+"h forecast":"now"} · GTG ${G.man.cycle.slice(8)}Z</span></div>`)}
