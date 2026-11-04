@@ -252,6 +252,15 @@ body.mapopen .tabbar{display:none}
 .cell span{font-family:var(--mono);font-size:11.5px;color:var(--faint)}
 .foot{font-size:11.5px;color:var(--faint);margin-top:9px}
 #alerts:not(:empty)+.firecard{margin-top:10px}
+.hero{display:flex;align-items:flex-end;justify-content:space-between;gap:12px}
+.hero .v{font-family:var(--mono);font-size:34px;font-weight:300;letter-spacing:-.02em;line-height:1;white-space:nowrap}
+.hero .v em{font-style:normal;font-size:13px;color:var(--muted);margin-left:4px;letter-spacing:0}
+.hero .s{text-align:right;min-width:0}
+.hero .s b{display:block;font-size:15px;font-weight:600}
+.hero .s span{display:block;font-size:12px;color:var(--muted);margin-top:3px}
+.tchart{margin-top:12px}
+.cell span .dot{display:inline-block;width:6px;height:6px;border-radius:50%;margin-right:4px;vertical-align:1px}
+#water>.foot+.foot{margin-top:4px}
 .firecard{margin:0 0 12px;padding:13px 14px;border:1px solid var(--line2);border-radius:16px;background:linear-gradient(180deg,rgba(255,138,61,.09),rgba(255,138,61,.03)),var(--panel)}
 .firecard .fh{display:flex;align-items:center;gap:9px}
 .firecard .fh i{flex:none;width:9px;height:9px;border-radius:50%;box-shadow:0 0 0 4px rgba(255,255,255,.06)}
@@ -443,8 +452,8 @@ details.afd[open]>summary::after{content:"–"}
   <div class="panel"><div class="ph">Tide<span class="r" id="tideNote"></span></div><div class="pb" id="tide"><div class="err">Loading…</div></div></div>
   <div class="panel" id="curPanel" style="display:none"><div class="ph">Tidal current<span class="r" id="curNote"></span></div><div class="pb" id="cur"></div></div>
   <div class="panel" id="wavePanel" style="display:none"><div class="ph">Waves &amp; swell<span class="r" id="waveNote"></span></div><div class="pb" id="waves"></div></div>
-  <div class="panel afdx" id="afdMar" style="display:none"></div>
   <div class="panel"><div class="ph">Water<span class="r" id="wtNote"></span></div><div class="pb" id="water"><div class="err">Loading…</div></div></div>
+  <div class="panel afdx" id="afdMar" style="display:none"></div>
   </section>
 </div>
 
@@ -818,6 +827,24 @@ async function renderAirport(){
   }catch(e){console.warn("metar",e);panel.style.display="none"}
 }
 
+/* ---------- Tides tab: one look for every panel ----------
+   hero (big number + status) → 24-hour chart on the same time frame → four cells → one-line source */
+const TF={Wd:340,H:122,top:24,bot:102};
+const tFrame=n=>({a:n-4*36e5,b:n+20*36e5});
+function tAxis(a,b,X,n,opts={}){const{H,top,bot}=TF;let g="";
+  for(let m=dayStart(a)+864e5;m<b;m+=864e5)g+=`<line x1="${X(m)}" y1="${top-14}" x2="${X(m)}" y2="${bot}" stroke="#2a3f5c" stroke-dasharray="2 3"/><text x="${X(m)+4}" y="${top-6}" fill="#8597b3" font-size="10.5">${fDay(m)}</text>`;
+  g+=`<line x1="0" y1="${bot}" x2="${TF.Wd}" y2="${bot}" stroke="#1c2d44"/>`;
+  if(n>a&&n<b)g+=`<line x1="${X(n)}" y1="${top-14}" x2="${X(n)}" y2="${bot}" stroke="#8597b3" opacity=".8"/>`;
+  for(let t=dayStart(a)+Math.ceil((a-dayStart(a))/216e5)*216e5;t<b;t+=216e5)if(Math.abs(t-n)>18e5*3)g+=`<text x="${X(t)}" y="${H-3}" fill="#8597b3" font-size="10.5" text-anchor="middle">${fHour(t)}</text>`;
+  if(n>a&&n<b)g+=`<text x="${X(n)}" y="${H-3}" fill="#e9eef3" font-size="10.5" text-anchor="middle">now</text>`;
+  return g}
+const tSvg=(id,inner)=>`<svg class="chart tchart" viewBox="0 0 ${TF.Wd} ${TF.H}"><defs><clipPath id="${id}"><rect width="${TF.Wd}" height="${TF.H}"/></clipPath></defs><g clip-path="url(#${id})">${inner}</g></svg>`;
+const tHero=(v,unit,status,detail)=>`<div class="hero fade"><div class="v">${v}<em>${unit}</em></div><div class="s"><b>${status}</b>${detail?`<span>${detail}</span>`:""}</div></div>`;
+const tCells=items=>`<div class="cells" style="grid-template-columns:repeat(${Math.min(4,items.length)||1},1fr)">${items.slice(0,4).map(([l,v,sub])=>`<div class="cell"><small>${l}</small><b>${v}</b><span>${sub||"&nbsp;"}</span></div>`).join("")}</div>`;
+const tLegend=items=>`<div class="legendrow">${items.map(([c,t,dash])=>`<span><i style="background:${c}${dash?";opacity:.8":""}"></i>${t}</span>`).join("")}</div>`;
+const tFoot=t=>`<div class="foot">${t}</div>`;
+const deg3=d=>String(Math.round(d)).padStart(3,"0")+"°";
+
 /* ---------- tide ---------- */
 let tideReq=0;
 async function nearestStation(lat,lon){
@@ -843,21 +870,17 @@ async function renderTide(){
   const my=++tideReq,el=$("#tide");if(!el.querySelector(".split"))el.innerHTML='<div class="err">Loading tides…</div>';
   let T;try{T=await tideData()}catch(e){if(my===tideReq){el.innerHTML=`<div class="err">No tide data — ${esc(place.name)} looks to be inland.</div>`;$("#tideNote").textContent=""}return}
   if(my!==tideReq)return;
-  const n=nowWall(),a=n-4*36e5,b=n+20*36e5,pts=T.pts.filter(p=>p[0]>=a-36e5&&p[0]<=b+36e5);
-  const lo=Math.min(...pts.map(p=>p[1])),hi=Math.max(...pts.map(p=>p[1])),pad=(hi-lo)*.2||.5,Wd=340,H=124,top=20,bot=H-18;
+  const n=nowWall(),{a,b}=tFrame(n),{Wd,H,top,bot}=TF,pts=T.pts.filter(p=>p[0]>=a-36e5&&p[0]<=b+36e5);
+  const lo=Math.min(...pts.map(p=>p[1])),hi=Math.max(...pts.map(p=>p[1])),pad=(hi-lo)*.22||.5;
   const X=t=>(t-a)/(b-a)*Wd,Y=v=>bot-(v-(lo-pad))/((hi+pad)-(lo-pad))*(bot-top),path=pts.map((p,k)=>(k?"L":"M")+X(p[0]).toFixed(1)+" "+Y(p[1]).toFixed(1)).join("");
   let cur=null,rising=null;for(let k=1;k<T.pts.length;k++)if(T.pts[k][0]>=n){const p=T.pts[k-1],q=T.pts[k],f=(n-p[0])/(q[0]-p[0]);cur=p[1]+(q[1]-p[1])*f;rising=q[1]>p[1];break}
-  let g=`<defs><linearGradient id="tg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4cc9f0" stop-opacity=".28"/><stop offset="1" stop-color="#4cc9f0" stop-opacity="0"/></linearGradient><clipPath id="tc"><rect width="${Wd}" height="${H}"/></clipPath></defs><g clip-path="url(#tc)">`;
-  g+=`<path d="${path}L${X(pts[pts.length-1][0])} ${bot}L${X(pts[0][0])} ${bot}z" fill="url(#tg)"/><path d="${path}" fill="none" stroke="#4cc9f0" stroke-width="1.8"/><line x1="0" y1="${bot}" x2="${Wd}" y2="${bot}" stroke="#1c2d44"/>`;
-  for(let m=dayStart(a)+864e5;m<b;m+=864e5)g+=`<line x1="${X(m)}" y1="${top-6}" x2="${X(m)}" y2="${bot}" stroke="#2a3f5c" stroke-dasharray="2 3"/><text x="${X(m)+4}" y="${top-2}" fill="#8597b3" font-size="10.5">${fDay(m)}</text>`;
-  for(const e of T.ext)if(e[0]>a&&e[0]<b){const x=X(e[0]),y=Y(e[1]);g+=`<circle cx="${x}" cy="${y}" r="2.5" fill="#e9eef3"/><text x="${x}" y="${e[2]==="High"?y-7:y+14}" fill="#b4c3d4" font-size="10.5" text-anchor="middle">${fT(e[0])}</text>`}
-  if(cur!=null)g+=`<line x1="${X(n)}" y1="${top-4}" x2="${X(n)}" y2="${bot}" stroke="#8597b3"/><circle cx="${X(n)}" cy="${Y(cur)}" r="4.5" fill="#4cc9f0" stroke="#0b1a2c" stroke-width="2"/>`;
-  for(let t=dayStart(a)+Math.ceil((a-dayStart(a))/216e5)*216e5;t<b;t+=216e5)g+=`<text x="${X(t)}" y="${H-3}" fill="#8597b3" font-size="10.5" text-anchor="middle">${fHour(t)}</text>`;
-  g+="</g>";const next=T.ext.filter(e=>e[0]>n).slice(0,4),nx=next[0];
+  let g=`<path d="${path}L${X(pts[pts.length-1][0])} ${bot}L${X(pts[0][0])} ${bot}z" fill="#4cc9f0" opacity=".16"/><path d="${path}" fill="none" stroke="#4cc9f0" stroke-width="2"/>`+tAxis(a,b,X,n);
+  for(const e of T.ext)if(e[0]>a&&e[0]<b){const x=X(e[0]),y=Y(e[1]);g+=`<circle cx="${x}" cy="${y}" r="2.6" fill="#e9eef3"/>`}
+  if(cur!=null)g+=`<circle cx="${X(n)}" cy="${Y(cur)}" r="4.5" fill="#4cc9f0" stroke="#0b1a2c" stroke-width="2"/>`;
+  const next=T.ext.filter(e=>e[0]>n).slice(0,4),nx=next[0];
   $("#tideNote").textContent=T.dist;
-  el.innerHTML=`<div class="split fade"><div class="v">${cur!=null?U.h(cur):"--"}<em>${U.hl()}</em></div><span>${rising==null?"":rising?"Rising":"Falling"}${nx?` · ${nx[2].toLowerCase()} ${fTime(nx[0])}`:""}</span></div>
-   <svg class="chart" viewBox="0 0 ${Wd} ${H}" style="margin-top:6px">${g}</svg>
-   <div class="cells">${next.map(e=>`<div class="cell"><small>${e[2]}</small><b>${fTime(e[0]).replace(" ","&nbsp;")}</b><span>${U.h(e[1])} ${U.hl()}</span></div>`).join("")}</div><div class="foot">${esc(T.src)}</div>`;
+  el.innerHTML=tHero(cur!=null?U.h(cur):"--",U.hl(),rising==null?"":rising?"Rising":"Falling",nx?`${nx[2]} ${fTime(nx[0])} · ${U.h(nx[1])} ${U.hl()}`:"")+tSvg("tc",g)+
+    tCells(next.map(e=>[e[2],fTime(e[0]).replace(" ","&nbsp;"),`${U.h(e[1])} ${U.hl()}`]))+tFoot(esc(T.src));
 }
 
 /* ---------- underwater visibility (estimate) ----------
@@ -878,42 +901,56 @@ async function clarityAt(lat,lon,maxDeg=.25){
     const d=di*di+dj*dj*Math.cos(lat*Math.PI/180)**2;if(d<bd){bd=d;best=k}}
   if(best==null)return null;const kd=(C.d[best]*256+C.d[best+1])/m.scale,age=Math.round((255-C.d[best+2])/30);
   return{kd,age,km:Math.sqrt(bd)*m.step*111}}
-function clarityRow(cl){
-  if(!cl||!(cl.kd>0))return"";const zm=Math.min(30,1.5/cl.kd),F=S.temp==="F",u=F?"ft":"m",cv=x=>F?x*3.281:x,lo=cv(zm*.75),hi=cv(zm*1.15),
-    rnd=x=>x>=10?Math.round(x/5)*5:Math.max(1,Math.round(x)),ftHi=hi*(F?1:3.281),cat=ftHi<10?["Poor","#ff8a3d"]:ftHi<20?["Fair","#ffd54a"]:ftHi<40?["Good","#3ddc97"]:["Excellent","#4cc9f0"];
+function clarityEst(cl){
+  if(!cl||!(cl.kd>0))return null;const zm=Math.min(30,1.5/cl.kd),F=S.temp==="F",cv=x=>F?x*3.281:x,rnd=x=>x>=10?Math.round(x/5)*5:Math.max(1,Math.round(x)),
+    lo=rnd(cv(zm*.75)),hi=rnd(cv(zm*1.15)),ftHi=cv(zm*1.15)*(F?1:3.281),cat=ftHi<10?["Poor","#ff8a3d"]:ftHi<20?["Fair","#ffd54a"]:ftHi<40?["Good","#3ddc97"]:["Excellent","#4cc9f0"];
   // what the satellite can't see yet: big swell stirs up the bottom, rain washes runoff in
-  let worse=[];try{const h=W.hourly,i=hourIndex();let r3=0;for(let k=Math.max(0,i-72);k<=i;k++)r3+=h.precipitation[k]||0;if(r3>=(S.rain==="in"?.5:12))worse.push("recent rain runoff")}catch(e){}
+  const worse=[];try{const h=W.hourly,i=hourIndex();let r3=0;for(let k=Math.max(0,i-72);k<=i;k++)r3+=h.precipitation[k]||0;if(r3>=(S.rain==="in"?.5:12))worse.push("recent rain")}catch(e){}
   if(WAVE_NOW&&WAVE_NOW.swellFt>=6)worse.push("big swell");
-  return `<div class="uv fade"><div class="uvh"><small>Underwater visibility</small><b>${rnd(lo)}–${rnd(hi)}<em>${u}</em></b><span><i class="dot" style="background:${cat[1]}"></i>${cat[0]}${worse.length?` · likely worse now (${worse.join(", ")})`:""}</span></div>
-    <div class="uvs">Estimated from satellite water clarity, ${cl.age<=0?"today":cl.age===1?"1 day old":cl.age+" days old"}${cl.km>4?` · ${Math.round(cl.km*.621)} mi out`:""}. Surge and plankton blooms can change it within hours.</div></div>`}
+  return{lo,hi:Math.max(lo,hi),u:F?"ft":"m",cat,worse}}
 let WAVE_NOW=null;
 
 /* ---------- water temperature ---------- */
 let waterReq=0;
 async function renderWater(){
-  const my=++waterReq,el=$("#water");if(!el)return;$("#wtNote").textContent="";
+  const my=++waterReq,el=$("#water");if(!el)return;$("#wtNote").textContent="";WATER_KM=null;
   const F=S.temp==="F",toU=c=>F?c*9/5+32:c;let now=null,src="",ago="",series=[];
   // 1) measured at the nearest NOAA station (US), if it has a water sensor
   if(isUS(place)){try{const st=await nearestStation(place.lat,place.lon);
     if(st&&st.km<60){const j=await getJSON(`https://api.tidesandcurrents.noaa.gov/api/prod/datagetter?product=water_temperature&range=24&station=${st.id}&units=${F?"english":"metric"}&time_zone=gmt&format=json&application=weather_app`);
       const d=(j&&j.data||[]).filter(x=>x.v!==""&&Number.isFinite(+x.v));
-      if(d.length){const last=d[d.length-1];now=+last.v;src=`Measured at NOAA ${st.id} · ${esc(st.name)}`;const t=Date.parse(last.t.replace(" ","T")+"Z");ago=Number.isFinite(t)?Math.max(0,Math.round((Date.now()-t)/6e4)):null}}}catch(e){}}
+      if(d.length){const last=d[d.length-1];now=+last.v;WATER_KM=st.km;src=`Measured at NOAA ${st.id} · ${esc(st.name)}`;const t=Date.parse(last.t.replace(" ","T")+"Z");ago=Number.isFinite(t)?Math.max(0,Math.round((Date.now()-t)/6e4)):null}}}catch(e){}}
   // 2) sea-surface temperature forecast (also gives the 3-day trend)
   try{const j=await getJSON(`https://marine-api.open-meteo.com/v1/marine?latitude=${place.lat}&longitude=${place.lon}&hourly=sea_surface_temperature&timezone=auto&forecast_days=3`);
     const h=j.hourly||{};series=(h.time||[]).map((t,i)=>[wall(t),h.sea_surface_temperature[i]]).filter(p=>Number.isFinite(p[1])).map(p=>[p[0],toU(p[1])]);
     if(now==null&&series.length){let k=0;const n=nowWall();while(k+1<series.length&&series[k+1][0]<=n)k++;now=series[k][1];src="Sea-surface forecast (Open-Meteo)"}}catch(e){}
   if(my!==waterReq)return;
   if(now==null){el.innerHTML=`<div class="err">No water temperature here — ${esc(place.name)} looks to be inland.</div>`;return}
-  const nF=F?now:now*9/5+32,feel=nF<55?["Cold","wetsuit needed"]:nF<62?["Chilly","wetsuit recommended"]:nF<70?["Cool","refreshing for most"]:nF<78?["Comfortable","good for swimming"]:["Warm","bath-like"];
-  let chart="";if(series.length>6){const lo=Math.min(...series.map(p=>p[1])),hi=Math.max(...series.map(p=>p[1])),Wd=340,H=70,a=series[0][0],b=series[series.length-1][0],X=t=>8+(t-a)/(b-a)*(Wd-16),Y=v=>H-16-(v-lo)/((hi-lo)||1)*(H-30);
-    const path=series.map((p,k)=>(k?"L":"M")+X(p[0]).toFixed(1)+" "+Y(p[1]).toFixed(1)).join("");let g=`<path d="${path}" fill="none" stroke="#4cc9f0" stroke-width="1.8"/>`;
-    for(let m=dayStart(a)+864e5;m<b;m+=864e5)g+=`<line x1="${X(m)}" y1="4" x2="${X(m)}" y2="${H-14}" stroke="#2a3f5c" stroke-dasharray="2 3"/><text x="${X(m)+3}" y="${H-3}" fill="#8597b3" font-size="10.5">${fDay(m)}</text>`;
-    const n=nowWall();if(n>a&&n<b){let k=0;while(k+1<series.length&&series[k+1][0]<=n)k++;g+=`<circle cx="${X(n)}" cy="${Y(series[k][1])}" r="3.5" fill="#4cc9f0" stroke="#0b1a2c" stroke-width="2"/>`}
-    chart=`<svg class="chart" viewBox="0 0 ${Wd} ${H}" style="margin-top:12px">${g}</svg><div class="legendrow"><span>3-day forecast ${Math.round(lo)}°–${Math.round(hi)}°</span></div>`}
-  $("#wtNote").textContent=ago!=null&&ago!==""?`${ago} min ago`:"";
-  el.innerHTML=`<div class="wt fade"><div class="v">${Math.round(now)}<sup>°${S.temp}</sup></div><div class="lbl"><b>${feel[0]}</b><span>${feel[1]}</span></div></div>${chart}<div class="foot">${src}</div><div id="clar"></div>`;
-  if(isCONUS(place))clarityAt(place.lat,place.lon).then(cl=>{if(my===waterReq&&$("#clar"))$("#clar").innerHTML=clarityRow(cl)}).catch(e=>console.warn("clarity",e));
+  const nF=F?now:now*9/5+32,feel=nF<55?["Cold","Wetsuit needed"]:nF<62?["Chilly","Wetsuit recommended"]:nF<70?["Cool","Refreshing for most"]:nF<78?["Comfortable","Good for swimming"]:["Warm","Bath-like"];
+  // same frame as the other charts, but over 3 days (water temperature changes slowly)
+  let chart="",rng=null;if(series.length>6){const{Wd,H,top,bot}=TF,lo=Math.min(...series.map(p=>p[1])),hi=Math.max(...series.map(p=>p[1])),pad=Math.max(.6,(hi-lo)*.25),
+      a=series[0][0],b=series[series.length-1][0],X=t=>(t-a)/(b-a)*Wd,Y=v=>bot-(v-(lo-pad))/((hi+pad)-(lo-pad))*(bot-top),n=nowWall();rng=[lo,hi];
+    const path=series.map((p,k)=>(k?"L":"M")+X(p[0]).toFixed(1)+" "+Y(p[1]).toFixed(1)).join("");
+    let g=`<path d="${path}L${X(b)} ${bot}L${X(a)} ${bot}z" fill="#4cc9f0" opacity=".16"/><path d="${path}" fill="none" stroke="#4cc9f0" stroke-width="2"/><line x1="0" y1="${bot}" x2="${Wd}" y2="${bot}" stroke="#1c2d44"/>`;
+    for(let m=dayStart(a)+864e5;m<b;m+=864e5)g+=`<line x1="${X(m)}" y1="${top-14}" x2="${X(m)}" y2="${bot}" stroke="#2a3f5c" stroke-dasharray="2 3"/>`;
+    for(let m=dayStart(a);m<b;m+=864e5){const c=Math.max(a,m)+Math.min(864e5,b-Math.max(a,m))/2;g+=`<text x="${X(c)}" y="${H-3}" fill="${m===dayStart(n)?"#e9eef3":"#8597b3"}" font-size="10.5" text-anchor="middle">${m===dayStart(n)?"Today":fDay(m)}</text>`}
+    if(n>a&&n<b){let k=0;while(k+1<series.length&&series[k+1][0]<=n)k++;g+=`<line x1="${X(n)}" y1="${top-14}" x2="${X(n)}" y2="${bot}" stroke="#8597b3" opacity=".8"/><circle cx="${X(n)}" cy="${Y(series[k][1])}" r="4.5" fill="#4cc9f0" stroke="#0b1a2c" stroke-width="2"/>`}
+    chart=tSvg("wtc",g)}
+  $("#wtNote").textContent=WATER_KM!=null?`${Math.round(WATER_KM*.621)} mi`:"";
+  WATER={now,rng,src,ago,feel};
+  el.innerHTML=tHero(Math.round(now),"°"+S.temp,feel[0],feel[1])+chart+`<div id="wcells">${waterCells(null)}</div>`+tFoot(`${src}${ago!=null&&ago!==""?` · ${ago} min ago`:""}`)+`<div class="foot" id="clarNote"></div><div id="clar"></div>`;
+  if(isCONUS(place))renderWaterExtras();
 }
+let WATER=null,WATER_KM=null;
+// the Water panel's cells: underwater visibility, 3-day range, buoy reading, comfort
+function waterCells(cl){if(!WATER)return"";const F=S.temp==="F",cells=[];
+  const uv=clarityEst(cl);cells.push(["Underwater",uv?`${uv.lo}–${uv.hi}&nbsp;${uv.u}`:"--",uv?`<i class="dot" style="background:${uv.cat[1]}"></i>${uv.cat[0]}`:"no estimate"]);
+  if(WATER.rng)cells.push(["Next 3 days",`${Math.round(WATER.rng[0])}–${Math.round(WATER.rng[1])}°`,"range"]);
+  const bu=WAVE_NOW&&WAVE_NOW.buoy;if(bu&&bu.wtmp!=null)cells.push(["At buoy",`${Math.round(F?bu.wtmp*9/5+32:bu.wtmp)}°`,`NDBC ${esc(bu.id)}`]);
+  return tCells(cells)}
+function renderWaterExtras(){const my=waterReq;clarityAt(place.lat,place.lon).then(cl=>{if(my!==waterReq)return;const el=$("#wcells");if(el)el.innerHTML=waterCells(cl);
+    const nt=$("#clarNote"),uv=clarityEst(cl);if(nt)nt.textContent=uv?`Underwater: satellite estimate, ${cl.age<=0?"today":cl.age===1?"1 day old":cl.age+" days old"}${uv.worse.length?` · likely worse now (${uv.worse.join(", ")})`:""}`:""})
+  .catch(e=>console.warn("clarity",e))}
 
 /* ---------- rain season vs normal (water year from Oct 1) ---------- */
 let normCache={};
@@ -1106,22 +1143,19 @@ async function renderCurrents(){
     const cp=(ser.current_predictions||{}).cp||[],evs=((ev.current_predictions||{}).cp||[]);if(!cp.length)throw new Error("no currents");
     const pts=cp.map(p=>[wall(p.Time),+p.Velocity_Major]),fd=cp[0].meanFloodDir,ed=cp[0].meanEbbDir,n=nowWall();
     let cur=null;for(let k=1;k<pts.length;k++)if(pts[k][0]>=n){const p=pts[k-1],q=pts[k],f=(n-p[0])/(q[0]-p[0]);cur=p[1]+(q[1]-p[1])*f;break}
-    const a=n-4*36e5,b=n+20*36e5,vis=pts.filter(p=>p[0]>=a-36e5&&p[0]<=b+36e5),mx=Math.max(1,...vis.map(p=>Math.abs(p[1])))*1.15,Wd=340,H=124,mid=H/2-6;
-    const X=t=>(t-a)/(b-a)*Wd,Y=v=>mid-v/mx*(mid-10),path=vis.map((p,k)=>(k?"L":"M")+X(p[0]).toFixed(1)+" "+Y(p[1]).toFixed(1)).join("");
-    let g=`<defs><clipPath id="cc"><rect width="${Wd}" height="${H}"/></clipPath><clipPath id="cup"><rect width="${Wd}" height="${mid}"/></clipPath><clipPath id="cdn"><rect y="${mid}" width="${Wd}" height="${H}"/></clipPath></defs><g clip-path="url(#cc)">`;
-    g+=`<path d="${path}L${X(vis[vis.length-1][0])} ${mid}L${X(vis[0][0])} ${mid}z" fill="#4cc9f0" opacity=".2" clip-path="url(#cup)"/><path d="${path}L${X(vis[vis.length-1][0])} ${mid}L${X(vis[0][0])} ${mid}z" fill="#ffb547" opacity=".24" clip-path="url(#cdn)"/>`;
-    g+=`<line x1="0" y1="${mid}" x2="${Wd}" y2="${mid}" stroke="#2a3f5c"/><path d="${path}" fill="none" stroke="#e9eef3" stroke-width="1.6"/>`;
-    g+=`<text x="4" y="12" fill="#4cc9f0" font-size="10.5">FLOOD ${fd!=null?String(Math.round(fd)).padStart(3,"0")+"°":""}</text><text x="4" y="${H-22}" fill="#ffb547" font-size="10.5">EBB ${ed!=null?String(Math.round(ed)).padStart(3,"0")+"°":""}</text>`;
-    for(let m=dayStart(a)+864e5;m<b;m+=864e5)g+=`<line x1="${X(m)}" y1="0" x2="${X(m)}" y2="${H-16}" stroke="#2a3f5c" stroke-dasharray="2 3"/><text x="${X(m)+4}" y="${H-20}" fill="#8597b3" font-size="10.5">${fDay(m)}</text>`;
-    if(cur!=null)g+=`<line x1="${X(n)}" y1="4" x2="${X(n)}" y2="${H-16}" stroke="#8597b3"/><circle cx="${X(n)}" cy="${Y(cur)}" r="4.5" fill="${cur>=0?"#4cc9f0":"#ffb547"}" stroke="#0b1a2c" stroke-width="2"/>`;
-    for(let t=dayStart(a)+Math.ceil((a-dayStart(a))/216e5)*216e5;t<b;t+=216e5)g+=`<text x="${X(t)}" y="${H-3}" fill="#8597b3" font-size="10.5" text-anchor="middle">${fHour(t)}</text>`;
-    g+="</g>";
-    const next=evs.map(e=>[wall(e.Time),e.Type,+e.Velocity_Major]).filter(e=>e[0]>n).slice(0,4),state=cur==null?"":Math.abs(cur)<.2?"Near slack":cur>0?"Flooding":"Ebbing",dir=cur==null?null:cur>0?fd:ed;
+    const{a,b}=tFrame(n),{Wd,H,top,bot}=TF,vis=pts.filter(p=>p[0]>=a-36e5&&p[0]<=b+36e5),mx=Math.max(1,...vis.map(p=>Math.abs(p[1])))*1.12,mid=(top+bot)/2;
+    const X=t=>(t-a)/(b-a)*Wd,Y=v=>mid-v/mx*(mid-top),path=vis.map((p,k)=>(k?"L":"M")+X(p[0]).toFixed(1)+" "+Y(p[1]).toFixed(1)).join(""),area=`${path}L${X(vis[vis.length-1][0])} ${mid}L${X(vis[0][0])} ${mid}z`;
+    let g=`<clipPath id="cup"><rect width="${Wd}" height="${mid}"/></clipPath><clipPath id="cdn"><rect y="${mid}" width="${Wd}" height="${H}"/></clipPath>
+      <path d="${area}" fill="#4cc9f0" opacity=".2" clip-path="url(#cup)"/><path d="${area}" fill="#ffb547" opacity=".2" clip-path="url(#cdn)"/>
+      <line x1="0" y1="${mid}" x2="${Wd}" y2="${mid}" stroke="#2a3f5c"/><path d="${path}" fill="none" stroke="#e9eef3" stroke-width="1.8"/>`+tAxis(a,b,X,n);
+    if(cur!=null)g+=`<circle cx="${X(n)}" cy="${Y(cur)}" r="4.5" fill="${cur>=0?"#4cc9f0":"#ffb547"}" stroke="#0b1a2c" stroke-width="2"/>`;
+    const next=evs.map(e=>[wall(e.Time),e.Type,+e.Velocity_Major]).filter(e=>e[0]>n).slice(0,4),slackNx=next.find(e=>e[1]==="slack"),
+      state=cur==null?"":Math.abs(cur)<.2?"Slack":cur>0?"Flooding":"Ebbing",dir=cur==null?null:cur>0?fd:ed;
     $("#curNote").textContent=`${Math.round(st.km*.621)} mi`;
-    el.innerHTML=`<div class="split fade"><div class="v">${cur!=null?Math.abs(cur).toFixed(1):"--"}<em>kt</em></div><span>${state}${dir!=null&&Math.abs(cur)>=.2?` · toward ${dirName(dir)} ${String(Math.round(dir)).padStart(3,"0")}°`:""}</span></div>
-      <svg class="chart" viewBox="0 0 ${Wd} ${H}" style="margin-top:6px">${g}</svg>
-      <div class="cells">${next.map(e=>`<div class="cell"><small>${e[1]==="slack"?"Slack":e[1]==="flood"?"Max flood":"Max ebb"}</small><b>${fTime(e[0]).replace(" ","&nbsp;")}</b><span>${e[1]==="slack"?"0.0":Math.abs(e[2]).toFixed(1)} kt</span></div>`).join("")}</div>
-      <div class="foot">NOAA ${esc(st.id)} · ${esc(st.name)} · predicted</div>`;
+    el.innerHTML=tHero(cur!=null?Math.abs(cur).toFixed(1):"--","kt",state,[dir!=null&&Math.abs(cur)>=.2?`toward ${dirName(dir)} ${deg3(dir)}`:"",slackNx&&state!=="Slack"?`slack ${fTime(slackNx[0])}`:""].filter(Boolean).join(" · "))+tSvg("cc",g)+
+      tLegend([["#4cc9f0",`Flood${fd!=null?" → "+deg3(fd):""}`],["#ffb547",`Ebb${ed!=null?" → "+deg3(ed):""}`]])+
+      tCells(next.map(e=>[e[1]==="slack"?"Slack":e[1]==="flood"?"Max flood":"Max ebb",fTime(e[0]).replace(" ","&nbsp;"),e[1]==="slack"?"0.0 kt":Math.abs(e[2]).toFixed(1)+" kt"]))+
+      tFoot(`NOAA ${esc(st.id)} · ${esc(st.name)} · predicted`);
     panel.style.display="";
   }catch(e){console.warn("currents",e);if(my===curReq)panel.style.display="none"}
 }
@@ -1160,42 +1194,31 @@ async function renderWaves(){
     let vis=null;try{const vj=await getJSON(`https://api.open-meteo.com/v1/forecast?latitude=${best.latitude}&longitude=${best.longitude}&hourly=visibility&forecast_days=2&timezone=auto`);
       if(vj.hourly&&vj.hourly.visibility)vis=vj.hourly.time.map((t,k)=>[wall(t),vj.hourly.visibility[k]]).filter(p=>p[1]!=null)}catch(e){}
     if(my!==waveReq)return;
-    // next 24 hours, hour by hour
-    const a=n-2*36e5,b=n+24*36e5,ser=h.time.map((t,k)=>[wall(t),ft(h.wave_height[k]),ft(h.swell_wave_height[k])]).filter(p=>p[1]!=null&&p[0]>=a-36e5&&p[0]<=b+36e5);
-    const mx=Math.max(...ser.map(p=>Math.max(p[1],p[2]||0)))*1.15||1,Wd=340,H=110,top=18,bot=H-16,X=t=>(t-a)/(b-a)*Wd,Y=v=>bot-v/mx*(bot-top);
+    const{a,b}=tFrame(n),{Wd,H,top,bot}=TF,ser=h.time.map((t,k)=>[wall(t),ft(h.wave_height[k]),ft(h.swell_wave_height[k])]).filter(p=>p[1]!=null&&p[0]>=a-36e5&&p[0]<=b+36e5);
+    const mx=Math.max(...ser.map(p=>Math.max(p[1],p[2]||0)))*1.15||1,X=t=>(t-a)/(b-a)*Wd,Y=v=>bot-v/mx*(bot-top);
     const line=k=>ser.filter(p=>p[k]!=null).map((p,q)=>(q?"L":"M")+X(p[0]).toFixed(1)+" "+Y(p[k]).toFixed(1)).join("");
-    let g=`<defs><clipPath id="wc"><rect width="${Wd}" height="${H}"/></clipPath></defs><g clip-path="url(#wc)">`;
-    // fog band: hours with visibility under 1 nautical mile
+    // fog: hours with visibility under 1 nautical mile, shaded behind the waves
     let fogHrs=[];if(vis)for(const [t,v] of vis)if(t>=a&&t<=b&&v<1852)fogHrs.push(t);
-    for(const t of fogHrs)g+=`<rect x="${X(t-18e5).toFixed(1)}" y="0" width="${(X(t+18e5)-X(t-18e5)).toFixed(1)}" height="${bot}" fill="#b4c3d4" opacity=".09"/><rect x="${X(t-18e5).toFixed(1)}" y="0" width="${(X(t+18e5)-X(t-18e5)).toFixed(1)}" height="3" fill="#b4c3d4" opacity=".55"/>`;
-    g+=`<path d="${line(1)}L${X(ser[ser.length-1][0])} ${bot}L${X(ser[0][0])} ${bot}z" fill="#4cc9f0" opacity=".14"/><path d="${line(1)}" fill="none" stroke="#4cc9f0" stroke-width="1.8"/><path d="${line(2)}" fill="none" stroke="#c792ea" stroke-width="1.3" stroke-dasharray="3 3"/><line x1="0" y1="${bot}" x2="${Wd}" y2="${bot}" stroke="#1c2d44"/>`;
-    for(let m=dayStart(a)+864e5;m<b;m+=864e5)g+=`<line x1="${X(m)}" y1="6" x2="${X(m)}" y2="${bot}" stroke="#2a3f5c" stroke-dasharray="2 3"/><text x="${X(m)+4}" y="${top-4}" fill="#8597b3" font-size="10.5">${fDay(m)}</text>`;
-    let k0=0;while(k0+1<ser.length&&ser[k0+1][0]<=n)k0++;
-    g+=`<line x1="${X(n)}" y1="6" x2="${X(n)}" y2="${bot}" stroke="#8597b3"/><circle cx="${X(n)}" cy="${Y(ser[k0][1])}" r="4" fill="#4cc9f0" stroke="#0b1a2c" stroke-width="2"/>`;
-    for(let t=dayStart(a)+Math.ceil((a-dayStart(a))/108e5)*108e5;t<b;t+=108e5)if(Math.abs(t-n)>54e5)g+=`<text x="${X(t)}" y="${H-3}" fill="#8597b3" font-size="10.5" text-anchor="middle">${fHour(t)}</text>`;
-    g+=`<text x="${X(n)}" y="${H-3}" fill="#e9eef3" font-size="10.5" text-anchor="middle">now</text></g>`;
-    WAVE_NOW={swellFt:(c.swell_wave_height||0)*3.2808};if($("#clar")&&CLAR)clarityAt(place.lat,place.lon).then(cl=>{if($("#clar"))$("#clar").innerHTML=clarityRow(cl)}).catch(()=>{});
-    const wh=ft(c.wave_height),whFt=S.rain==="in"?wh:wh*3.28,feel=whFt<2?"Calm":whFt<4?"Small":whFt<7?"Moderate":whFt<11?"Large":"Very large";
-    // visibility row: now, and the next spell of fog if any
-    let visRow="";if(vis&&vis.length){let k=0;while(k+1<vis.length&&vis[k+1][0]<=n)k++;const nm=vis[k][1]/1852,fmt=v=>v>=10?"10+ nm":v>=1?v.toFixed(0)+" nm":v.toFixed(1)+" nm";
+    let g=fogHrs.map(t=>`<rect x="${X(t-18e5).toFixed(1)}" y="${top-14}" width="${(X(t+18e5)-X(t-18e5)+.3).toFixed(1)}" height="${bot-top+14}" fill="#b4c3d4" opacity=".1"/>`).join("");
+    g+=`<path d="${line(1)}L${X(ser[ser.length-1][0])} ${bot}L${X(ser[0][0])} ${bot}z" fill="#4cc9f0" opacity=".16"/><path d="${line(1)}" fill="none" stroke="#4cc9f0" stroke-width="2"/><path d="${line(2)}" fill="none" stroke="#c792ea" stroke-width="1.4" stroke-dasharray="3 3"/>`+tAxis(a,b,X,n);
+    let k0=0;while(k0+1<ser.length&&ser[k0+1][0]<=n)k0++;g+=`<circle cx="${X(n)}" cy="${Y(ser[k0][1])}" r="4.5" fill="#4cc9f0" stroke="#0b1a2c" stroke-width="2"/>`;
+    WAVE_NOW={swellFt:(c.swell_wave_height||0)*3.2808,buoy};if($("#clar")&&CLAR)renderWaterExtras();
+    // visibility on the water: now, and the next spell of fog
+    let visCell=null;if(vis&&vis.length){let k=0;while(k+1<vis.length&&vis[k+1][0]<=n)k++;const nm=vis[k][1]/1852;
       let fogS=null,fogE=null;for(let q=k;q<vis.length&&vis[q][0]<=n+24*36e5;q++){if(vis[q][1]<1852){if(fogS==null)fogS=vis[q][0];fogE=vis[q][0]}else if(fogS!=null)break}
-      const note=nm<1?"fog":fogS!=null?`fog ${fogS<=n?"now":fT(fogS)}–${fT(fogE+36e5)}`:nm<5?"haze or mist":"clear";
-      visRow=`<div class="tr"><span>Visibility on the water</span><b>${fmt(nm)}<small class="tsub">${note}</small></b></div>`}
+      visCell=["Visibility",nm>=10?"10+&nbsp;nm":(nm>=1?nm.toFixed(0):nm.toFixed(1))+"&nbsp;nm",nm<1?"fog":fogS!=null?`fog ${fogS<=n?"now":fHour(fogS)}–${fHour(fogE+36e5)}`:nm<5?"haze":"clear"]}
     const brg=(a,b,c2,d2)=>{const r=Math.PI/180,y=Math.sin((d2-b)*r)*Math.cos(c2*r),x=Math.cos(a*r)*Math.sin(c2*r)-Math.sin(a*r)*Math.cos(c2*r)*Math.cos((d2-b)*r);return(Math.atan2(y,x)/r+360)%360};
-    const away=bd<3?"here":`${Math.round(bd*.621)} mi ${dirName(brg(place.lat,place.lon,best.latitude,best.longitude))}`;
-    $("#waveNote").textContent=buoy?`Buoy ${buoy.id} · ${away}`:`Model · ${away}`;
+    $("#waveNote").textContent=bd<3?"here":`${Math.round(bd*.621)} mi ${dirName(brg(place.lat,place.lon,best.latitude,best.longitude))}`;
     // measured at the buoy beats the model for "now"
-    const mWh=buoy&&buoy.wvht!=null?ft(buoy.wvht):null,shownWh=mWh!=null?mWh:wh,shownFt=S.rain==="in"?shownWh:shownWh*3.28,
-      feel2=shownFt<2?"Calm":shownFt<4?"Small":shownFt<7?"Moderate":shownFt<11?"Large":"Very large";
-    const ago=buoy?Math.max(0,Math.round((Date.now()-buoy.t)/6e4)):null;
-    el.innerHTML=`${buoy?`<div class="buoy"><b>${esc(buoy.name||"NOAA buoy "+buoy.id)}</b><span>${mWh!=null?`measured ${ago<60?ago+" min":Math.round(ago/60)+" h"} ago`:"no wave reading"} · NDBC ${esc(buoy.id)}</span></div>`:""}
-      <div class="split fade"><div class="v">${shownWh.toFixed(1)}<em>${hl}</em></div><span>${feel2} seas${buoy&&buoy.dpd?` · ${Math.round(buoy.dpd)} s`:c.wave_period?` · ${Math.round(c.wave_period)} s`:""}</span></div>
-      <div class="tbl" style="margin-top:6px">${buoy&&buoy.dpd?`<div class="tr"><span>Dominant waves</span><b>${Math.round(buoy.dpd)} s${buoy.mwd!=null?` from ${dirName(buoy.mwd)} ${String(Math.round(buoy.mwd)).padStart(3,"0")}°`:""}</b></div>`:""}
-      ${buoy&&buoy.wtmp!=null?`<div class="tr"><span>Water temp at buoy</span><b>${Math.round(S.temp==="F"?buoy.wtmp*9/5+32:buoy.wtmp)}°${S.temp}</b></div>`:""}<div class="tr"><span>Swell${buoy?" (model)":""}</span><b>${c.swell_wave_height!=null?ft(c.swell_wave_height).toFixed(1)+" "+hl+" @ "+Math.round(c.swell_wave_period)+" s":"--"}</b></div>
-      <div class="tr"><span>Swell from</span><b>${c.swell_wave_direction!=null?dirName(c.swell_wave_direction)+" "+String(Math.round(c.swell_wave_direction)).padStart(3,"0")+"°":"--"}</b></div>
-      <div class="tr"><span>Wind waves${buoy?" (model)":""}</span><b>${c.wind_wave_height!=null?ft(c.wind_wave_height).toFixed(1)+" "+hl:"--"}</b></div>${visRow}</div>
-      <svg class="chart" viewBox="0 0 ${Wd} ${H}" style="margin-top:12px">${g}</svg><div class="legendrow"><span><i style="background:#4cc9f0"></i>Wave height</span><span><i style="background:#c792ea"></i>Swell</span>${fogHrs.length?'<span><i style="background:#9fb2c8"></i>Fog (&lt;1 nm)</span>':""}</div>
-      <div class="foot">${buoy?"Now: NOAA National Data Buoy Center · forecast: ":""}Open-Meteo marine model at ${buoy?"the buoy":"this point"} · visibility from the weather model</div>`;
+    const wh=ft(c.wave_height),mWh=buoy&&buoy.wvht!=null?ft(buoy.wvht):null,shownWh=mWh!=null?mWh:wh,shownFt=S.rain==="in"?shownWh:shownWh*3.28,
+      feel=shownFt<2?"Calm seas":shownFt<4?"Small seas":shownFt<7?"Moderate seas":shownFt<11?"Large seas":"Very large seas",ago=buoy?Math.max(0,Math.round((Date.now()-buoy.t)/6e4)):null,
+      per=buoy&&buoy.dpd?Math.round(buoy.dpd):c.wave_period?Math.round(c.wave_period):null,pdir=buoy&&buoy.mwd!=null?buoy.mwd:c.wave_direction;
+    el.innerHTML=tHero(shownWh.toFixed(1),hl,feel,[per?`${per} s`:"",pdir!=null?`from ${dirName(pdir)} ${deg3(pdir)}`:"",mWh!=null?`measured ${ago<60?ago+" min":Math.round(ago/60)+" h"} ago`:""].filter(Boolean).join(" · "))+tSvg("wc",g)+
+      tLegend([["#4cc9f0","Wave height"],["#c792ea","Swell",1],...(fogHrs.length?[["#b4c3d4","Fog"]]:[])])+
+      tCells([["Swell",c.swell_wave_height!=null?ft(c.swell_wave_height).toFixed(1)+"&nbsp;"+hl:"--",c.swell_wave_period?`${Math.round(c.swell_wave_period)} s`:""],
+        ["From",c.swell_wave_direction!=null?dirName(c.swell_wave_direction):"--",c.swell_wave_direction!=null?deg3(c.swell_wave_direction):""],
+        ["Chop",c.wind_wave_height!=null?ft(c.wind_wave_height).toFixed(1)+"&nbsp;"+hl:"--","wind waves"],visCell||["Visibility","--",""]])+
+      tFoot(buoy?`${esc(buoy.name||"NOAA buoy")} buoy · NDBC ${esc(buoy.id)} · forecast: Open-Meteo`:"Open-Meteo marine model · no buoy nearby");
     panel.style.display="";
   }catch(e){console.warn("waves",e);if(my===waveReq)panel.style.display="none"}
 }
