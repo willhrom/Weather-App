@@ -641,7 +641,7 @@ async function load(){
 }
 /* Each tab's data loads when that tab is first opened (per place/refresh); the visible tab goes first,
    light extras for the others are fetched once the app is idle. Keeps start-up fast on a phone. */
-const TABJOBS={now:[renderNow,renderHours,renderRain,renderWind,renderMoon,renderMap,renderAlerts],days:[renderDaily,renderAFD],sky:[renderAirport,renderAFD],
+const TABJOBS={now:[renderNow,renderHours,renderRain,renderWind,renderMoon,renderMap,renderAlerts,renderAirport],days:[renderDaily,renderAFD],sky:[renderAirport,renderAFD],
   tides:[renderTide,renderCurrents,renderWaves,renderWater,renderAFD]},IDLEJOBS=[renderSeason,renderDaily,renderAFD,renderAirport,renderTide];
 let jobsDone=new Set(),jobGen=0;
 function runJob(f){if(jobsDone.has(f))return;jobsDone.add(f);try{const r=f();if(r&&r.catch)r.catch(e=>console.error(f.name,e))}catch(e){console.error(f.name,e)}}
@@ -672,7 +672,7 @@ function renderNow(){
   const c=W.current,d=W.daily,ti=todayIndex(),h=W.hourly,i=hourIndex(),P=h.precipitation;
   tint(c.weather_code,c.is_day);
   $("#temp").innerHTML=Math.round(c.temperature_2m)+"<sup>°</sup>";
-  $("#cond").textContent=wxText(c.weather_code);$("#wxi").innerHTML=wxIcon(c.weather_code,c.is_day);
+  const nc=nowCode();$("#cond").textContent=nc.txt||wxText(nc.code);$("#wxi").innerHTML=wxIcon(nc.txt?2:nc.code,c.is_day);
   $("#feels").innerHTML=`Feels ${U.t(c.apparent_temperature)}<br>H ${U.t(d.temperature_2m_max[ti])} · L ${U.t(d.temperature_2m_min[ti])}`;
   let msg="";const wetNow=(P[i]||0)>wet()||[51,53,55,61,63,65,80,81,82,95].includes(c.weather_code);
   let k=-1;for(let j=i+1;j<Math.min(i+25,P.length);j++)if((P[j]||0)>=(S.rain==="in"?.01:.25)||(h.precipitation_probability[j]||0)>=55){k=j;break}
@@ -700,6 +700,21 @@ function renderNow(){
 }
 
 /* ---------- rest of today (typed summary) ---------- */
+/* What the sky is doing right now, from the most reliable source available:
+   a nearby airport observation (within ~12 mi, under 90 min old) beats the model;
+   otherwise the model's 15-minute "current" analysis, which is fresher than its hourly forecast. */
+function nowCode(){const c=W.current.weather_code,m=typeof skyMetar==="function"?skyMetar():null;
+  if(!m||m.km>20||(m.obsTime&&Date.now()/1000-m.obsTime>5400))return{code:c,src:"model"};
+  const raw=" "+String(m.rawOb||"").replace(/\sRMK\s.*$/,"")+" ";let wx=null;
+  if(/\s[-+]?(VC)?TS/.test(raw))wx=95;else if(/\s[-+]?(SH)?SN/.test(raw))wx=73;else if(/\s[-+]?(FZ)?DZ/.test(raw))wx=53;
+  else if(/\s[-+]?(SH|FZ)?RA/.test(raw))wx=/\s\+(SH)?RA/.test(raw)?65:/\s-(SH)?RA/.test(raw)?61:63;else if(/\sFG\s/.test(raw))wx=45;
+  if(wx!=null)return{code:wx,src:"obs"};
+  const rank={SKC:0,CLR:0,CAVOK:0,FEW:1,SCT:2,BKN:2.5,OVC:3,OVX:3,VV:3};let cov=-1;
+  for(const cl of m.clouds||[])if(cl.cover in rank&&(cl.base==null||cl.base<=12000))cov=Math.max(cov,rank[cl.cover]);
+  if(cov<0)return{code:c,src:"model"};
+  if(cov===2.5)return c>=51&&!/\s(SKC|CLR)\s/.test(raw)?{code:c,src:"obs"}:{code:3,txt:"Mostly cloudy",src:"obs"};
+  // the airport sees the clouds; keep the model's precipitation if it has some and the airport doesn't contradict it
+  return{code:c>=51&&!/\s(SKC|CLR)\s/.test(raw)?c:cov,src:"obs"}}
 function renderToday(){
   const h=W.hourly,d=W.daily,i=hourIndex(),now=nowWall(),mid=dayStart(now)+864e5,tonight=mid-now<4*36e5,end=tonight?now+12*36e5:mid;
   const idx=[];for(let j=i;j<h.time.length&&wall(h.time[j])<end;j++)idx.push(j);if(!idx.length){$("#today").innerHTML="";return}
@@ -728,7 +743,8 @@ function renderToday(){
   const kind=(c,day)=>c<=1?(day?"sunny":"clear"):c===2?"partly cloudy":c===3?"cloudy":c<=48?"foggy":c<=57?"drizzly":(c>=71&&c<=77)||c===85||c===86?"snowy":c>=95?"stormy":c>=80?"showery":"rainy";
   const PH={sunny:"sunny",clear:"clear","partly cloudy":"partly cloudy",cloudy:"cloudy",foggy:"foggy",drizzly:"drizzle",snowy:"snow",stormy:"thunderstorms",showery:"showers",rainy:"rain"};
   const per=(hr,next)=>hr>=5&&hr<12?(next?"tomorrow morning":"this morning"):hr>=12&&hr<17?(next?"tomorrow afternoon":"this afternoon"):hr>=17&&hr<21?"this evening":"overnight";
-  const segs=[];idx.forEach((j,k)=>{const t=at(k),hr=new Date(t).getUTCHours(),p=per(hr,t>=mid),wc=h.weather_code[j],kd=kind(wc,h.is_day[j]);
+  const NC=nowCode();
+  const segs=[];idx.forEach((j,k)=>{const t=at(k),hr=new Date(t).getUTCHours(),p=per(hr,t>=mid),hc=h.weather_code[j],wc=hc>=51||t>=now+3*36e5?hc:NC.code>=51?(t<now+36e5?NC.code:hc):NC.code,kd=kind(wc,h.is_day[j]);
     let sg=segs.find(x=>x.p===p);if(!sg){sg={p,c:{}};segs.push(sg)}sg.c[kd]=(sg.c[kd]||0)+(/rain|drizzl|show|storm|snow/.test(kd)?2:1)});
   const dom=segs.map(x=>({p:x.p,k:Object.entries(x.c).sort((a,b)=>b[1]-a[1])[0][0]}));
   const merged=[];dom.forEach(x=>{const last=merged[merged.length-1];if(last&&last.k===x.k)last.p.push(x.p);else merged.push({k:x.k,p:[x.p]})});
@@ -845,7 +861,7 @@ async function renderAirport(){
     const arr=await getJSON(`https://aviationweather.gov/api/data/metar?bbox=${b}&format=json`);if(place.id!==pid)return;
     const list=(Array.isArray(arr)?arr:[]).filter(m=>m&&m.rawOb&&Number.isFinite(+m.lat)&&Number.isFinite(+m.lon)).map(cleanMetar).filter(m=>m.icaoId).map(m=>Object.assign(m,{km:km(place.lat,place.lon,m.lat,m.lon)})).sort((a,b)=>a.km-b.km);
     if(!list.length){METAR=null;$("#fcat").innerHTML="";panel.style.display="none";return}
-    const m=list[0];METAR=m;if(typeof TAB!=="undefined"&&TAB==="sky"&&SKY)drawSky();const cat=flightCat(m),badge=`<span class="badge"><i style="background:${catColor(cat)}"></i>${cat}</span>`;
+    const m=list[0];METAR=m;if(typeof TAB!=="undefined"&&TAB==="sky"&&SKY)drawSky();try{const nc=nowCode();$("#cond").textContent=nc.txt||wxText(nc.code);$("#wxi").innerHTML=wxIcon(nc.txt?2:nc.code,W.current.is_day);renderToday()}catch(e){}const cat=flightCat(m),badge=`<span class="badge"><i style="background:${catColor(cat)}"></i>${cat}</span>`;
     $("#aptDist").textContent=`${Math.round(m.km*.621)} mi`;
     const age=m.obsTime?Math.round((Date.now()/1000-m.obsTime)/60):null;
     $("#apt").innerHTML=`<div class="apt"><b>${esc(m.icaoId)}</b><span>${esc((m.name||"").replace(/,\s*US$/,""))}</span>${badge}</div>
