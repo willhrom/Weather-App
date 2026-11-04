@@ -757,31 +757,36 @@ function renderToday(){
     if(a.length===2)return f.startsWith("this ")&&l.startsWith("this ")?`${f} and ${l.slice(5)}`:f.startsWith("tomorrow ")&&l.startsWith("tomorrow ")?`${f} and ${l.slice(9)}`:`${f} and ${l}`;
     return `${f} through ${l}`};
   const cap=t=>t[0].toUpperCase()+t.slice(1);
-  const NOUN={rainy:"rain",drizzly:"drizzle",showery:"showers",stormy:"storms",snowy:"snow",foggy:"fog"};
-  // the first stretch starts now, so it needs no time words: "Sunny, clear tonight"
+  // full, short sentences: "It's sunny now, but clouds move in this afternoon."
+  const NOW={sunny:"It's sunny now",clear:"It's clear now","partly cloudy":"It's partly cloudy now",cloudy:"It's cloudy now",foggy:"It's foggy now",
+    rainy:"It's raining now",drizzly:"It's drizzling now",showery:"Showers are around now",stormy:"Thunderstorms are around now",snowy:"It's snowing now"};
+  const STAY={sunny:"It stays sunny",clear:"It stays clear","partly cloudy":"It stays partly cloudy",cloudy:"It stays cloudy",foggy:"Fog hangs on",
+    rainy:"Rain continues",drizzly:"Drizzle continues",showery:"Showers continue",stormy:"Thunderstorms continue",snowy:"Snow continues"};
+  const ARRIVE={rainy:"rain moves in",drizzly:"drizzle starts",showery:"showers develop",stormy:"thunderstorms develop",snowy:"snow moves in"};
   const first=m=>{const t=toks(m.p);
-    if(grp(m.k)==="fair"){const parts=[];m.p.forEach((p,k)=>{const w=m.ks[k]==="sunny"?"sunny":"clear",l=parts[parts.length-1];if(l&&l.w===w)l.p.push(p);else parts.push({w,p:[p]})});
-      return cap(parts.map((x,k)=>k?`${x.w} ${list(toks(x.p))}`:x.w).join(", "))+(parts.length===1&&t.length>1?` through ${t[t.length-1]}`:"")}
-    const w=WET(m.k)?NOUN[m.k]:m.k;return cap(w)+(t.length>1?` through ${t[t.length-1]}`:"")};
+    if(t.length===1)return NOW[m.k];
+    if(grp(m.k)==="fair"&&m.ks.some(k=>k==="sunny")&&m.ks.some(k=>k==="clear"))return `Expect sunshine ${list(toks(m.p.filter((p,k)=>m.ks[k]==="sunny")))} and clear skies ${list(toks(m.p.filter((p,k)=>m.ks[k]==="clear")))}`;
+    return `${STAY[m.k]} through ${t[t.length-1]}`};
   const next=(m,prev)=>{const t1=toks(m.p)[0],g=grp(m.k),pg=grp(prev.k);
-    if(WET(m.k))return `${NOUN[m.k]} ${t1}`;
-    if(WET(prev.k))return g==="fair"?`clearing ${t1}`:`drying out ${t1}`;
-    if(m.k==="foggy")return `fog ${t1}`;
-    if(g==="fair")return `clearing ${t1}`;
-    if(g==="cloudy")return pg==="fair"?`clouding over ${t1}`:`turning cloudy ${t1}`;
-    if(g==="partly cloudy")return pg==="fair"?`some clouds ${t1}`:`breaking up ${t1}`;
-    return `${m.k} ${t1}`};
-  const ms=merged.slice(0,3);
-  let ol=ms.map((m,i)=>i?next(m,ms[i-1]):first(m)).join(", ")+".";
+    if(WET(m.k))return WET(prev.k)?`it turns to ${({rainy:"rain",drizzly:"drizzle",showery:"showers",stormy:"thunderstorms",snowy:"snow"})[m.k]} ${t1}`:`${ARRIVE[m.k]} ${t1}`;
+    if(WET(prev.k))return g==="fair"?`skies clear ${t1}`:g==="cloudy"?`the rain ends ${t1}, though clouds linger`:`the rain tapers off ${t1}`;
+    if(m.k==="foggy")return `fog rolls in ${t1}`;
+    if(g==="fair")return `skies clear ${t1}`;
+    if(g==="cloudy")return pg==="fair"?`clouds move in ${t1}`:`clouds thicken ${t1}`;
+    if(g==="partly cloudy")return pg==="fair"?`a few clouds drift in ${t1}`:`clouds break up ${t1}`;
+    return `it turns ${m.k} ${t1}`};
+  const ms=merged.slice(0,3),bits=ms.map((m,i)=>i?next(m,ms[i-1]):first(m));
+  let ol=(bits.length===1?bits[0]:bits.length===2?`${bits[0]}, but ${bits[1]}`:`${bits[0]}, but ${bits[1]}. ${cap(bits[2])}`)+".";
   const hTxt=t=>{const h=new Date(Math.round(t/36e5)*36e5).getUTCHours();return h===0?"midnight":h===12?"noon":`${h%12} ${h<12?"AM":"PM"}`};
   const isNight=t=>{const hr=new Date(t).getUTCHours();return hr>=20||hr<4};
+  const art=n=>/^(8|11|18)/.test(String(n))?"an":"a";
   if(pmax>=30){const pk=PP.indexOf(pmax),a=amt>=wet()?Math.round(amt*(S.rain==="in"?10:1))/(S.rain==="in"?10:1):0;
-    ol+=` ${pmax}% chance, most likely around <b>${hTxt(at(pk))}</b>${a>0?`, about ${a} ${U.rl()}`:""}.`}
-  if(tonight){const lowK=T.indexOf(min(T));ol+=` Low <b>${U.t(min(T))}</b>${lowK>0?` by ${hTxt(at(lowK))}`:""}.`}
+    ol+=` There's ${art(pmax)} <b>${pmax}%</b> chance of rain, most likely ${pk===0?"right now":"around "+hTxt(at(pk))}${a>0?`, with about ${a} ${S.rain==="in"?(a===1?"inch":"inches"):"mm"} expected`:""}.`}
+  if(tonight){const lowK=T.indexOf(min(T));ol+=` Expect a low of <b>${U.t(min(T))}</b>${lowK>0?` around ${hTxt(at(lowK))}`:""}.`}
   else if(max(T)>tNow+1&&hiK>0){const rest=T.slice(hiK),lo=min(rest),loT=at(hiK+rest.indexOf(lo));
-    ol+=` High <b>${U.t(max(T))}</b> at ${hTxt(at(hiK))}${lo<max(T)-2?`, ${isNight(loT)?`low ${U.t(lo)} tonight`:`${U.t(lo)} by ${hTxt(loT)}`}`:""}.`}
-  else ol+=` Falling to <b>${U.t(min(T))}</b> ${isNight(at(loK))?"tonight":"by "+hTxt(at(loK))}.`;
-  const gm=max(WG),gThresh=S.wind==="kmh"?40:S.wind==="kn"?22:25;if(gm>=gThresh)ol+=` Gusts to ${U.w(gm)} ${U.wl()}.`;
+    ol+=` Expect a high of <b>${U.t(max(T))}</b> around ${hTxt(at(hiK))}${lo<max(T)-2?(isNight(loT)?` and a low of ${U.t(lo)} tonight`:`, cooling to ${U.t(lo)} by ${hTxt(loT)}`):""}.`}
+  else ol+=` Temperatures fall to <b>${U.t(min(T))}</b> ${isNight(at(loK))?"tonight":"by "+hTxt(at(loK))}.`;
+  const gm=max(WG),gThresh=S.wind==="kmh"?40:S.wind==="kn"?22:25;if(gm>=gThresh)ol+=` Gusts could reach ${U.w(gm)} ${U.wl()}.`;
   const row=(k,v)=>`<div class="trow"><small>${k}</small><span>${v}</span></div>`;
   $("#today").innerHTML=`<h4>${label}<b class="${pmax<15?"dry":""}">${pmax}% rain</b></h4><p class="ol">${ol}</p>`;
 }
