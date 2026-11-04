@@ -84,11 +84,12 @@ body.mapopen .tabbar{display:none}
 
 /* now */
 .now{display:flex;align-items:flex-end;gap:16px;padding:14px 14px 0}
-.bigt{font-family:var(--mono);font-size:68px;font-weight:300;letter-spacing:-.05em;line-height:.85}
+.bigt{font-family:var(--mono);font-size:70px;font-weight:500;letter-spacing:-.05em;line-height:.85}
+.wxi{flex:none;width:58px;height:58px;margin:0 -4px 2px -6px}.wxi svg{width:100%;height:100%;display:block;filter:drop-shadow(0 3px 6px rgba(0,0,0,.35))}
 .bigt sup{font-size:28px;vertical-align:top;position:relative;top:4px;margin-left:2px;letter-spacing:0;color:var(--muted)}
 .cond{padding-bottom:3px;min-width:0}
-.cond b{display:block;font-size:20px;font-weight:600;letter-spacing:-.015em}
-.cond span{display:block;font-size:12px;color:var(--faint);margin-top:5px;line-height:1.45}
+.cond b{display:block;font-size:21px;font-weight:700;letter-spacing:-.015em}
+.cond span{display:block;font-size:13px;font-weight:500;color:var(--muted);margin-top:5px;line-height:1.45}
 .fc{margin-left:auto;align-self:flex-start;text-align:right}
 .badge{display:inline-flex;white-space:nowrap;align-items:center;gap:6px;font-family:var(--mono);font-size:11px;font-weight:500;padding:4px 7px;border-radius:6px;border:1px solid var(--line2);color:var(--muted)}
 .badge i{width:7px;height:7px;border-radius:50%}
@@ -105,11 +106,11 @@ body.mapopen .tabbar{display:none}
 .outlook b{color:var(--text);font-weight:600}
 .readouts{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:14px}
 @media (max-width:400px){.readouts{grid-template-columns:repeat(2,1fr)}}
-.ro{padding:10px 12px 11px;border:1px solid var(--line);border-radius:12px;background:rgba(255,255,255,.035);min-width:0}
-.ro small{display:block;font-size:10.5px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--faint)}
-.ro b{display:block;font-family:var(--mono);font-size:22px;font-weight:400;letter-spacing:-.02em;margin-top:6px;white-space:nowrap;color:var(--text)}
-.ro b em{font-style:normal;font-size:11px;letter-spacing:0;color:var(--faint);margin-left:3px}
-.ro span{display:block;font-size:11.5px;color:var(--faint);margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ro{padding:12px 13px 13px;border:1px solid var(--line2);border-radius:14px;background:linear-gradient(180deg,rgba(255,255,255,.075),rgba(255,255,255,.035));box-shadow:inset 0 1px 0 rgba(255,255,255,.05),0 4px 14px rgba(0,0,0,.18);min-width:0}
+.ro small{display:block;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.ro b{display:block;font-family:var(--mono);font-size:26px;font-weight:600;letter-spacing:-.03em;margin-top:6px;white-space:nowrap;color:var(--text)}
+.ro b em{font-style:normal;font-size:12px;font-weight:500;letter-spacing:0;color:var(--muted);margin-left:3px}
+.ro span{display:block;font-size:12px;font-weight:500;color:var(--muted);margin-top:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
 /* map (no blur behind the map — it can clip map rendering on Android) */
 #mapPanel{backdrop-filter:none;-webkit-backdrop-filter:none;background:#0b1a2c}
@@ -413,6 +414,7 @@ details.afd[open]>summary::after{content:"–"}
     <div class="ph">Now<span class="r" id="obsTime"></span></div>
     <div class="now">
       <div class="bigt" id="temp">--<sup>°</sup></div>
+      <div class="wxi" id="wxi" aria-hidden="true"></div>
       <div class="cond"><b id="cond">&nbsp;</b><span id="feels">&nbsp;</span></div>
       <div class="fc" id="fcat"></div>
     </div>
@@ -574,6 +576,27 @@ const U={t:v=>v==null?"--":Math.round(v)+"°",w:v=>v==null?"--":String(Math.roun
   h:v=>v==null?"--":S.rain==="in"?v.toFixed(1):v.toFixed(2),hl:()=>S.rain==="in"?"ft":"m"};
 const wet=()=>S.rain==="in"?.005:.1;
 
+/* classic weather symbols, flat style to match the app */
+function wxIcon(c,day){
+  const sun=(x,y,r)=>`<g fill="#ffc94d"><circle cx="${x}" cy="${y}" r="${r}"/>${[0,45,90,135,180,225,270,315].map(a=>{const t=a*Math.PI/180,r1=r+4,r2=r+9;return `<line x1="${x+Math.cos(t)*r1}" y1="${y+Math.sin(t)*r1}" x2="${x+Math.cos(t)*r2}" y2="${y+Math.sin(t)*r2}" stroke="#ffc94d" stroke-width="3.2" stroke-linecap="round"/>`}).join("")}</g>`;
+  const moon=(x,y,r)=>`<path d="M${x+r*.35} ${y-r} a${r} ${r} 0 1 0 ${r*.65} ${r*1.6} a${r*.82} ${r*.82} 0 0 1 ${-r*.65} ${-r*1.6}z" fill="#e6edf6"/>`;
+  const cloud=(dx=0,dy=0,col="#dfe8f3",sh="#b5c5d8")=>`<g transform="translate(${dx} ${dy})"><path d="M18 50h30a11 11 0 0 0 1-22 15 15 0 0 0-28-4 11 11 0 0 0-3 26z" fill="${sh}"/><path d="M18 47h30a10 10 0 0 0 1-20 14 14 0 0 0-27-3 10 10 0 0 0-4 23z" fill="${col}"/></g>`;
+  const drops=(n,col="#4cc9f0")=>[[24,46],[34,49],[44,46]].slice(0,n).map(([x,y])=>`<path d="M${x} ${y}l-2.6 6.5a2.8 2.8 0 1 0 5.2 0z" fill="${col}" transform="rotate(12 ${x} ${y})"/>`).join("");
+  const flakes=()=>[[24,51],[34,54],[44,51]].map(([x,y])=>`<g stroke="#f0f5fb" stroke-width="2" stroke-linecap="round"><line x1="${x-3}" y1="${y}" x2="${x+3}" y2="${y}"/><line x1="${x-1.5}" y1="${y-2.6}" x2="${x+1.5}" y2="${y+2.6}"/><line x1="${x-1.5}" y1="${y+2.6}" x2="${x+1.5}" y2="${y-2.6}"/></g>`).join("");
+  const bolt=`<path d="M34 42l-7 11h6l-3 9 11-13h-6l4-7z" fill="#ffd54a"/>`;
+  const fog=`<g stroke="#b5c5d8" stroke-width="3.2" stroke-linecap="round"><line x1="14" y1="49" x2="50" y2="49"/><line x1="20" y1="56" x2="44" y2="56"/></g>`;
+  let g;
+  if(c<=1)g=day?sun(32,32,c===0?11:10):moon(30,32,13)+(c===1?`<circle cx="46" cy="20" r="1.6" fill="#e6edf6"/><circle cx="50" cy="38" r="1.2" fill="#e6edf6"/>`:"");
+  else if(c===2)g=(day?sun(25,24,8):moon(24,22,10))+cloud(4,4);
+  else if(c===3)g=cloud(-6,-2,"#c9d6e6","#97a9c0")+cloud(2,4);
+  else if(c===45||c===48)g=cloud(0,-6)+fog;
+  else if(c>=51&&c<=57)g=cloud(0,-6)+drops(2,"#7fd8f5");
+  else if((c>=71&&c<=77)||c===85||c===86)g=cloud(0,-6)+flakes();
+  else if(c>=95)g=cloud(0,-8,"#a9b7cc","#7d8ea8")+bolt;
+  else if(c===66||c===67)g=cloud(0,-6)+drops(3,"#a9e4ff");
+  else if(c>=80)g=(day?sun(22,20,7):"")+cloud(2,-4)+drops(3);
+  else g=cloud(0,-6,"#c9d6e6","#97a9c0")+drops(3);
+  return `<svg viewBox="0 0 64 64">${g}</svg>`}
 function wxText(c){return({0:"Clear",1:"Mostly clear",2:"Partly cloudy",3:"Overcast",45:"Fog",48:"Freezing fog",51:"Light drizzle",53:"Drizzle",55:"Heavy drizzle",56:"Freezing drizzle",57:"Freezing drizzle",
   61:"Light rain",63:"Rain",65:"Heavy rain",66:"Freezing rain",67:"Freezing rain",71:"Light snow",73:"Snow",75:"Heavy snow",77:"Snow grains",80:"Showers",81:"Showers",82:"Heavy showers",
   85:"Snow showers",86:"Snow showers",95:"Thunderstorms",96:"T-storms, hail",99:"T-storms, hail"})[c]||"—"}
@@ -649,7 +672,7 @@ function renderNow(){
   const c=W.current,d=W.daily,ti=todayIndex(),h=W.hourly,i=hourIndex(),P=h.precipitation;
   tint(c.weather_code,c.is_day);
   $("#temp").innerHTML=Math.round(c.temperature_2m)+"<sup>°</sup>";
-  $("#cond").textContent=wxText(c.weather_code);
+  $("#cond").textContent=wxText(c.weather_code);$("#wxi").innerHTML=wxIcon(c.weather_code,c.is_day);
   $("#feels").innerHTML=`Feels ${U.t(c.apparent_temperature)}<br>H ${U.t(d.temperature_2m_max[ti])} · L ${U.t(d.temperature_2m_min[ti])}`;
   let msg="";const wetNow=(P[i]||0)>wet()||[51,53,55,61,63,65,80,81,82,95].includes(c.weather_code);
   let k=-1;for(let j=i+1;j<Math.min(i+25,P.length);j++)if((P[j]||0)>=(S.rain==="in"?.01:.25)||(h.precipitation_probability[j]||0)>=55){k=j;break}
@@ -704,8 +727,8 @@ function renderToday(){
   // plain-English outlook: what the sky does through each part of the remaining day
   const kind=(c,day)=>c<=1?(day?"sunny":"clear"):c===2?"partly cloudy":c===3?"cloudy":c<=48?"foggy":c<=57?"drizzly":(c>=71&&c<=77)||c===85||c===86?"snowy":c>=95?"stormy":c>=80?"showery":"rainy";
   const PH={sunny:"sunny",clear:"clear","partly cloudy":"partly cloudy",cloudy:"cloudy",foggy:"foggy",drizzly:"drizzle",snowy:"snow",stormy:"thunderstorms",showery:"showers",rainy:"rain"};
-  const per=hr=>hr>=5&&hr<12?"this morning":hr>=12&&hr<17?"this afternoon":hr>=17&&hr<21?"this evening":"overnight";
-  const segs=[];idx.forEach((j,k)=>{const t=at(k),hr=new Date(t).getUTCHours(),p=per(hr),wc=h.weather_code[j],kd=kind(wc,h.is_day[j]);
+  const per=(hr,next)=>hr>=5&&hr<12?(next?"tomorrow morning":"this morning"):hr>=12&&hr<17?(next?"tomorrow afternoon":"this afternoon"):hr>=17&&hr<21?"this evening":"overnight";
+  const segs=[];idx.forEach((j,k)=>{const t=at(k),hr=new Date(t).getUTCHours(),p=per(hr,t>=mid),wc=h.weather_code[j],kd=kind(wc,h.is_day[j]);
     let sg=segs.find(x=>x.p===p);if(!sg){sg={p,c:{}};segs.push(sg)}sg.c[kd]=(sg.c[kd]||0)+(/rain|drizzl|show|storm|snow/.test(kd)?2:1)});
   const dom=segs.map(x=>({p:x.p,k:Object.entries(x.c).sort((a,b)=>b[1]-a[1])[0][0]}));
   const merged=[];dom.forEach(x=>{const last=merged[merged.length-1];if(last&&last.k===x.k)last.p.push(x.p);else merged.push({k:x.k,p:[x.p]})});
@@ -713,7 +736,10 @@ function renderToday(){
     return i===0?(wet?`${w[0].toUpperCase()+w.slice(1)} ${when}`:`${m.k[0].toUpperCase()+m.k.slice(1)} ${when}`):(wet?`then ${w} ${when}`:`becoming ${m.k} ${when}`)};
   let ol=merged.slice(0,3).map(say).join(", ")+".";
   if(pmax>=30){const pk=PP.indexOf(pmax);ol+=` Rain is most likely around <b>${fT(at(pk))}</b> (${pmax}%)${amt>=wet()?`, about ${U.r(amt)} ${U.rl()} total`:""}.`}
-  ol+=max(T)>tNow+1&&hiK>0?` High near <b>${U.t(max(T))}</b>, dropping to ${U.t(min(T.slice(hiK)))} ${tonight?"by morning":"tonight"}.`:` Cooling to <b>${U.t(min(T))}</b> ${tonight?"by morning":"tonight"}.`;
+  if(tonight){ // tonight: the overnight low, then how warm it gets by late morning
+    const lowK=T.indexOf(min(T)),after=T.slice(lowK),up=max(after);
+    ol+=` Low near <b>${U.t(min(T))}</b>${lowK>0?` around ${fT(at(lowK))}`:""}${up>min(T)+3?`, warming to ${U.t(up)} by ${fT(at(lowK+after.indexOf(up)))}`:""}.`}
+  else ol+=max(T)>tNow+1&&hiK>0?` High near <b>${U.t(max(T))}</b>, dropping to ${U.t(min(T.slice(hiK)))} tonight.`:` Cooling to <b>${U.t(min(T))}</b> tonight.`;
   const gm=max(WG),gThresh=S.wind==="kmh"?40:S.wind==="kn"?22:25;if(gm>=gThresh)ol+=` Gusty, up to ${U.w(gm)} ${U.wl()}.`;
   const row=(k,v)=>`<div class="trow"><small>${k}</small><span>${v}</span></div>`;
   $("#today").innerHTML=`<h4>${label}<b class="${pmax<15?"dry":""}">${pmax}% rain</b></h4><p class="ol">${ol}</p>`;
