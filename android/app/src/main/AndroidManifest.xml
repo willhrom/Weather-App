@@ -27,5 +27,33 @@
         android:name=".WeatherJob"
         android:exported="false"
         android:permission="android.permission.BIND_JOB_SERVICE" />
+    <receiver android:name=".Widgets$Now" android:exported="false" android:label="@string/widget_name_now">
+      <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
+      <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_now" />
+    </receiver>
+    <receiver android:name=".Widgets$Pilot" android:exported="false" android:label="@string/widget_name_pilot">
+      <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
+      <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_pilot" />
+    </receiver>
+    <receiver android:name=".Widgets$Glance" android:exported="false" android:label="@string/widget_name_glance">
+      <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
+      <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_glance" />
+    </receiver>
+    <receiver android:name=".Widgets$Hours" android:exported="false" android:label="@string/widget_name_hours">
+      <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
+      <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_hours" />
+    </receiver>
+    <receiver android:name=".Widgets$Days" android:exported="false" android:label="@string/widget_name_days">
+      <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
+      <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_days" />
+    </receiver>
+    <receiver android:name=".Widgets$Tide" android:exported="false" android:label="@string/widget_name_tide">
+      <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
+      <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_tide" />
+    </receiver>
+    <receiver android:name=".Widgets$Minimal" android:exported="false" android:label="@string/widget_name_minimal">
+      <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
+      <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_minimal" />
+    </receiver>
   </application>
 </manifest>

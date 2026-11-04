@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- generated from the app's weather symbols (web/index.html wxIcon) -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="64dp" android:height="64dp" android:viewportWidth="64" android:viewportHeight="64">
+  <group>
+    <path android:pathData="M21.0,32.0 a11.0,11.0 0 1,0 22.0,0 a11.0,11.0 0 1,0 -22.0,0 z" android:fillColor="#FFFFC94D"/>
+    <path android:pathData="M47,32 L52,32" android:strokeColor="#FFFFC94D" android:strokeWidth="3.2" android:strokeLineCap="round"/>
+    <path android:pathData="M42.60660171779821,42.60660171779821 L46.14213562373095,46.14213562373095" android:strokeColor="#FFFFC94D" android:strokeWidth="3.2" android:strokeLineCap="round"/>
+    <path android:pathData="M32,47 L32,52" android:strokeColor="#FFFFC94D" android:strokeWidth="3.2" android:strokeLineCap="round"/>
+    <path android:pathData="M21.393398282201787,42.60660171779821 L17.85786437626905,46.14213562373095" android:strokeColor="#FFFFC94D" android:strokeWidth="3.2" android:strokeLineCap="round"/>
+    <path android:pathData="M17,32 L12,32" android:strokeColor="#FFFFC94D" android:strokeWidth="3.2" android:strokeLineCap="round"/>
+    <path android:pathData="M21.393398282201787,21.393398282201787 L17.857864376269045,17.85786437626905" android:strokeColor="#FFFFC94D" android:strokeWidth="3.2" android:strokeLineCap="round"/>
+    <path android:pathData="M31.999999999999996,17 L31.999999999999996,12" android:strokeColor="#FFFFC94D" android:strokeWidth="3.2" android:strokeLineCap="round"/>
+    <path android:pathData="M42.60660171779821,21.393398282201787 L46.14213562373095,17.857864376269045" android:strokeColor="#FFFFC94D" android:strokeWidth="3.2" android:strokeLineCap="round"/>
+  </group>
+</vector>

@@ -544,6 +544,7 @@ const $=s=>document.querySelector(s);
 const UA=navigator.userAgent,NATIVE=/WeatherApp\//.test(UA);
 const store={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
 const DEFAULT={id:"sf",name:"San Francisco",sub:"California",lat:37.7749,lon:-122.4194};
+let WXN={},wxnT=0;
 let S=Object.assign({temp:"F",wind:"mph",rain:"in",gps:true,nRain:true,nAlerts:true},store.get("wx.settings",{}));
 let L=Object.assign({radar:true,future:false,turb:false,ir:false,vis:false,wv:false,ptype:false,lightning:false,smoke:false,fires:false,fireout:false,mrms:"",alerts:true,metar:false,gairmet:false,sigmet:false,cwa:false,pirep:false},store.get("wx.layers",{}));
 let places=store.get("wx.places",[]);
@@ -861,7 +862,7 @@ async function renderAirport(){
     const arr=await getJSON(`https://aviationweather.gov/api/data/metar?bbox=${b}&format=json`);if(place.id!==pid)return;
     const list=(Array.isArray(arr)?arr:[]).filter(m=>m&&m.rawOb&&Number.isFinite(+m.lat)&&Number.isFinite(+m.lon)).map(cleanMetar).filter(m=>m.icaoId).map(m=>Object.assign(m,{km:km(place.lat,place.lon,m.lat,m.lon)})).sort((a,b)=>a.km-b.km);
     if(!list.length){METAR=null;$("#fcat").innerHTML="";panel.style.display="none";return}
-    const m=list[0];METAR=m;if(typeof TAB!=="undefined"&&TAB==="sky"&&SKY)drawSky();try{const nc=nowCode();$("#cond").textContent=nc.txt||wxText(nc.code);$("#wxi").innerHTML=wxIcon(nc.txt?2:nc.code,W.current.is_day);renderToday()}catch(e){}const cat=flightCat(m),badge=`<span class="badge"><i style="background:${catColor(cat)}"></i>${cat}</span>`;
+    const m=list[0];METAR=m;wxn("apt",{id:m.icaoId,name:(m.name||"").replace(/,.*$/,"")});if(typeof TAB!=="undefined"&&TAB==="sky"&&SKY)drawSky();try{const nc=nowCode();$("#cond").textContent=nc.txt||wxText(nc.code);$("#wxi").innerHTML=wxIcon(nc.txt?2:nc.code,W.current.is_day);renderToday()}catch(e){}const cat=flightCat(m),badge=`<span class="badge"><i style="background:${catColor(cat)}"></i>${cat}</span>`;
     $("#aptDist").textContent=`${Math.round(m.km*.621)} mi`;
     const age=m.obsTime?Math.round((Date.now()/1000-m.obsTime)/60):null;
     $("#apt").innerHTML=`<div class="apt"><b>${esc(m.icaoId)}</b><span>${esc((m.name||"").replace(/,\s*US$/,""))}</span>${badge}</div>
@@ -901,7 +902,7 @@ async function nearestStation(lat,lon){
 async function tideData(){
   const t0=dayStart(nowWall());
   if(isUS(place)){try{const st=await nearestStation(place.lat,place.lon);
-    if(st&&st.km<90){const u=S.rain==="in"?"english":"metric",base=`https://api.tidesandcurrents.noaa.gov/api/prod/datagetter?product=predictions&datum=MLLW&time_zone=lst_ldt&units=${u}&format=json&application=weather_app&station=${st.id}`;
+    if(st&&st.km<90){wxn("tide",{id:st.id,name:st.name});const u=S.rain==="in"?"english":"metric",base=`https://api.tidesandcurrents.noaa.gov/api/prod/datagetter?product=predictions&datum=MLLW&time_zone=lst_ldt&units=${u}&format=json&application=weather_app&station=${st.id}`;
       const [cv,hl]=await Promise.all([getJSON(`${base}&begin_date=${ymd(t0-864e5,"")}&range=72&interval=15`),getJSON(`${base}&begin_date=${ymd(t0-864e5,"")}&range=96&interval=hilo`)]);
       return{src:`NOAA ${st.id} · ${st.name}${st.state?", "+st.state:""}`,dist:`${Math.round(st.km*.621)} mi`,pts:cv.predictions.map(p=>[wall(p.t),+p.v]),ext:hl.predictions.map(p=>[wall(p.t),+p.v,p.type==="H"?"High":"Low"])}}}catch(e){console.warn("NOAA",e)}}
   const j=await getJSON(`https://marine-api.open-meteo.com/v1/marine?latitude=${place.lat}&longitude=${place.lon}&hourly=sea_level_height_msl&timezone=auto&past_days=1&forecast_days=3`);
@@ -1233,6 +1234,7 @@ async function renderWaves(){
       (Array.isArray(j)?j:[j]).forEach(r=>{if(!r||!r.current||r.current.wave_height==null)return;const d=km(place.lat,place.lon,r.latitude,r.longitude);if(d<bd){bd=d;best=r}});buoy=null}
     if(my!==waveReq)return;
     if(!best){panel.style.display="none";return}
+    wxn("wave",{lat:+(+best.latitude).toFixed(3),lon:+(+best.longitude).toFixed(3)});
     const c=best.current,ft=v=>v==null?null:S.rain==="in"?v*3.2808:v,hl=U.hl(),h=best.hourly,n=nowWall();
     // visibility over the water at the same point (fog), from the weather model
     let vis=null;try{const vj=await getJSON(`https://api.open-meteo.com/v1/forecast?latitude=${best.latitude}&longitude=${best.longitude}&hourly=visibility&forecast_days=2&timezone=auto`);
@@ -2263,7 +2265,8 @@ $("#gpsSwitch").onclick=()=>{S.gps=!S.gps;sel=S.gps?"gps":(sel==="gps"?(places[0
 document.querySelectorAll(".seg").forEach(seg=>seg.onclick=e=>{const b=e.target.closest("button");if(!b)return;S[seg.dataset.k]=b.dataset.v;savePlaces();syncSettings();seasonCache={};load()});
 /* ---------- background notifications (Android app) ---------- */
 const NB=window.WxNative;
-function pushWatch(){if(!NB||!place)return;try{NB.setWatch(JSON.stringify({lat:place.lat,lon:place.lon,name:place.name,rain:!!S.nRain,alerts:!!S.nAlerts,unit:S.rain}))}catch(e){}}
+function wxn(k,v){if(!place)return;if(WXN.pid!==place.id)WXN={pid:place.id};if(JSON.stringify(WXN[k])===JSON.stringify(v))return;WXN[k]=v;clearTimeout(wxnT);wxnT=setTimeout(pushWatch,1500)}
+function pushWatch(){if(!NB||!place)return;const x=WXN.pid===place.id?WXN:{};try{NB.setWatch(JSON.stringify({lat:place.lat,lon:place.lon,name:place.name,rain:!!S.nRain,alerts:!!S.nAlerts,unit:S.rain,temp:S.temp,wind:S.wind,apt:x.apt||null,tide:x.tide||null,wave:x.wave||null}))}catch(e){}}
 function notifUI(){if(!NB)return;$("#notifSet").style.display="";$("#nRain").classList.toggle("on",!!S.nRain);$("#nAlerts").classList.toggle("on",!!S.nAlerts);
   let ok=true;try{ok=NB.notificationsAllowed()}catch(e){}
   $("#notifNote").textContent=ok?`Checks about every 15 minutes for ${place?place.name:"the place you have open"}.`:"Notifications are blocked — allow them for Weather in Android settings.";}

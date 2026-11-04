@@ -121,8 +121,11 @@ public class MainActivity extends Activity {
         if (Double.isNaN(lat) || Double.isNaN(lon) || Math.abs(lat) > 90 || Math.abs(lon) > 180) return;
         SharedPreferences sp = getSharedPreferences(WeatherJob.PREFS, 0);
         sp.edit().putString("watch", json).apply();
-        if (o.optBoolean("rain", true) || o.optBoolean("alerts", true)) WeatherJob.schedule(MainActivity.this);
+        final android.content.Context app = getApplicationContext();
+        boolean widgets = WidgetData.anyWidgets(app);
+        if (widgets || o.optBoolean("rain", true) || o.optBoolean("alerts", true)) WeatherJob.schedule(MainActivity.this);
         else WeatherJob.cancel(MainActivity.this);
+        if (widgets) new Thread(() -> WidgetData.refresh(app, 5 * 60 * 1000L)).start();
       } catch (Exception ignored) {}
     }
     @JavascriptInterface

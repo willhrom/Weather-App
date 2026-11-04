@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- generated from the app's weather symbols (web/index.html wxIcon) -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="64dp" android:height="64dp" android:viewportWidth="64" android:viewportHeight="64">
+  <path android:pathData="M34.55 19 a13 13 0 1 0 8.450000000000001 20.8 a10.66 10.66 0 0 1 -8.450000000000001 -20.8z" android:fillColor="#FFE6EDF6"/>
+</vector>

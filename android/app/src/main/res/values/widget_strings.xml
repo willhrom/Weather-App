@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <string name="widget_name_now">Now</string>
+  <string name="widget_desc_now">Temperature, sky, today\'s high and low, and rain timing</string>
+  <string name="widget_name_pilot">Pilot</string>
+  <string name="widget_desc_pilot">Nearest airport: flight category, wind, ceiling, visibility</string>
+  <string name="widget_name_glance">Glance</string>
+  <string name="widget_desc_glance">One line: temperature, sky, high and low</string>
+  <string name="widget_name_hours">Next hours</string>
+  <string name="widget_desc_hours">Now plus the next hours with rain chances</string>
+  <string name="widget_name_days">5-day</string>
+  <string name="widget_desc_days">Daily highs, lows and rain chances</string>
+  <string name="widget_name_tide">Tide &amp; water</string>
+  <string name="widget_desc_tide">Tide height and curve, water temperature, waves</string>
+  <string name="widget_name_minimal">Minimal</string>
+  <string name="widget_desc_minimal">Big symbol and temperature</string>
+</resources>

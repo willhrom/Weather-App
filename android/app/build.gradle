@@ -30,4 +30,11 @@ android {
     release { minifyEnabled false; signingConfig signingConfigs.release }
   }
   compileOptions { sourceCompatibility JavaVersion.VERSION_1_8; targetCompatibility JavaVersion.VERSION_1_8 }
+  // Widget rendering check (gradle testReleaseUnitTest): draws every widget to PNGs on the build machine.
+  testOptions { unitTests { includeAndroidResources = true; all { systemProperty 'robolectric.graphicsMode', 'NATIVE'; systemProperty 'shots.dir', System.getenv('SHOTS_DIR') ?: '' } } }
+}
+
+dependencies {
+  testImplementation 'junit:junit:4.13.2'
+  testImplementation 'org.robolectric:robolectric:4.13'
 }

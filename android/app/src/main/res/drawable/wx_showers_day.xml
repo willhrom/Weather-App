@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- generated from the app's weather symbols (web/index.html wxIcon) -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="64dp" android:height="64dp" android:viewportWidth="64" android:viewportHeight="64">
+  <group>
+    <path android:pathData="M15.0,20.0 a7.0,7.0 0 1,0 14.0,0 a7.0,7.0 0 1,0 -14.0,0 z" android:fillColor="#FFFFC94D"/>
+    <path android:pathData="M33,20 L38,20" android:strokeColor="#FFFFC94D" android:strokeWidth="3.2" android:strokeLineCap="round"/>
+    <path android:pathData="M29.77817459305202,27.77817459305202 L33.31370849898476,31.31370849898476" android:strokeColor="#FFFFC94D" android:strokeWidth="3.2" android:strokeLineCap="round"/>
+    <path android:pathData="M22,31 L22,36" android:strokeColor="#FFFFC94D" android:strokeWidth="3.2" android:strokeLineCap="round"/>
+    <path android:pathData="M14.221825406947978,27.77817459305202 L10.68629150101524,31.31370849898476" android:strokeColor="#FFFFC94D" android:strokeWidth="3.2" android:strokeLineCap="round"/>
+    <path android:pathData="M11,20 L6,20.000000000000004" android:strokeColor="#FFFFC94D" android:strokeWidth="3.2" android:strokeLineCap="round"/>
+    <path android:pathData="M14.221825406947975,12.221825406947978 L10.686291501015237,8.68629150101524" android:strokeColor="#FFFFC94D" android:strokeWidth="3.2" android:strokeLineCap="round"/>
+    <path android:pathData="M21.999999999999996,9 L21.999999999999996,4" android:strokeColor="#FFFFC94D" android:strokeWidth="3.2" android:strokeLineCap="round"/>
+    <path android:pathData="M29.77817459305202,12.221825406947975 L33.31370849898476,8.686291501015237" android:strokeColor="#FFFFC94D" android:strokeWidth="3.2" android:strokeLineCap="round"/>
+  </group>
+  <group android:translateX="2" android:translateY="-4">
+    <path android:pathData="M18 50h30a11 11 0 0 0 1-22 15 15 0 0 0-28-4 11 11 0 0 0-3 26z" android:fillColor="#FFB5C5D8"/>
+    <path android:pathData="M18 47h30a10 10 0 0 0 1-20 14 14 0 0 0-27-3 10 10 0 0 0-4 23z" android:fillColor="#FFDFE8F3"/>
+  </group>
+  <group android:rotation="12" android:pivotX="24" android:pivotY="46">
+    <path android:pathData="M24 46l-2.6 6.5a2.8 2.8 0 1 0 5.2 0z" android:fillColor="#FF4CC9F0"/>
+  </group>
+  <group android:rotation="12" android:pivotX="34" android:pivotY="49">
+    <path android:pathData="M34 49l-2.6 6.5a2.8 2.8 0 1 0 5.2 0z" android:fillColor="#FF4CC9F0"/>
+  </group>
+  <group android:rotation="12" android:pivotX="44" android:pivotY="46">
+    <path android:pathData="M44 46l-2.6 6.5a2.8 2.8 0 1 0 5.2 0z" android:fillColor="#FF4CC9F0"/>
+  </group>
+</vector>
