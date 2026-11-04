@@ -210,6 +210,7 @@ body.mapopen .tabbar{display:none}
 .tr:last-child>*{border-bottom:0}
 .tr span{color:var(--muted)}
 .tr .fcv{color:var(--water)}
+.tr .tsub{display:inline;font-family:"Inter Tight",sans-serif;font-size:11px;color:var(--faint);margin-left:6px}
 
 /* wind */
 .wind{display:grid;grid-template-columns:150px 1fr;gap:14px;align-items:center}
@@ -978,20 +979,38 @@ async function renderWaves(){
     if(my!==waveReq)return;const arr=Array.isArray(j)?j:[j];let best=null,bd=1e9;
     arr.forEach((r,k)=>{if(!r||!r.current||r.current.wave_height==null)return;const d=km(place.lat,place.lon,r.latitude,r.longitude);if(d<bd){bd=d;best=r}});
     if(!best){panel.style.display="none";return}
-    const c=best.current,ft=v=>v==null?null:S.rain==="in"?v*3.2808:v,hl=U.hl(),h=best.hourly,ser=h.time.map((t,i)=>[wall(t),ft(h.wave_height[i]),ft(h.swell_wave_height[i])]).filter(p=>p[1]!=null);
-    const a=ser[0][0],b=ser[ser.length-1][0],mx=Math.max(...ser.map(p=>Math.max(p[1],p[2]||0)))*1.15||1,Wd=340,H=90,X=t=>6+(t-a)/(b-a)*(Wd-12),Y=v=>H-16-v/mx*(H-26);
-    const line=k=>ser.filter(p=>p[k]!=null).map((p,i)=>(i?"L":"M")+X(p[0]).toFixed(1)+" "+Y(p[k]).toFixed(1)).join("");
-    let g=`<path d="${line(1)}L${X(b)} ${H-16}L${X(a)} ${H-16}z" fill="#4cc9f0" opacity=".14"/><path d="${line(1)}" fill="none" stroke="#4cc9f0" stroke-width="1.8"/><path d="${line(2)}" fill="none" stroke="#c792ea" stroke-width="1.3" stroke-dasharray="3 3"/>`;
-    for(let m=dayStart(a)+864e5;m<b;m+=864e5)g+=`<line x1="${X(m)}" y1="4" x2="${X(m)}" y2="${H-14}" stroke="#2a3f5c" stroke-dasharray="2 3"/><text x="${X(m)+3}" y="${H-3}" fill="#64799a" font-size="9">${fDay(m)}</text>`;
-    const n=nowWall();if(n>a&&n<b){let k=0;while(k+1<ser.length&&ser[k+1][0]<=n)k++;g+=`<circle cx="${X(n)}" cy="${Y(ser[k][1])}" r="3.5" fill="#4cc9f0" stroke="#0b1a2c" stroke-width="2"/>`}
-    const wh=ft(c.wave_height),feel=(S.rain==="in"?wh:wh*3.28)<2?"Calm":(S.rain==="in"?wh:wh*3.28)<4?"Small":(S.rain==="in"?wh:wh*3.28)<7?"Moderate":(S.rain==="in"?wh:wh*3.28)<11?"Large":"Very large";
+    const c=best.current,ft=v=>v==null?null:S.rain==="in"?v*3.2808:v,hl=U.hl(),h=best.hourly,n=nowWall();
+    // visibility over the water at the same point (fog), from the weather model
+    let vis=null;try{const vj=await getJSON(`https://api.open-meteo.com/v1/forecast?latitude=${best.latitude}&longitude=${best.longitude}&hourly=visibility&forecast_days=2&timezone=auto`);
+      if(vj.hourly&&vj.hourly.visibility)vis=vj.hourly.time.map((t,k)=>[wall(t),vj.hourly.visibility[k]]).filter(p=>p[1]!=null)}catch(e){}
+    if(my!==waveReq)return;
+    // next 24 hours, hour by hour
+    const a=n-2*36e5,b=n+24*36e5,ser=h.time.map((t,k)=>[wall(t),ft(h.wave_height[k]),ft(h.swell_wave_height[k])]).filter(p=>p[1]!=null&&p[0]>=a-36e5&&p[0]<=b+36e5);
+    const mx=Math.max(...ser.map(p=>Math.max(p[1],p[2]||0)))*1.15||1,Wd=340,H=110,top=18,bot=H-16,X=t=>(t-a)/(b-a)*Wd,Y=v=>bot-v/mx*(bot-top);
+    const line=k=>ser.filter(p=>p[k]!=null).map((p,q)=>(q?"L":"M")+X(p[0]).toFixed(1)+" "+Y(p[k]).toFixed(1)).join("");
+    let g=`<defs><clipPath id="wc"><rect width="${Wd}" height="${H}"/></clipPath></defs><g clip-path="url(#wc)">`;
+    // fog band: hours with visibility under 1 nautical mile
+    let fogHrs=[];if(vis)for(const [t,v] of vis)if(t>=a&&t<=b&&v<1852)fogHrs.push(t);
+    for(const t of fogHrs)g+=`<rect x="${X(t-18e5).toFixed(1)}" y="0" width="${(X(t+18e5)-X(t-18e5)).toFixed(1)}" height="${bot}" fill="#9fb2c8" opacity=".09"/><rect x="${X(t-18e5).toFixed(1)}" y="0" width="${(X(t+18e5)-X(t-18e5)).toFixed(1)}" height="3" fill="#9fb2c8" opacity=".55"/>`;
+    g+=`<path d="${line(1)}L${X(ser[ser.length-1][0])} ${bot}L${X(ser[0][0])} ${bot}z" fill="#4cc9f0" opacity=".14"/><path d="${line(1)}" fill="none" stroke="#4cc9f0" stroke-width="1.8"/><path d="${line(2)}" fill="none" stroke="#c792ea" stroke-width="1.3" stroke-dasharray="3 3"/><line x1="0" y1="${bot}" x2="${Wd}" y2="${bot}" stroke="#1c2d44"/>`;
+    for(let m=dayStart(a)+864e5;m<b;m+=864e5)g+=`<line x1="${X(m)}" y1="6" x2="${X(m)}" y2="${bot}" stroke="#2a3f5c" stroke-dasharray="2 3"/><text x="${X(m)+4}" y="${top-4}" fill="#64799a" font-size="9">${fDay(m)}</text>`;
+    let k0=0;while(k0+1<ser.length&&ser[k0+1][0]<=n)k0++;
+    g+=`<line x1="${X(n)}" y1="6" x2="${X(n)}" y2="${bot}" stroke="#64799a"/><circle cx="${X(n)}" cy="${Y(ser[k0][1])}" r="4" fill="#4cc9f0" stroke="#0b1a2c" stroke-width="2"/>`;
+    for(let t=dayStart(a)+Math.ceil((a-dayStart(a))/108e5)*108e5;t<b;t+=108e5)if(Math.abs(t-n)>54e5)g+=`<text x="${X(t)}" y="${H-3}" fill="#64799a" font-size="9" text-anchor="middle">${fHour(t)}</text>`;
+    g+=`<text x="${X(n)}" y="${H-3}" fill="#e9eef3" font-size="9" text-anchor="middle">now</text></g>`;
+    const wh=ft(c.wave_height),whFt=S.rain==="in"?wh:wh*3.28,feel=whFt<2?"Calm":whFt<4?"Small":whFt<7?"Moderate":whFt<11?"Large":"Very large";
+    // visibility row: now, and the next spell of fog if any
+    let visRow="";if(vis&&vis.length){let k=0;while(k+1<vis.length&&vis[k+1][0]<=n)k++;const nm=vis[k][1]/1852,fmt=v=>v>=10?"10+ nm":v>=1?v.toFixed(0)+" nm":v.toFixed(1)+" nm";
+      let fogS=null,fogE=null;for(let q=k;q<vis.length&&vis[q][0]<=n+24*36e5;q++){if(vis[q][1]<1852){if(fogS==null)fogS=vis[q][0];fogE=vis[q][0]}else if(fogS!=null)break}
+      const note=nm<1?"fog":fogS!=null?`fog ${fogS<=n?"now":fT(fogS)}–${fT(fogE+36e5)}`:nm<5?"haze or mist":"clear";
+      visRow=`<div class="tr"><span>Visibility on the water</span><b>${fmt(nm)}<small class="tsub">${note}</small></b></div>`}
     $("#waveNote").textContent=bd<3?"here":`${Math.round(bd*.621)} mi offshore`;
     el.innerHTML=`<div class="split fade"><div class="v">${wh.toFixed(1)}<em>${hl}</em></div><span>${feel} seas${c.wave_period?` · ${Math.round(c.wave_period)} s`:""}</span></div>
       <div class="tbl" style="margin-top:6px"><div class="tr"><span>Swell</span><b>${c.swell_wave_height!=null?ft(c.swell_wave_height).toFixed(1)+" "+hl+" @ "+Math.round(c.swell_wave_period)+" s":"--"}</b></div>
       <div class="tr"><span>Swell from</span><b>${c.swell_wave_direction!=null?dirName(c.swell_wave_direction)+" "+String(Math.round(c.swell_wave_direction)).padStart(3,"0")+"°":"--"}</b></div>
-      <div class="tr"><span>Wind waves</span><b>${c.wind_wave_height!=null?ft(c.wind_wave_height).toFixed(1)+" "+hl:"--"}</b></div></div>
-      <svg class="chart" viewBox="0 0 ${Wd} ${H}" style="margin-top:12px">${g}</svg><div class="legendrow"><span><i style="background:#4cc9f0"></i>Wave height</span><span><i style="background:#c792ea"></i>Swell</span></div>
-      <div class="foot">Open-Meteo marine model (ECMWF WAM / NOAA WW3)</div>`;
+      <div class="tr"><span>Wind waves</span><b>${c.wind_wave_height!=null?ft(c.wind_wave_height).toFixed(1)+" "+hl:"--"}</b></div>${visRow}</div>
+      <svg class="chart" viewBox="0 0 ${Wd} ${H}" style="margin-top:12px">${g}</svg><div class="legendrow"><span><i style="background:#4cc9f0"></i>Wave height</span><span><i style="background:#c792ea"></i>Swell</span>${fogHrs.length?'<span><i style="background:#9fb2c8"></i>Fog (&lt;1 nm)</span>':""}</div>
+      <div class="foot">Open-Meteo marine model (ECMWF WAM / NOAA WW3) · visibility from the weather model</div>`;
     panel.style.display="";
   }catch(e){console.warn("waves",e);if(my===waveReq)panel.style.display="none"}
 }
