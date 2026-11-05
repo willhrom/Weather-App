@@ -80,8 +80,8 @@ body.mapopen .tabbar{display:none}
 
 /* panels */
 .panel{background:var(--panel);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid var(--line);border-radius:14px;margin-top:10px;overflow:hidden}
-.ph{display:flex;align-items:center;gap:8px;padding:11px 14px 0;font-size:11.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--faint)}
-.ph .r{margin-left:auto;letter-spacing:.04em;text-transform:none;font-weight:500;font-size:11.5px;color:var(--muted)}
+.ph{display:flex;align-items:center;gap:8px;padding:11px 14px 0;white-space:nowrap;font-size:11.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--faint)}
+.ph .r{margin-left:auto;min-width:0;overflow:hidden;text-overflow:ellipsis;letter-spacing:.04em;text-transform:none;font-weight:500;font-size:11.5px;color:var(--muted)}
 .pb{padding:12px 14px 14px}
 .err{color:var(--faint);font-size:13px;padding:4px 0}
 
@@ -134,7 +134,7 @@ body.mapopen .tabbar{display:none}
 .mapfull .mapwrap{position:absolute;inset:0;height:auto;margin:0;border:0}
 .tap{position:absolute;inset:0;z-index:5}
 .mapfull .tap{display:none}
-.chips{position:absolute;top:10px;left:10px;right:56px;z-index:6;display:flex;gap:6px;overflow-x:auto;scrollbar-width:none}
+.chips{position:absolute;top:10px;left:10px;right:56px;z-index:6;display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;-webkit-mask-image:linear-gradient(90deg,#000 calc(100% - 28px),transparent);mask-image:linear-gradient(90deg,#000 calc(100% - 28px),transparent);padding-right:24px}
 .chips::-webkit-scrollbar{display:none}
 .mapfull .chips{top:calc(var(--safe-top) + 12px)}
 .chip{flex:none;font-size:12px;font-weight:500;padding:6px 10px;border-radius:8px;background:rgba(8,18,32,.86);border:1px solid var(--line2);color:var(--muted)}
@@ -206,6 +206,10 @@ body.mapopen .tabbar{display:none}
 .maplibregl-popup-tip{border-top-color:#10213a!important;border-bottom-color:#10213a!important}
 .maplibregl-popup-close-button{color:var(--muted);font-size:18px;padding:0 6px}
 .maplibregl-ctrl-attrib{background:rgba(8,18,32,.7)!important;font-size:10.5px}
+.mapwrap .maplibregl-ctrl-bottom-right{bottom:64px}
+.maplibregl-ctrl-attrib:not(.wx-open) .maplibregl-ctrl-attrib-inner{display:none!important}
+.maplibregl-ctrl-attrib:not(.wx-open){background:transparent!important;padding:0!important;min-height:24px}
+.mapfull .maplibregl-ctrl-bottom-right{bottom:calc(var(--safe-bot) + 70px)}
 .maplibregl-ctrl-attrib a{color:var(--muted)!important}
 .maplibregl-ctrl-attrib-button{filter:invert(1)}
 .me{width:12px;height:12px;border-radius:50%;background:var(--accent);border:2px solid #06121f;box-shadow:0 0 0 5px rgba(124,196,255,.25)}
@@ -319,6 +323,7 @@ details.afd[open]>summary::after{content:"–"}
 
 /* 10-day */
 .dgrid{display:grid;grid-template-columns:54px minmax(0,1fr) 40px 30px 60px 32px 16px;align-items:center}
+@media (max-width:390px){.dgrid{grid-template-columns:54px minmax(0,1fr) 36px 28px 40px 31px 14px}.drow .rc{padding:0 5px}.dhead{letter-spacing:.02em;font-size:9.5px}.dhead span:nth-child(5){visibility:hidden}}
 .dhead{font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--faint);padding-bottom:6px}
 .dhead span{white-space:nowrap}
 .dhead span:nth-child(3),.dhead span:nth-child(4),.dhead span:nth-child(6){text-align:right;margin-right:-.1em}
@@ -328,9 +333,9 @@ details.afd[open]>summary::after{content:"–"}
 .drow>*{min-width:0}
 .drow .d{font-weight:700;font-size:15px;line-height:1.15}
 .drow .d small{display:block;font-size:11px;font-weight:500;color:var(--faint);margin-top:1px;font-family:var(--mono)}
-.drow .c{color:var(--faint);font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-right:6px;line-height:1.2}
+.drow .c{color:var(--faint);font-size:12.5px;overflow:hidden;padding-right:6px;line-height:1.2}
 .drow .c small{display:block;font-family:var(--mono);font-size:11.5px;color:var(--water);margin-top:1px}
-.drow .c .dnote{display:block;font-style:normal;font-size:11px;line-height:1.3;color:#9fb2c8;margin-top:3px;overflow:hidden;text-overflow:ellipsis}
+.drow .c .dnote{display:block;font-style:normal;font-size:11px;line-height:1.25;color:#9fb2c8;margin-top:3px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
 .drow .c .dnote.hz{color:#ffc27a}
 .drow .c .dnote b{font-weight:600;color:var(--faint)}
 .afdmark{display:inline-block;width:6px;height:6px;border-radius:50%;background:#7cc4ff;margin-right:5px;vertical-align:1px}
@@ -1054,7 +1059,7 @@ async function renderWater(){
     const path=series.map((p,k)=>(k?"L":"M")+X(p[0]).toFixed(1)+" "+Y(p[1]).toFixed(1)).join("");
     let g=`<path d="${path}L${X(b)} ${bot}L${X(a)} ${bot}z" fill="#4cc9f0" opacity=".16"/><path d="${path}" fill="none" stroke="#4cc9f0" stroke-width="2"/><line x1="0" y1="${bot}" x2="${Wd}" y2="${bot}" stroke="#1c2d44"/>`;
     for(let m=dayStart(a)+864e5;m<b;m+=864e5)g+=`<line x1="${X(m)}" y1="${top-14}" x2="${X(m)}" y2="${bot}" stroke="#2a3f5c" stroke-dasharray="2 3"/>`;
-    for(let m=dayStart(a);m<b;m+=864e5){const c=Math.max(a,m)+Math.min(864e5,b-Math.max(a,m))/2;g+=`<text x="${X(c)}" y="${H-3}" fill="${m===dayStart(n)?"#e9eef3":"#8597b3"}" font-size="10.5" text-anchor="middle">${m===dayStart(n)?"Today":fDay(m)}</text>`}
+    for(let m=dayStart(a);m<b;m+=864e5){const s0=Math.max(a,m),s1=Math.min(m+864e5,b),c=(s0+s1)/2;if(X(s1)-X(s0)<42)continue;g+=`<text x="${X(c)}" y="${H-3}" fill="${m===dayStart(n)?"#e9eef3":"#8597b3"}" font-size="10.5" text-anchor="middle">${m===dayStart(n)?"Today":fDay(m)}</text>`}
     if(measured){const p=series[series.length-1];g+=`<circle cx="${X(p[0])}" cy="${Y(p[1])}" r="4.5" fill="#4cc9f0" stroke="#0b1a2c" stroke-width="2"/>`}
     else if(n>a&&n<b){let k=0;while(k+1<series.length&&series[k+1][0]<=n)k++;g+=`<line x1="${X(n)}" y1="${top-14}" x2="${X(n)}" y2="${bot}" stroke="#8597b3" opacity=".8"/><circle cx="${X(n)}" cy="${Y(series[k][1])}" r="4.5" fill="#4cc9f0" stroke="#0b1a2c" stroke-width="2"/>`}
     chart=tSvg("wtc",g)}
@@ -1587,7 +1592,7 @@ function initMap(){
     fadeDuration:0,pixelRatio:Math.min(window.devicePixelRatio||1,2),renderWorldCopies:false,transformRequest:u=>NATIVE&&/^https?:/.test(u)&&/mesonet\.agron\.iastate\.edu|rainviewer\.com/.test(u)?{url:via(u)}:{url:u}});
   map.touchZoomRotate.disableRotation();setInteractive(false);
   DIAG.mark("map starting");map.once("idle",()=>DIAG.mark("map first idle"));
-  map.on("load",()=>{DIAG.mark("map style loaded");mapReady=true;dimStyle();buildLayerPanel();applyLayers(true)});
+  map.on("load",()=>{DIAG.mark("map style loaded");try{const a=document.querySelector(".maplibregl-ctrl-attrib"),btn=a&&a.querySelector(".maplibregl-ctrl-attrib-button");if(btn)btn.addEventListener("click",()=>a.classList.toggle("wx-open"))}catch(e){}mapReady=true;dimStyle();buildLayerPanel();applyLayers(true)});
   map.on("moveend",()=>{if(isFull()){clearTimeout(avTimer);avTimer=setTimeout(loadBboxAviation,500)}});
   map.on("click",onMapClick);
   if(window.ResizeObserver)new ResizeObserver(()=>map.resize()).observe($("#mapHome"));
@@ -1671,13 +1676,13 @@ async function loadRadar(){
   try{
     if(us){const base=Math.floor((Date.now()-2*6e4)/3e5)*3e5;
       frames=[55,50,45,40,35,30,25,20,15,10,5,0].map(m=>({id:"rad"+m,t:base-m*6e4,url:`https://mesonet.agron.iastate.edu/cache/tile.py/1.0.0/nexrad-n0q-900913${m?"-m"+String(m).padStart(2,"0")+"m":""}/{z}/{x}/{y}.png?${base}`}));
-      $("#mapSrc").textContent="NEXRAD · last hour";
+      $("#mapSrc").textContent="Past hour";
       { // HRRR forecast reflectivity: latest run is ~1 h behind; keep only frames valid after now, every 15 min for 3 h
         const run=Math.floor((Date.now()-55*6e4)/36e5)*36e5,first=Math.ceil((Date.now()-run)/9e5)*15;
         for(let fm=first;fm<=first+180&&fm<=1080;fm+=15)frames.push({id:"fut"+fm,t:run+fm*6e4,fut:1,url:`https://mesonet.agron.iastate.edu/cache/tile.py/1.0.0/hrrr::REFD-F${String(fm).padStart(4,"0")}-0/{z}/{x}/{y}.png?${run}`});
-        $("#mapSrc").textContent="NEXRAD past hour · HRRR next 3 h"}}
+        $("#mapSrc").textContent="Past hour · next 3 h"}}
     else{const j=await getJSON("https://api.rainviewer.com/public/weather-maps.json");
-      frames=j.radar.past.map((f,k)=>({id:"rad"+k,t:f.time*1000,url:`${j.host}${f.path}/256/{z}/{x}/{y}/2/1_1.png`,mz:7}));$("#mapSrc").textContent="RainViewer · last 2 h"}
+      frames=j.radar.past.map((f,k)=>({id:"rad"+k,t:f.time*1000,url:`${j.host}${f.path}/256/{z}/{x}/{y}/2/1_1.png`,mz:7}));$("#mapSrc").textContent="Past 2 h"}
     // frames are added one at a time: "now" first, then the rest in the background as the map goes idle
     for(const f of frames){f.src=us?smoothRadar(f.url,8):f.url;f.opts={opacity:0,maxzoom:us?13:7,attr:f.fut?"HRRR via IEM":us?"NEXRAD via IEM":"RainViewer"}}
     NOWF=frames.filter(f=>!f.fut).length-1;
@@ -2268,7 +2273,7 @@ function skyInfo(){
   const what=wc>=95?"Thunderstorms":isSnowCode(wc)?"Snow":"Rain";
   let h=`<div class="skyhead"><b>${k===0?"Now":fDay(t)+" "+fTime(t)}</b><span>${lay.length?`${lay.length} layer${lay.length>1?"s":""}`:"No significant clouds"}</span></div>`;
   h+=lay.slice().reverse().map(l=>{const cat=coverCat(l.c),type=cloudType(l.base-SKY.elev,cat,l===src,wc>=95);
-    return `<div class="lyr"><span class="ci"><img src="${cloudIcon(type,l===src)}" alt=""></span><span class="rg"><b>${{FEW:"Few",SCT:"Scattered",BKN:"Broken",OVC:"Overcast"}[cat]}</b> ${CTYPE[type].toLowerCase()} at ${fmtAGL(l.base-SKY.elev)}${l.rep?` <small style="color:#ffc94d">· reported</small>`:""}</span><span class="pc">${l===src?`<em>${what} from here</em>`:""}</span></div>`}).join("");
+    return `<div class="lyr"><span class="ci"><img src="${cloudIcon(type,l===src)}" alt=""></span><span class="rg"><b>${{FEW:"Few",SCT:"Scattered",BKN:"Broken",OVC:"Overcast"}[cat]}</b> ${CTYPE[type].toLowerCase()} at ${fmtAltM(l.base-SKY.elev)}${l.rep?` <small style="color:#ffc94d">· reported</small>`:""}</span><span class="pc">${l===src?`<em>${what} from here</em>`:""}</span></div>`}).join("");
   if(wet&&!src)h+=`<div class="lyr"><span class="ci"></span><span class="rg">${what} expected</span><span class="pc"></span></div>`;
   h+=`<div class="tbl" style="margin-top:6px">`+
     `<div class="tr"><span>Freezing level</span><b>${fmtAltM(SKY.fz[k])} MSL</b></div>`+
