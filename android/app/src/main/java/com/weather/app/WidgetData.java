@@ -57,9 +57,12 @@ final class WidgetData {
         JSONObject watch = new JSONObject(w);
         String key = String.format(Locale.US, "%.3f,%.3f,%s,%s|%s|%s|%s", watch.getDouble("lat"), watch.getDouble("lon"), watch.optString("temp", "F"), watch.optString("unit", "in"),
             id(watch, "apt"), id(watch, "tide"), id(watch, "water"));
-        boolean fresh = old != null && key.equals(old.optString("key")) && System.currentTimeMillis() - old.optLong("t") < maxAgeMs;
+        boolean fresh = old != null && !old.optBoolean("partial") && key.equals(old.optString("key")) && System.currentTimeMillis() - old.optLong("t") < maxAgeMs;
         if (!fresh) {
-          JSONObject d = fetch(watch);
+          final SharedPreferences fsp = sp;
+          JSONObject d = fetch(watch, part -> {
+            try { part.put("key", key); part.put("partial", true); fsp.edit().putString(KEY, part.toString()).commit(); Widgets.updateAll(c); } catch (Throwable ignored) {}
+          });
           d.put("key", key);
           sp.edit().putString(KEY, d.toString()).commit();
           changed = true;
@@ -75,7 +78,16 @@ final class WidgetData {
   }
 
   // ---------------------------------------------------------------------------------------------
-  static JSONObject fetch(JSONObject watch) throws Exception {
+  private static void putWhenDone(JSONObject out, String k, java.util.concurrent.Future<Object> f) {
+    if (f == null) return;
+    try { Object v = f.get(25, java.util.concurrent.TimeUnit.SECONDS); if (v != null) out.put(k, v); } catch (Throwable ignored) {}
+  }
+
+  interface Early { void accept(JSONObject partial); }
+
+  static JSONObject fetch(JSONObject watch) throws Exception { return fetch(watch, null); }
+
+  static JSONObject fetch(JSONObject watch, Early early) throws Exception {
     double lat = watch.getDouble("lat"), lon = watch.getDouble("lon");
     boolean F = !"C".equals(watch.optString("temp", "F")), english = !"mm".equals(watch.optString("unit", "in"));
     JSONObject out = new JSONObject();
@@ -129,29 +141,30 @@ final class WidgetData {
     out.put("days", days);
     out.put("rain", rainText(hours, english));
 
-    // nearest airport (picked by the app) — flight category, wind, ceiling, visibility
-    JSONObject apt = watch.optJSONObject("apt");
-    if (apt != null && apt.optString("id").matches("[A-Z0-9]{3,5}")) {
-      try { out.put("metar", metar(apt.getString("id"), apt.optString("name"), F)); } catch (Exception ignored) {}
-    } else out.put("noApt", true);
-
-    // tide station (picked by the app), water temperature there, and waves at the app's buoy/model point
-    JSONObject st = watch.optJSONObject("tide");
-    if (st != null && st.optString("id").matches("[A-Za-z0-9]{4,12}")) {
-      try { out.put("tide", tide(st.getString("id"), st.optString("name"), english, now.optString("time", "").replace("-", ""))); } catch (Exception ignored) {}
-    }
-    JSONObject ws = watch.optJSONObject("water");
-    String wid = ws != null && ws.optString("id").matches("[A-Za-z0-9]{4,12}") ? ws.optString("id") : st != null ? st.optString("id") : "";
-    if (wid.matches("[A-Za-z0-9]{4,12}")) { try { out.put("water", waterTemp(wid, F)); } catch (Exception ignored) {} }
-    JSONObject wp = watch.optJSONObject("wave");
-    if (wp != null) {
-      try {
-        JSONObject m = new JSONObject(WeatherJob.get(String.format(Locale.US,
-            "https://marine-api.open-meteo.com/v1/marine?latitude=%.3f&longitude=%.3f&current=wave_height", wp.getDouble("lat"), wp.getDouble("lon"))));
-        double wh = m.getJSONObject("current").optDouble("wave_height");
-        if (!Double.isNaN(wh)) out.put("waves", english ? wh * 3.2808 : wh);
-      } catch (Exception ignored) {}
-    }
+    // the forecast is enough to draw most widgets: show it now, then fetch the extras side by side
+    if (early != null) { try { early.accept(new JSONObject(out.toString())); } catch (Throwable ignored) {} }
+    final boolean fF = F, fEng = english;
+    final String localNow = now.optString("time", "").replace("-", "");
+    final JSONObject apt = watch.optJSONObject("apt"), st = watch.optJSONObject("tide"), ws = watch.optJSONObject("water"), wp = watch.optJSONObject("wave");
+    final String wid = ws != null && ws.optString("id").matches("[A-Za-z0-9]{4,12}") ? ws.optString("id") : st != null ? st.optString("id") : "";
+    java.util.concurrent.ExecutorService pool = java.util.concurrent.Executors.newFixedThreadPool(4);
+    java.util.concurrent.Future<Object> fM = null, fT = null, fW = null, fV = null;
+    if (apt != null && apt.optString("id").matches("[A-Z0-9]{3,5}")) fM = pool.submit(() -> metar(apt.getString("id"), apt.optString("name"), fF));
+    else out.put("noApt", true);
+    if (st != null && st.optString("id").matches("[A-Za-z0-9]{4,12}")) fT = pool.submit(() -> tide(st.getString("id"), st.optString("name"), fEng, localNow));
+    if (wid.matches("[A-Za-z0-9]{4,12}")) fW = pool.submit(() -> waterTemp(wid, fF));
+    if (wp != null) fV = pool.submit(() -> {
+      JSONObject m = new JSONObject(WeatherJob.get(String.format(Locale.US,
+          "https://marine-api.open-meteo.com/v1/marine?latitude=%.3f&longitude=%.3f&current=wave_height", wp.getDouble("lat"), wp.getDouble("lon"))));
+      double wh = m.getJSONObject("current").optDouble("wave_height");
+      return Double.isNaN(wh) ? null : (Object) (fEng ? wh * 3.2808 : wh);
+    });
+    pool.shutdown();
+    putWhenDone(out, "metar", fM);
+    putWhenDone(out, "tide", fT);
+    putWhenDone(out, "water", fW);
+    putWhenDone(out, "waves", fV);
+    pool.shutdownNow();
     return out;
   }
 

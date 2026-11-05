@@ -812,7 +812,7 @@ function renderToday(){
   if(pmax>=30){const pk=PP.indexOf(pmax),a=amt>=wet()?Math.round(amt*(S.rain==="in"?10:1))/(S.rain==="in"?10:1):0,amtTxt=a>0?`, with about ${a} ${S.rain==="in"?(a===1?"inch":"inches"):"mm"} expected`:"";
     ol+=pk===0?` Rain chances are highest now at <b>${pmax}%</b>${amtTxt}.`:` Rain chances peak at <b>${pmax}%</b> around ${hTxt(at(pk))}${amtTxt}.`}
   const gm=max(WG),gThresh=S.wind==="kmh"?40:S.wind==="kn"?22:25,gust=gm>=gThresh?`, with gusts up to ${U.w(gm)} ${U.wl()}`:"";
-  if(tonight){const lowK=T.indexOf(min(T));ol+=` Temperatures bottom out at <b>${U.t(min(T))}</b>${lowK>0?` around ${hTxt(at(lowK))}`:""}${gust}.`}
+  if(tonight){const lowK=T.indexOf(min(T));ol+=` The overnight low is <b>${U.t(min(T))}</b>${lowK>0?` around ${hTxt(at(lowK))}`:""}${gust}.`}
   else if(max(T)>tNow+1&&hiK>0){const rest=T.slice(hiK),lo=min(rest),loT=at(hiK+rest.indexOf(lo));
     ol+=` Temperatures peak at <b>${U.t(max(T))}</b> around ${hTxt(at(hiK))}${lo<max(T)-2?` before falling to ${U.t(lo)} ${isNight(loT)?"tonight":"by "+hTxt(loT)}`:""}${gust}.`}
   else ol+=` Temperatures fall to <b>${U.t(min(T))}</b> ${isNight(at(loK))?"tonight":"by "+hTxt(at(loK))}${gust}.`;
