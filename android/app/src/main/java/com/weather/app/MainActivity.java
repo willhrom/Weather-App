@@ -131,6 +131,17 @@ public class MainActivity extends Activity {
 
   /** Lets the page tell the app which place to watch and which notifications are on. */
   public class Bridge {
+    /** Whether the phone's location setting is on (so the page doesn't wait on a fix that can't come). */
+    @JavascriptInterface
+    public boolean locationOn() {
+      try {
+        android.location.LocationManager lm = (android.location.LocationManager) getSystemService(LOCATION_SERVICE);
+        if (lm == null) return true;
+        if (Build.VERSION.SDK_INT >= 28) return lm.isLocationEnabled();
+        return lm.isProviderEnabled(android.location.LocationManager.GPS_PROVIDER) || lm.isProviderEnabled(android.location.LocationManager.NETWORK_PROVIDER);
+      } catch (Throwable e) { return true; }
+    }
+
     @JavascriptInterface
     public String diag() {
       try {

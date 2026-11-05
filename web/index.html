@@ -633,7 +633,15 @@ async function locate(){
   gpsPlace={id:"gps",name,sub,lat:+c.latitude.toFixed(4),lon:+c.longitude.toFixed(4)};store.set("wx.gpsPlace",gpsPlace);return gpsPlace;
 }
 async function resolvePlace(){
-  if(sel==="gps"){try{return await locate()}catch(e){if(gpsPlace){toast("Couldn't get a fresh location — showing the last one");return gpsPlace}toast("Location is off — pick a place instead");openSheet();return places[0]||DEFAULT}}
+  if(sel==="gps"){
+    // phone location switched off: don't sit waiting for a fix that won't come
+    let off_=false;try{off_=!!(NB&&NB.locationOn&&!NB.locationOn())}catch(e){}
+    if(!off_){
+      // with a last-known spot, show it straight away and quietly check for a move in the background
+      if(gpsPlace){locate().then(p=>{if(sel==="gps"&&place&&place.id==="gps"&&(p.lat!==place.lat||p.lon!==place.lon)){W=null;load()}}).catch(()=>{});return gpsPlace}
+      try{return await Promise.race([locate(),new Promise((_,rej)=>setTimeout(()=>rej(new Error("slow")),6000))])}catch(e){
+        if(e.message==="slow")locate().then(()=>{if(sel==="gps"){W=null;load()}}).catch(()=>{})}}
+    {if(gpsPlace){toast("Couldn't get a fresh location — showing the last one");return gpsPlace}toast(off_?"Location is off on your phone — pick a place instead":"Location is off — pick a place instead");openSheet();return places[0]||DEFAULT}}
   return places.find(p=>p.id===sel)||places[0]||DEFAULT;
 }
 
