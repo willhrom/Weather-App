@@ -88,15 +88,54 @@ public final class Widgets {
       if (w < 40) w = SIZE[kind][0];
       if (h < 40) h = SIZE[kind][1];
       Bitmap b = WidgetDraw.draw(c, kind, w, h, d);
+      long t0 = android.os.SystemClock.uptimeMillis();
       RemoteViews rv = new RemoteViews(c.getPackageName(), R.layout.widget_image);
       Uri img = save(c, id, b);
       if (img != null) rv.setImageViewUri(R.id.widget_img, img);
       else rv.setImageViewBitmap(R.id.widget_img, small(b));
+      rv.setViewVisibility(R.id.widget_msg, android.view.View.GONE);
       rv.setContentDescription(R.id.widget_img, describe(d));
       Intent open = new Intent(c, MainActivity.class).setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP);
       rv.setOnClickPendingIntent(R.id.widget_img, PendingIntent.getActivity(c, 0, open, PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT));
       m.updateAppWidget(id, rv);
-    } catch (Throwable ignored) {}
+      note(id, "drawn " + w + "×" + h + "dp as " + b.getWidth() + "×" + b.getHeight() + "px in " + (android.os.SystemClock.uptimeMillis() - t0) + " ms via " + (img != null ? "file" : "bitmap") + (d == null ? " (no data yet)" : ""));
+    } catch (Throwable e) {
+      note(id, "FAILED: " + e);
+      try {
+        RemoteViews rv = new RemoteViews(c.getPackageName(), R.layout.widget_image);
+        rv.setTextViewText(R.id.widget_msg, "Weather · tap to open");
+        Intent open = new Intent(c, MainActivity.class).setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        rv.setOnClickPendingIntent(R.id.widget_msg, PendingIntent.getActivity(c, 0, open, PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT));
+        m.updateAppWidget(id, rv);
+      } catch (Throwable ignored) {}
+    }
+  }
+
+  private static final java.util.Map<Integer, String> NOTES = new java.util.concurrent.ConcurrentHashMap<>();
+  private static void note(int id, String s) {
+    String t = new java.text.SimpleDateFormat("h:mm:ss a", java.util.Locale.US).format(new java.util.Date());
+    NOTES.put(id, t + " " + s);
+  }
+
+  /** For the diagnostics page: which widgets exist, their sizes and how their last drawing went. */
+  static String status(Context c) {
+    StringBuilder sb = new StringBuilder();
+    try {
+      AppWidgetManager m = AppWidgetManager.getInstance(c);
+      String[] names = {"Now", "Pilot", "Glance", "Next hours", "5-day", "Tide", "Minimal"};
+      for (int k = 0; k < ALL.length; k++)
+        for (int id : m.getAppWidgetIds(new ComponentName(c, ALL[k]))) {
+          Bundle o = m.getAppWidgetOptions(id);
+          sb.append("\n    ").append(names[k]).append(" #").append(id).append(" ")
+              .append(o == null ? "?" : o.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH) + "×" + o.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT) + "dp")
+              .append(" · ").append(NOTES.containsKey(id) ? NOTES.get(id) : "not drawn since app opened");
+        }
+      JSONObject d = WidgetData.cached(c);
+      sb.append("\n    data: ").append(d == null ? "none yet" : "from " + ((System.currentTimeMillis() - d.optLong("t")) / 60000) + " min ago for " + d.optString("place"));
+      java.io.File[] fs = WidgetImages.dir(c).listFiles();
+      sb.append(" · picture files ").append(fs == null ? 0 : fs.length);
+    } catch (Throwable e) { sb.append(" error ").append(e); }
+    return sb.length() == 0 ? "none placed" : sb.toString();
   }
 
   /** Writes the picture where WidgetImages serves it; a new name each time so the launcher reloads it. */

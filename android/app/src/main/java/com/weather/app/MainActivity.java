@@ -47,12 +47,17 @@ public class MainActivity extends Activity {
   };
 
   private WebView web;
+  // startup diagnostics (shown in the page's Settings → Startup diagnostics)
+  static long createdAt, pageMs = -1; static String pageFrom = "?";
+  static final java.util.concurrent.atomic.AtomicInteger proxyN = new java.util.concurrent.atomic.AtomicInteger(), proxyLive = new java.util.concurrent.atomic.AtomicInteger(), proxyPeak = new java.util.concurrent.atomic.AtomicInteger(), proxyFail = new java.util.concurrent.atomic.AtomicInteger();
+  static final java.util.concurrent.atomic.AtomicLong proxyTotal = new java.util.concurrent.atomic.AtomicLong(), proxyMax = new java.util.concurrent.atomic.AtomicLong();
   private String geoOrigin;
   private GeolocationPermissions.Callback geoCallback;
 
   @Override
   protected void onCreate(Bundle saved) {
     super.onCreate(saved);
+    createdAt = android.os.SystemClock.uptimeMillis();
     Crash.install(this);
     Crash.showLast(this);
     Window w = getWindow();
@@ -127,6 +132,42 @@ public class MainActivity extends Activity {
   /** Lets the page tell the app which place to watch and which notifications are on. */
   public class Bridge {
     @JavascriptInterface
+    public String diag() {
+      try {
+        org.json.JSONObject o = new org.json.JSONObject();
+        long up = android.os.SystemClock.uptimeMillis();
+        o.put("app version", getPackageManager().getPackageInfo(getPackageName(), 0).versionName);
+        o.put("phone", Build.MANUFACTURER + " " + Build.MODEL + " · Android " + Build.VERSION.RELEASE);
+        if (Build.VERSION.SDK_INT >= 26) { android.content.pm.PackageInfo wv = WebView.getCurrentWebViewPackage(); if (wv != null) o.put("webview", wv.packageName + " " + wv.versionName); }
+        o.put("process start → screen created", (createdAt - android.os.Process.getStartUptimeMillis()) + " ms");
+        o.put("screen open for", ((up - createdAt) / 1000) + " s");
+        o.put("app page", pageFrom + " in " + pageMs + " ms");
+        int n = proxyN.get();
+        o.put("relayed requests", n + " · avg " + (n > 0 ? proxyTotal.get() / n : 0) + " ms · slowest " + proxyMax.get() + " ms · most at once " + proxyPeak.get() + " · failed " + proxyFail.get());
+        android.app.ActivityManager am = (android.app.ActivityManager) getSystemService(ACTIVITY_SERVICE);
+        android.app.ActivityManager.MemoryInfo mi = new android.app.ActivityManager.MemoryInfo();
+        am.getMemoryInfo(mi);
+        o.put("memory", "app limit " + am.getMemoryClass() + " MB · phone free " + (mi.availMem >> 20) + " MB" + (mi.lowMemory ? " (LOW)" : ""));
+        o.put("widgets", Widgets.status(getApplicationContext()));
+        return o.toString();
+      } catch (Throwable e) { return "{\"error\":\"" + e.toString().replace("\"", "'") + "\"}"; }
+    }
+
+    @JavascriptInterface
+    public void copy(String text) {
+      try {
+        android.content.ClipboardManager cm = (android.content.ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
+        cm.setPrimaryClip(android.content.ClipData.newPlainText("Weather diagnostics", text));
+      } catch (Throwable ignored) {}
+    }
+
+    @JavascriptInterface
+    public void redrawWidgets() {
+      final android.content.Context app = getApplicationContext();
+      Widgets.BG.execute(() -> Widgets.updateAll(app));
+    }
+
+    @JavascriptInterface
     public void setWatch(String json) {
       if (json == null || json.length() > 2000) return;
       try {
@@ -183,6 +224,11 @@ public class MainActivity extends Activity {
 
   /** The newest page from Cloudflare; if offline, the last saved copy; failing that, the built-in copy. */
   private WebResourceResponse page() {
+    long t0 = android.os.SystemClock.uptimeMillis();
+    try { return pageInner(); } finally { pageMs = android.os.SystemClock.uptimeMillis() - t0; }
+  }
+
+  private WebResourceResponse pageInner() {
     File cache = new File(getFilesDir(), "index.html");
     byte[] body = null;
     HttpURLConnection c = null;
@@ -204,6 +250,7 @@ public class MainActivity extends Activity {
       if (c != null) c.disconnect();
     }
     try {
+      pageFrom = body != null ? "network" : cache.exists() ? "saved copy (offline)" : "built-in copy";
       InputStream in = body != null ? new ByteArrayInputStream(body)
           : cache.exists() ? new FileInputStream(cache)
           : getAssets().open("web/index.html");
@@ -234,6 +281,20 @@ public class MainActivity extends Activity {
 
   /** Fetches data and map overlay tiles natively, so the page isn't blocked by cross-site rules. */
   private WebResourceResponse proxy(String target) {
+    long t0 = android.os.SystemClock.uptimeMillis();
+    int live = proxyLive.incrementAndGet();
+    proxyPeak.accumulateAndGet(live, Math::max);
+    try {
+      WebResourceResponse r = proxyFetch(target);
+      if (r == null || r.getStatusCode() >= 400) proxyFail.incrementAndGet();
+      return r;
+    } finally {
+      long d = android.os.SystemClock.uptimeMillis() - t0;
+      proxyN.incrementAndGet(); proxyTotal.addAndGet(d); proxyMax.accumulateAndGet(d, Math::max); proxyLive.decrementAndGet();
+    }
+  }
+
+  private WebResourceResponse proxyFetch(String target) {
     URL url = target == null || target.length() > 4000 ? null : allowedUrl(target);
     if (url == null) return error(403, "Blocked");
     HttpURLConnection c = null;
