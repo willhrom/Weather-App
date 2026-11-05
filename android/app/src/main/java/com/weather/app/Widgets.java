@@ -7,6 +7,7 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.graphics.Bitmap;
+import android.net.Uri;
 import android.os.Bundle;
 import android.widget.RemoteViews;
 
@@ -68,12 +69,38 @@ public final class Widgets {
       if (h < 40) h = SIZE[kind][1];
       Bitmap b = WidgetDraw.draw(c, kind, w, h, d);
       RemoteViews rv = new RemoteViews(c.getPackageName(), R.layout.widget_image);
-      rv.setImageViewBitmap(R.id.widget_img, b);
+      Uri img = save(c, id, b);
+      if (img != null) rv.setImageViewUri(R.id.widget_img, img);
+      else rv.setImageViewBitmap(R.id.widget_img, small(b));
       rv.setContentDescription(R.id.widget_img, describe(d));
       Intent open = new Intent(c, MainActivity.class).setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP);
       rv.setOnClickPendingIntent(R.id.widget_img, PendingIntent.getActivity(c, 0, open, PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT));
       m.updateAppWidget(id, rv);
-    } catch (Exception ignored) {}
+    } catch (Throwable ignored) {}
+  }
+
+  /** Writes the picture where WidgetImages serves it; a new name each time so the launcher reloads it. */
+  private static Uri save(Context c, int id, Bitmap b) {
+    try {
+      java.io.File dir = WidgetImages.dir(c);
+      String name = "w" + id + "_" + System.currentTimeMillis() + ".png";
+      java.io.File f = new java.io.File(dir, name);
+      java.io.FileOutputStream o = new java.io.FileOutputStream(f);
+      b.compress(Bitmap.CompressFormat.PNG, 100, o);
+      o.close();
+      java.io.File[] old = dir.listFiles();
+      if (old != null) for (java.io.File x : old)
+        if (x.getName().startsWith("w" + id + "_") && !x.getName().equals(name) && System.currentTimeMillis() - x.lastModified() > 60_000) x.delete();
+      return Uri.parse("content://" + WidgetImages.AUTHORITY + "/" + name);
+    } catch (Exception e) { return null; }
+  }
+
+  /** Fallback: shrink to stay under the ~1 MB limit for pictures sent straight to the launcher. */
+  private static Bitmap small(Bitmap b) {
+    int px = b.getWidth() * b.getHeight();
+    if (px <= 160_000) return b;
+    float k = (float) Math.sqrt(160_000.0 / px);
+    return Bitmap.createScaledBitmap(b, Math.max(1, Math.round(b.getWidth() * k)), Math.max(1, Math.round(b.getHeight() * k)), true);
   }
 
   private static String describe(JSONObject d) {
