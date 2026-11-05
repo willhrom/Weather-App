@@ -34,24 +34,44 @@ final class WidgetData {
   }
 
   /** Refreshes the cache if it's older than maxAgeMs (or the place changed), then redraws every widget. */
-  static synchronized void refresh(Context c, long maxAgeMs) {
+  private static final java.util.concurrent.atomic.AtomicBoolean BUSY = new java.util.concurrent.atomic.AtomicBoolean();
+
+  /** Refresh on a background thread; does nothing if one is already running. */
+  static void refreshAsync(Context c, long maxAgeMs) {
+    final Context app = c.getApplicationContext();
+    if (!BUSY.compareAndSet(false, true)) return;
+    Widgets.BG.execute(() -> {
+      try { refresh(app, maxAgeMs, false); } catch (Throwable ignored) {}
+      finally { BUSY.set(false); }
+    });
+  }
+
+  /** Fetches again if the cache is older than maxAgeMs or the place changed; redraws when it fetched (or when redraw is true). */
+  static synchronized void refresh(Context c, long maxAgeMs, boolean redraw) {
     SharedPreferences sp = c.getSharedPreferences(WeatherJob.PREFS, 0);
     String w = sp.getString("watch", null);
     JSONObject old = cached(c);
+    boolean changed = false;
     try {
       if (w != null) {
         JSONObject watch = new JSONObject(w);
-        String key = String.format(Locale.US, "%.3f,%.3f,%s,%s", watch.getDouble("lat"), watch.getDouble("lon"), watch.optString("temp", "F"), watch.optString("unit", "in"));
-        boolean fresh = old != null && key.equals(old.optString("key")) && System.currentTimeMillis() - old.optLong("t") < maxAgeMs
-            && watch.optJSONObject("apt") == null == (old.optJSONObject("metar") == null || old.optBoolean("noApt"));
+        String key = String.format(Locale.US, "%.3f,%.3f,%s,%s|%s|%s|%s", watch.getDouble("lat"), watch.getDouble("lon"), watch.optString("temp", "F"), watch.optString("unit", "in"),
+            id(watch, "apt"), id(watch, "tide"), id(watch, "water"));
+        boolean fresh = old != null && key.equals(old.optString("key")) && System.currentTimeMillis() - old.optLong("t") < maxAgeMs;
         if (!fresh) {
           JSONObject d = fetch(watch);
           d.put("key", key);
-          sp.edit().putString(KEY, d.toString()).apply();
+          sp.edit().putString(KEY, d.toString()).commit();
+          changed = true;
         }
       }
-    } catch (Exception ignored) {}
-    Widgets.updateAll(c);
+    } catch (Throwable ignored) {}
+    if (changed || redraw) Widgets.updateAll(c);
+  }
+
+  private static String id(JSONObject o, String k) {
+    JSONObject x = o.optJSONObject(k);
+    return x == null ? "" : x.optString("id");
   }
 
   // ---------------------------------------------------------------------------------------------

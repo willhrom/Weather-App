@@ -66,7 +66,7 @@ public class WeatherJob extends JobService {
   static void check(Context c) throws Exception {
     SharedPreferences sp = c.getSharedPreferences(PREFS, 0);
     String w = sp.getString("watch", null);
-    if (WidgetData.anyWidgets(c)) { try { WidgetData.refresh(c, 25 * 60 * 1000L); } catch (Exception ignored) {} }
+    if (WidgetData.anyWidgets(c)) { try { WidgetData.refresh(c, 25 * 60 * 1000L, true); } catch (Throwable ignored) {} }
     if (w == null) return;
     JSONObject watch = new JSONObject(w);
     double lat = watch.getDouble("lat"), lon = watch.getDouble("lon");

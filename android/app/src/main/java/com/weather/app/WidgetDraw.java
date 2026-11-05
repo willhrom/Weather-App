@@ -50,7 +50,7 @@ final class WidgetDraw {
   static Bitmap draw(Context ctx, int kind, float wDp, float hDp, JSONObject d) {
     fonts(ctx);
     float dens = ctx.getResources().getDisplayMetrics().density;
-    float scale = Math.min(dens, (float) Math.sqrt(1_400_000f / Math.max(1f, wDp * hDp)));
+    float scale = Math.min(Math.min(dens, 3f), (float) Math.sqrt(900_000f / Math.max(1f, wDp * hDp)));
     Bitmap b = Bitmap.createBitmap(Math.max(1, Math.round(wDp * scale)), Math.max(1, Math.round(hDp * scale)), Bitmap.Config.ARGB_8888);
     Canvas cv = new Canvas(b);
     cv.scale(scale, scale);

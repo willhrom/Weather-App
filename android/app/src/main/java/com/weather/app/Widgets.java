@@ -17,6 +17,13 @@ import org.json.JSONObject;
 public final class Widgets {
   private Widgets() {}
 
+  /** One low-priority thread for all widget drawing. */
+  static final java.util.concurrent.ExecutorService BG = java.util.concurrent.Executors.newSingleThreadExecutor(r -> {
+    Thread t = new Thread(() -> { android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_BACKGROUND); r.run(); }, "widgets");
+    t.setDaemon(true);
+    return t;
+  });
+
   static final Class<?>[] ALL = {Now.class, Pilot.class, Glance.class, Hours.class, Days.class, Tide.class, Minimal.class};
   /** Default sizes in dp (used until the launcher reports the real size). */
   private static final int[][] SIZE = {{170, 170}, {170, 170}, {350, 90}, {350, 190}, {350, 230}, {170, 170}, {170, 170}};
@@ -24,21 +31,30 @@ public final class Widgets {
   public abstract static class Base extends AppWidgetProvider {
     abstract int kind();
 
+    // Drawing happens on a low-priority background thread: these callbacks arrive on the app's main
+    // thread, and drawing there made the app itself stutter (and could trip "app not responding").
     @Override
     public void onUpdate(Context c, AppWidgetManager m, int[] ids) {
-      JSONObject d = WidgetData.cached(c);
-      for (int id : ids) render(c, m, id, kind(), d);
       final Context app = c.getApplicationContext();
       final PendingResult pr = goAsync();
-      new Thread(() -> {
-        try { WidgetData.refresh(app, 20 * 60 * 1000L); } catch (Exception ignored) {}
+      final int k = kind();
+      BG.execute(() -> {
+        try { JSONObject d = WidgetData.cached(app); for (int id : ids) render(app, m, id, k, d); }
+        catch (Throwable ignored) {}
         finally { pr.finish(); }
-      }).start();
+        WidgetData.refreshAsync(app, 20 * 60 * 1000L);
+      });
     }
 
     @Override
     public void onAppWidgetOptionsChanged(Context c, AppWidgetManager m, int id, Bundle o) {
-      render(c, m, id, kind(), WidgetData.cached(c));
+      final Context app = c.getApplicationContext();
+      final PendingResult pr = goAsync();
+      final int k = kind();
+      BG.execute(() -> {
+        try { render(app, m, id, k, WidgetData.cached(app)); } catch (Throwable ignored) {}
+        finally { pr.finish(); }
+      });
     }
 
     @Override
@@ -54,6 +70,10 @@ public final class Widgets {
   public static class Minimal extends Base { int kind() { return WidgetDraw.MINIMAL; } }
 
   static void updateAll(Context c) {
+    try { updateAllNow(c); } catch (Throwable ignored) {}
+  }
+
+  private static void updateAllNow(Context c) {
     AppWidgetManager m = AppWidgetManager.getInstance(c);
     JSONObject d = WidgetData.cached(c);
     for (int k = 0; k < ALL.length; k++)

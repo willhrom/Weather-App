@@ -125,7 +125,7 @@ public class MainActivity extends Activity {
         boolean widgets = WidgetData.anyWidgets(app);
         if (widgets || o.optBoolean("rain", true) || o.optBoolean("alerts", true)) WeatherJob.schedule(MainActivity.this);
         else WeatherJob.cancel(MainActivity.this);
-        if (widgets) new Thread(() -> WidgetData.refresh(app, 5 * 60 * 1000L)).start();
+        if (widgets) WidgetData.refreshAsync(app, 5 * 60 * 1000L);
       } catch (Exception ignored) {}
     }
     @JavascriptInterface
