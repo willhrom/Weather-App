@@ -1604,6 +1604,7 @@ function dimStyle(){
 function setInteractive(on){if(!map)return;["dragPan","scrollZoom","touchZoomRotate","doubleClickZoom","keyboard","boxZoom"].forEach(h=>map[h]&&map[h][on?"enable":"disable"]());if(on)map.touchZoomRotate.disableRotation()}
 const isFull=()=>$("#mapFull").classList.contains("on");
 function setFull(on){
+  if(on&&!map&&renderMap.go)renderMap.go();
   const wrap=$(".mapwrap");if(on){$("#mapFull").appendChild(wrap);$("#mapFull").classList.add("on")}else{$("#mapPanel").appendChild(wrap);$("#mapFull").classList.remove("on");$("#layerPanel").classList.remove("on");if(popup)popup.remove()}
   setInteractive(on);document.body.classList.toggle("mapopen",on);if(typeof fxRun==="function"&&typeof FX!=="undefined")fxRun();
   $("#mapExpand").innerHTML=on?'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>':'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>';
@@ -1613,6 +1614,13 @@ $("#mapTap").onclick=()=>setFull(true);$("#mapExpand").onclick=e=>{e.stopPropaga
 $("#mapLayers").onclick=()=>$("#layerPanel").classList.toggle("on");
 $("#mapLocate").onclick=()=>map&&map.flyTo({center:[place.lon,place.lat],zoom:Math.max(map.getZoom(),7)});
 function renderMap(){
+  // starting the map (graphics setup) briefly freezes the screen, so it waits until the map is
+  // scrolled near, the full-screen map is opened, or the app has been idle for a while
+  if(!map&&renderMap.wait!==2){if(!renderMap.wait){renderMap.wait=1;let io=null;
+      const go=()=>{if(renderMap.wait===2)return;renderMap.wait=2;if(io)io.disconnect();DIAG.mark("map: starting now");renderMap()};renderMap.go=go;
+      try{io=new IntersectionObserver(es=>{if(es.some(e=>e.isIntersecting))go()},{rootMargin:"150px"});io.observe($("#map"))}catch(e){go();return}
+      setTimeout(()=>idle(go,4000),9000)}
+    return}
   initMap();if(!map)return;
   map.jumpTo({center:[place.lon,place.lat]});
   if(meMarker)meMarker.remove();const el=document.createElement("div");el.className="me";meMarker=new maplibregl.Marker({element:el}).setLngLat([place.lon,place.lat]).addTo(map);
