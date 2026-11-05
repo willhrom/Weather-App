@@ -53,6 +53,8 @@ public class MainActivity extends Activity {
   @Override
   protected void onCreate(Bundle saved) {
     super.onCreate(saved);
+    Crash.install(this);
+    Crash.showLast(this);
     Window w = getWindow();
     if (Build.VERSION.SDK_INT >= 21) {
       w.setStatusBarColor(Color.parseColor("#07090c"));
@@ -72,6 +74,7 @@ public class MainActivity extends Activity {
     String ver = "1.0";
     try { ver = getPackageManager().getPackageInfo(getPackageName(), 0).versionName; } catch (Exception ignored) {}
     s.setUserAgentString(s.getUserAgentString() + " WeatherApp/" + ver);
+    System.setProperty("wx.ver", ver);
 
     web.setWebChromeClient(new WebChromeClient() {
       @Override
@@ -86,6 +89,17 @@ public class MainActivity extends Activity {
       }
     });
     web.setWebViewClient(new WebViewClient() {
+      // if Android stops the page's process (low memory), start the page again instead of closing the app
+      @Override
+      public boolean onRenderProcessGone(WebView view, android.webkit.RenderProcessGoneDetail detail) {
+        try {
+          android.view.ViewGroup parent = (android.view.ViewGroup) view.getParent();
+          if (parent != null) parent.removeView(view);
+          view.destroy();
+        } catch (Throwable ignored) {}
+        if (view == web) { web = null; recreate(); }
+        return true;
+      }
       @Override
       public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest req) {
         return intercept(req.getUrl());
@@ -283,12 +297,13 @@ public class MainActivity extends Activity {
 
   @Override
   public void onBackPressed() {
+    if (web == null) { super.onBackPressed(); return; }
     web.evaluateJavascript("window.wxBack&&wxBack()", v -> {
       if (!"true".equals(v)) MainActivity.super.onBackPressed();
     });
   }
 
-  @Override protected void onResume() { super.onResume(); web.onResume(); }
-  @Override protected void onPause() { web.onPause(); super.onPause(); }
-  @Override protected void onDestroy() { web.destroy(); super.onDestroy(); }
+  @Override protected void onResume() { super.onResume(); if (web != null) web.onResume(); }
+  @Override protected void onPause() { if (web != null) web.onPause(); super.onPause(); }
+  @Override protected void onDestroy() { if (web != null) web.destroy(); super.onDestroy(); }
 }
