@@ -521,13 +521,13 @@ function init(o){N0QM=new Map();for(let i=1;i<256;i++){const k=parseInt(o.pal.su
   N0QL=[];for(let i=1;i<200;i++){const k=parseInt(o.pal.substr(i*6,6),16);N0QL.push([i/2-32.5,k>>16,k>>8&255,k&255])}N0QL.push(...o.refs);
   BAND=o.band;PTM=new Map(o.ptMap);PTC=o.ptCol}
 function toDbz(r,g,b,tol){const ex=N0QM.get(r<<16|g<<8|b);if(ex!==undefined)return ex;const key=(r>>2<<12)|(g>>2<<6)|(b>>2);let m=memo.get(key);
-  if(m===undefined){let bd=1e9,v=-1;for(const q of N0QL){const dr=q[1]-r,dg=q[2]-g,db=q[3]-b,d=dr*dr+dg*dg+db*db;if(d<bd){bd=d;v=q[0]}}m=[v,bd];memo.set(key,m)}return m[1]>tol?-1:m[0]}
+  if(m===undefined){let bd=1e9,v=-1;for(const q of N0QL){const dr=q[1]-r,dg=q[2]-g,db=q[3]-b,d=dr*dr+dg*dg+db*db;if(d<bd){bd=d;v=q[0]}}m=[v,bd];memo.set(key,m)}return m[1]>tol?-999:m[0]}
 function blur(src,w,h){const n=w*h,t=new Float32Array(n),o=new Float32Array(n);
   for(let y=0;y<h;y++)for(let x=0;x<w;x++){const i=y*w+x;t[i]=(src[i-(x>0)]+src[i]+src[i+(x<w-1)])/3}
   for(let y=0;y<h;y++)for(let x=0;x<w;x++){const i=y*w+x;o[i]=(t[i-(y>0?w:0)]+t[i]+t[i+(y<h-1?w:0)])/3}return o}
 async function pixels(buf){const bmp=await createImageBitmap(new Blob([buf])),w=bmp.width,h=bmp.height,c=new OffscreenCanvas(w,h),g=c.getContext("2d",{willReadFrequently:true});g.drawImage(bmp,0,0);return{bmp,w,h,a:g.getImageData(0,0,w,h).data}}
 async function radarField(buf,tol){const{bmp,w,h,a}=await pixels(buf),n=w*h;let cov=new Float32Array(n),val=new Float32Array(n),op=0,hit=0;
-  for(let i=0,k=0;k<n;i+=4,k++){if(a[i+3]<128)continue;op++;const v=toDbz(a[i],a[i+1],a[i+2],tol);if(v>=0)hit++;if(v>=10){cov[k]=1;val[k]=v}}
+  for(let i=0,k=0;k<n;i+=4,k++){if(a[i+3]<128)continue;op++;const v=toDbz(a[i],a[i+1],a[i+2],tol);if(v>-900)hit++;if(v>=10){cov[k]=1;val[k]=v}}
   if(op>150&&hit<op*.5)return{raw:bmp,w,h};
   for(let k=0;k<n;k++)val[k]*=cov[k];for(let p=0;p<2;p++){cov=blur(cov,w,h);val=blur(val,w,h)}return{w,h,cov,val}}
 async function ptField(buf){const{w,h,a}=await pixels(buf),n=w*h;let cov=[0,1,2,3].map(()=>new Float32Array(n)),val=new Float32Array(n),any=false;
@@ -1506,7 +1506,7 @@ const N0Q=(()=>{const m=new Map();for(let i=1;i<256;i++){const k=parseInt(N0Q_PA
 // nearest reflectivity colour; tol = how far (squared RGB distance) a pixel may be from the palette
 function toDbz(r,g,b,tol=1200){const ex=N0Q.m.get(r<<16|g<<8|b);if(ex!==undefined)return ex;
   const key=(r>>2<<12)|(g>>2<<6)|(b>>2);let m=dbzMemo.get(key);if(m===undefined){let bd=1e9,v=-1;
-  for(const q of [...N0Q.list,...REFS]){const dr=q[1]-r,dg=q[2]-g,db=q[3]-b,d=dr*dr+dg*dg+db*db;if(d<bd){bd=d;v=q[0]}}m=[v,bd];dbzMemo.set(key,m)}return m[1]>tol?-1:m[0]}
+  for(const q of [...N0Q.list,...REFS]){const dr=q[1]-r,dg=q[2]-g,db=q[3]-b,d=dr*dr+dg*dg+db*db;if(d<bd){bd=d;v=q[0]}}m=[v,bd];dbzMemo.set(key,m)}return m[1]>tol?-999:m[0]}
 const BANDS=[[10,"#4fa9d8",.6],[15,"#3cc6a8",.8],[20,"#3fcf5e",.92],[25,"#24a84c",.95],[30,"#168a3c",.97],[35,"#f2d23a",1],[40,"#f5a524",1],[45,"#f2711c",1],[50,"#e53939",1],[55,"#b81d2a",1],[60,"#d64fd6",1],[65,"#f6d0ff",1]];
 const BAND_LUT=(()=>{const t=[];for(let v=0;v<=80;v++){let c=null;for(const b of BANDS)if(v>=b[0])c=b;if(c){const h=c[1];t.push([parseInt(h.slice(1,3),16),parseInt(h.slice(3,5),16),parseInt(h.slice(5,7),16),c[2]])}else t.push(null)}return t})();
 const fieldCache=new Map();
@@ -1516,7 +1516,7 @@ function radarField(url,tol){
     const bmp=await createImageBitmap(await r.blob()),w=bmp.width,h=bmp.height,c=document.createElement("canvas");c.width=w;c.height=h;
     const g=c.getContext("2d",{willReadFrequently:true});g.drawImage(bmp,0,0);const a=g.getImageData(0,0,w,h).data,n=w*h;
     let cov=new Float32Array(n),val=new Float32Array(n),op=0,hit=0;
-    for(let i=0,k=0;k<n;i+=4,k++){if(a[i+3]<128)continue;op++;const v=toDbz(a[i],a[i+1],a[i+2],tol);if(v>=0)hit++;if(v>=10){cov[k]=1;val[k]=v}}
+    for(let i=0,k=0;k<n;i+=4,k++){if(a[i+3]<128)continue;op++;const v=toDbz(a[i],a[i+1],a[i+2],tol);if(v>-900)hit++;if(v>=10){cov[k]=1;val[k]=v}}
     // colours we can't read as rain intensity (a different palette): show the original tile instead
     if(op>150&&hit<op*.5)return{raw:bmp,w,h};
     // two light box-blur passes = gentle rounding of the pixel steps (values weighted by coverage)
