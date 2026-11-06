@@ -526,8 +526,27 @@ function blur(src,w,h){const n=w*h,t=new Float32Array(n),o=new Float32Array(n);
   for(let y=0;y<h;y++)for(let x=0;x<w;x++){const i=y*w+x;t[i]=(src[i-(x>0)]+src[i]+src[i+(x<w-1)])/3}
   for(let y=0;y<h;y++)for(let x=0;x<w;x++){const i=y*w+x;o[i]=(t[i-(y>0?w:0)]+t[i]+t[i+(y<h-1?w:0)])/3}return o}
 async function pixels(buf){const bmp=await createImageBitmap(new Blob([buf])),w=bmp.width,h=bmp.height,c=new OffscreenCanvas(w,h),g=c.getContext("2d",{willReadFrequently:true});g.drawImage(bmp,0,0);return{bmp,w,h,a:g.getImageData(0,0,w,h).data}}
-async function radarField(buf,tol){const{bmp,w,h,a}=await pixels(buf),n=w*h;let cov=new Float32Array(n),val=new Float32Array(n),op=0,hit=0;
-  for(let i=0,k=0;k<n;i+=4,k++){if(a[i+3]<128)continue;op++;const v=toDbz(a[i],a[i+1],a[i+2],tol);if(v>-900)hit++;if(v>=10){cov[k]=1;val[k]=v}}
+/* ground clutter: radar echoes off hills sit in exactly the same spot frame after frame, while rain moves.
+   From the last half hour of frames, small echo patches that haven't moved are marked and left out. */
+const masks=new Map();
+async function echoMap(buf,tol){const{w,h,a}=await pixels(buf),n=w*h,e=new Uint8Array(n);
+  for(let i=0,k=0;k<n;i+=4,k++){if(a[i+3]<128)continue;const v=toDbz(a[i],a[i+1],a[i+2],tol);if(v>=10)e[k]=1}return{w,h,e}}
+function grow(e,w,h){const o=new Uint8Array(e.length);for(let y=0;y<h;y++)for(let x=0;x<w;x++){if(!e[y*w+x])continue;
+  for(let dy=-1;dy<=1;dy++){const yy=y+dy;if(yy<0||yy>=h)continue;for(let dx=-1;dx<=1;dx++){const xx=x+dx;if(xx>=0&&xx<w)o[yy*w+xx]=1}}}return o}
+async function clutterMask(bufs,z,lat){const maps=[];for(const b of bufs){if(!b)continue;try{maps.push(await echoMap(b,1200))}catch(e){}}
+  if(maps.length<5)return null;const{w,h}=maps[0],n=w*h,now=maps[0].e,cnt=new Uint8Array(n);
+  for(const m of maps){if(m.w!==w)return null;const g=grow(m.e,w,h);for(let k=0;k<n;k++)cnt[k]+=g[k]}
+  const need=maps.length-1,pxKm=40075*Math.cos(lat*Math.PI/180)/Math.pow(2,z)/w,maxPx=450/(pxKm*pxKm);
+  // group the current echoes into patches (with a 1-pixel reach so speckles join up)
+  const reg=grow(now,w,h),lab=new Int32Array(n),mask=new Uint8Array(n),stack=[];let any=false,id=0;
+  for(let s=0;s<n;s++){if(!reg[s]||lab[s])continue;id++;let area=0,ech=0,still=0;const cells=[];stack.push(s);lab[s]=id;
+    while(stack.length){const k=stack.pop();cells.push(k);area++;if(now[k]){ech++;if(cnt[k]>=need)still++}const x=k%w,y=(k/w)|0;
+      if(x>0&&reg[k-1]&&!lab[k-1]){lab[k-1]=id;stack.push(k-1)}if(x<w-1&&reg[k+1]&&!lab[k+1]){lab[k+1]=id;stack.push(k+1)}
+      if(y>0&&reg[k-w]&&!lab[k-w]){lab[k-w]=id;stack.push(k-w)}if(y<h-1&&reg[k+w]&&!lab[k+w]){lab[k+w]=id;stack.push(k+w)}}
+    if(ech&&area<=maxPx&&still>=ech*.6){for(const k of cells)mask[k]=1;any=true}}
+  return any?grow(mask,w,h):null}
+async function radarField(buf,tol,mask){const{bmp,w,h,a}=await pixels(buf),n=w*h;let cov=new Float32Array(n),val=new Float32Array(n),op=0,hit=0;
+  for(let i=0,k=0;k<n;i+=4,k++){if(a[i+3]<128)continue;op++;const v=toDbz(a[i],a[i+1],a[i+2],tol);if(v>-900)hit++;if(v>=10&&!(mask&&mask.length===n&&mask[k])){cov[k]=1;val[k]=v}}
   if(op>150&&hit<op*.5)return{raw:bmp,w,h};
   for(let k=0;k<n;k++)val[k]*=cov[k];for(let p=0;p<2;p++){cov=blur(cov,w,h);val=blur(val,w,h)}return{w,h,cov,val}}
 async function ptField(buf){const{w,h,a}=await pixels(buf),n=w*h;let cov=[0,1,2,3].map(()=>new Float32Array(n)),val=new Float32Array(n),any=false;
@@ -548,8 +567,9 @@ async function tile(F,d,ox,oy){const S=512,n=1<<d,sz=F.w/n,sx=ox*sz,sy=oy*sz,c=n
       o[i]=b[0];o[i+1]=b[1];o[i+2]=b[2];o[i+3]=Math.round(255*b[3]*Math.min(1,(cv-.4)/.2));any=true}}
   if(!any)return null;g.putImageData(img,0,0);return(await c.convertToBlob({type:"image/png"})).arrayBuffer()}
 onmessage=async e=>{const m=e.data;if(m.init){init(m.init);return}
+  if(m.kind==="mask"){let r=null;try{r=await clutterMask(m.bufs,m.z,m.lat)}catch(err){}masks.set(m.url,r);if(masks.size>60)masks.delete(masks.keys().next().value);postMessage({id:m.id,data:null});return}
   try{let F=fields.get(m.url);
-    if(!F&&m.buf){F=await (m.kind==="pt"?ptField(m.buf):radarField(m.buf,m.tol||1200));fields.set(m.url,F);if(fields.size>30)fields.delete(fields.keys().next().value)}
+    if(!F&&m.buf){F=await (m.kind==="pt"?ptField(m.buf):radarField(m.buf,m.tol||1200,m.ck?masks.get(m.ck):null));fields.set(m.url,F);if(fields.size>30)fields.delete(fields.keys().next().value)}
     if(!F){postMessage({id:m.id,miss:true});return}
     if(F.empty){postMessage({id:m.id,data:null});return}
     const data=await tile(F,m.d,m.ox,m.oy);postMessage({id:m.id,data},data?[data]:[])}
@@ -1540,11 +1560,20 @@ function wxWorker(){if(WXW!==undefined)return WXW;WXW=null;
     for(let k=0;k<n;k++){const w=new Worker(src);w.onmessage=e=>{const r=wxPend.get(e.data.id);if(r){wxPend.delete(e.data.id);r(e.data)}};w.postMessage({init});pool.push(w)}
     WXW=pool}catch(e){WXW=null}return WXW}
 const wxHash=u=>{let h=0;for(let i=0;i<u.length;i++)h=(h*31+u.charCodeAt(i))|0;return Math.abs(h)};
-const wxCall=(m,tr)=>new Promise(res=>{const id=++wxSeq;wxPend.set(id,res);WXW[wxHash(m.url)%WXW.length].postMessage({...m,id},tr||[])});
+const wxCall=(m,tr)=>new Promise(res=>{const id=++wxSeq;wxPend.set(id,res);WXW[wxHash(m.route||m.url)%WXW.length].postMessage({...m,id},tr||[])});
+function wxBuf(url){let p=wxFetch.get(url);if(!p){p=fetch(via(url)).then(x=>{if(!x.ok)throw new Error("HTTP "+x.status);return x.arrayBuffer()});wxFetch.set(url,p);p.then(()=>setTimeout(()=>wxFetch.delete(url),6e4),()=>wxFetch.delete(url))}return p}
+// for NEXRAD tiles: look at the same spot over the last half hour to find ground clutter (see clutterMask)
+const clutterReq=new Map();
+function clutterPrep(ck,z,y){if(clutterReq.has(ck))return clutterReq.get(ck);
+  const lat=Math.atan(Math.sinh(Math.PI*(1-2*(y+.5)/Math.pow(2,z))))*180/Math.PI;
+  const urls=[0,5,10,15,20,25].map(m=>ck.replace("nexrad-n0q-900913","nexrad-n0q-900913"+(m?"-m"+String(m).padStart(2,"0")+"m":"")));
+  const p=Promise.all(urls.map(u=>wxBuf(u).then(b=>b.slice(0),()=>null))).then(bufs=>wxCall({kind:"mask",url:ck,route:ck,z,lat,bufs},bufs.filter(Boolean))).catch(()=>null);
+  clutterReq.set(ck,p);if(clutterReq.size>80)clutterReq.delete(clutterReq.keys().next().value);return p}
 async function wxTile(kind,url,tol,d,ox,oy){
-  let r=await wxCall({kind,url,tol,d,ox,oy});
-  if(r.miss){let p=wxFetch.get(url);if(!p){p=fetch(via(url)).then(x=>{if(!x.ok)throw new Error("HTTP "+x.status);return x.arrayBuffer()});wxFetch.set(url,p);p.then(()=>setTimeout(()=>wxFetch.delete(url),3e4),()=>wxFetch.delete(url))}
-    let buf;try{buf=await p}catch(e){return null}r=await wxCall({kind,url,tol,d,ox,oy,buf:buf.slice(0)})}
+  let ck=null,route=url;const mm=kind==="radar"&&S.declutter!==false&&/nexrad-n0q-900913(-m\d\dm)?\/(\d+)\/(\d+)\/(\d+)\.png/.exec(url);
+  if(mm){ck=url.replace(/nexrad-n0q-900913-m\d\dm/,"nexrad-n0q-900913");route=ck;await clutterPrep(ck,+mm[2],+mm[4])}
+  let r=await wxCall({kind,url,tol,d,ox,oy,ck,route});
+  if(r.miss){let buf;try{buf=await wxBuf(url)}catch(e){return null}r=await wxCall({kind,url,tol,d,ox,oy,ck,route,buf:buf.slice(0)})}
   return r.data||null}
 let EMPTY_TILE=null;
 function emptyTile(){if(!EMPTY_TILE)EMPTY_TILE=new Promise(r=>{const c=document.createElement("canvas");c.width=c.height=1;c.toBlob(b=>b.arrayBuffer().then(r),"image/png")});return EMPTY_TILE}
