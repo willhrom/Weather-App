@@ -518,7 +518,7 @@ details.afd[open]>summary::after{content:"–"}
 // so scrolling, tapping and the map stay responsive while frames load.
 let N0QM=null,N0QL=null,BAND=null,PTM=null,PTC=null;const memo=new Map(),fields=new Map();
 function init(o){N0QM=new Map();for(let i=1;i<256;i++){const k=parseInt(o.pal.substr(i*6,6),16);if(!N0QM.has(k))N0QM.set(k,i/2-32.5)}
-  N0QL=[];for(let i=65;i<200;i++){const k=parseInt(o.pal.substr(i*6,6),16);N0QL.push([i/2-32.5,k>>16,k>>8&255,k&255])}N0QL.push(...o.refs);
+  N0QL=[];for(let i=1;i<200;i++){const k=parseInt(o.pal.substr(i*6,6),16);N0QL.push([i/2-32.5,k>>16,k>>8&255,k&255])}N0QL.push(...o.refs);
   BAND=o.band;PTM=new Map(o.ptMap);PTC=o.ptCol}
 function toDbz(r,g,b,tol){const ex=N0QM.get(r<<16|g<<8|b);if(ex!==undefined)return ex;const key=(r>>2<<12)|(g>>2<<6)|(b>>2);let m=memo.get(key);
   if(m===undefined){let bd=1e9,v=-1;for(const q of N0QL){const dr=q[1]-r,dg=q[2]-g,db=q[3]-b,d=dr*dr+dg*dg+db*db;if(d<bd){bd=d;v=q[0]}}m=[v,bd];memo.set(key,m)}return m[1]>tol?-1:m[0]}
@@ -528,7 +528,7 @@ function blur(src,w,h){const n=w*h,t=new Float32Array(n),o=new Float32Array(n);
 async function pixels(buf){const bmp=await createImageBitmap(new Blob([buf])),w=bmp.width,h=bmp.height,c=new OffscreenCanvas(w,h),g=c.getContext("2d",{willReadFrequently:true});g.drawImage(bmp,0,0);return{bmp,w,h,a:g.getImageData(0,0,w,h).data}}
 async function radarField(buf,tol){const{bmp,w,h,a}=await pixels(buf),n=w*h;let cov=new Float32Array(n),val=new Float32Array(n),op=0,hit=0;
   for(let i=0,k=0;k<n;i+=4,k++){if(a[i+3]<128)continue;op++;const v=toDbz(a[i],a[i+1],a[i+2],tol);if(v>=0)hit++;if(v>=10){cov[k]=1;val[k]=v}}
-  if(op>150&&hit<op*.85)return{raw:bmp,w,h};
+  if(op>150&&hit<op*.5)return{raw:bmp,w,h};
   for(let k=0;k<n;k++)val[k]*=cov[k];for(let p=0;p<2;p++){cov=blur(cov,w,h);val=blur(val,w,h)}return{w,h,cov,val}}
 async function ptField(buf){const{w,h,a}=await pixels(buf),n=w*h;let cov=[0,1,2,3].map(()=>new Float32Array(n)),val=new Float32Array(n),any=false;
   for(let i=0,k=0;k<n;i+=4,k++){if(a[i+3]<128)continue;const e=PTM.get(a[i]<<16|a[i+1]<<8|a[i+2]);if(!e)continue;cov[e[0]][k]=1;val[k]=e[1];any=true}
@@ -1499,7 +1499,7 @@ const dbzMemo=new Map();
 // the exact colour table IEM uses for NEXRAD and HRRR reflectivity tiles: index i = (dBZ + 32.5) × 2
 const N0Q_PAL="00000085718f85728f86738d87758b87768b887789897987897a878a7b858b7d848b7e848c7f828d81808d82808e837e8f847c8f857c90877b918879918979928b77938d759691539894579b975b9d9a60a09d64a3a068a5a36da8a671aaa976adac7ab0af7eb2b283b7b88cbabb90bdbe94bfc199c2c49dc4c7a2c7caa6cacdaaccd0afd2d4b4cfd2b4c9ccb4c6c9b4c3c7b4c0c4b4bdc1b4b9beb4b6bbb4b3b9b4b0b6b4adb3b4aab0b4a4abb4a0a8b49da5b49aa2b497a0b4949db4919ab4949bb59098b48c95b38892b2808cb07c89af7886ae7483ac7080ab6c7daa6779a96376a85f73a75b70a6576da44f67a24b64a14761a0435e9f415b9e4361a24568a6486faa4a76ae4d7db24f84b6518bbb5699c3599fc75ba6cb5eadcf60b4d462bbd865c2dc67c9e06ad0e46fd6e868d6d759d6b352d6a24bd69043d67e3cd66d35d65b11d51811d11710cd1710c81610c4160fbc150fb7140eb3140eaf130eab130da6120da2120d9e110c99110c95100c91100b880f0b840e0a800e0a7c0d0a770d09730c096f0c096b0b08660b08620a095e09327308467d085b88076f9207849d0698a806adb205c1bd05d6c704ead204ffe200ffd800ffd300ffce00ffc900ffc400ffc000ffbb00ffb600ffb100ffac00ffa700ffa200ff9900ff9400ff8f00ff8a00ff8500ff8000ff0000f80000f10000ea0000e30000d50000cd0000c60000bf0000b80000b10000aa0000a300009b00009400008d00007f0000780000710000fffffffff5ffffeaffffdfffffd4ffffc9ffffbeffffb3ffff9dffff92ffff75fffc6bfdf960faf656f7f34bf4f040f1ed36efea2bece720e9e10be3b200ffac00fca400f79b00f49300ef8800ea8300e87900e27200dd6900db05ecf005ebf005eaf005dde005dce005dbe005cdd005ccd004bdc004bcc004bbc004aeb004adb0049ea0049da0049ca0038e90038d90038c90037e80037d80036f70036e70036d70025f60025e60024f50024e50024d50023f40023e40023d40013030012f30012020011f20011e203a67b53a66b53a65b53a64b53a63b53a62b5";
 const N0Q=(()=>{const m=new Map();for(let i=1;i<256;i++){const k=parseInt(N0Q_PAL.substr(i*6,6),16);if(!m.has(k))m.set(k,i/2-32.5)}
-  const list=[];for(let i=65;i<200;i++){const k=parseInt(N0Q_PAL.substr(i*6,6),16);list.push([i/2-32.5,k>>16,k>>8&255,k&255])}return{m,list}})();
+  const list=[];for(let i=1;i<200;i++){const k=parseInt(N0Q_PAL.substr(i*6,6),16);list.push([i/2-32.5,k>>16,k>>8&255,k&255])}return{m,list}})();
 // nearest reflectivity colour; tol = how far (squared RGB distance) a pixel may be from the palette
 function toDbz(r,g,b,tol=1200){const ex=N0Q.m.get(r<<16|g<<8|b);if(ex!==undefined)return ex;
   const key=(r>>2<<12)|(g>>2<<6)|(b>>2);let m=dbzMemo.get(key);if(m===undefined){let bd=1e9,v=-1;
@@ -1515,7 +1515,7 @@ function radarField(url,tol){
     let cov=new Float32Array(n),val=new Float32Array(n),op=0,hit=0;
     for(let i=0,k=0;k<n;i+=4,k++){if(a[i+3]<128)continue;op++;const v=toDbz(a[i],a[i+1],a[i+2],tol);if(v>=0)hit++;if(v>=10){cov[k]=1;val[k]=v}}
     // colours we can't read as rain intensity (a different palette): show the original tile instead
-    if(op>150&&hit<op*.85)return{raw:bmp,w,h};
+    if(op>150&&hit<op*.5)return{raw:bmp,w,h};
     // two light box-blur passes = gentle rounding of the pixel steps (values weighted by coverage)
     const blur=(src)=>{const t=new Float32Array(n),o=new Float32Array(n);
       for(let y=0;y<h;y++)for(let x=0;x<w;x++){const i=y*w+x;t[i]=(src[i-(x>0)]+src[i]+src[i+(x<w-1)])/3}
