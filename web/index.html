@@ -651,21 +651,24 @@ async function resolvePlace(){
 }
 
 /* ---------- load ---------- */
+let loadAgain=false;
 async function load(){
-  if(loading)return;loading=true;$("#refreshBtn").classList.add("spin");
+  // a load already running: remember to load again for whatever is selected when it finishes
+  if(loading){loadAgain=true;return}loading=true;loadAgain=false;$("#refreshBtn").classList.add("spin");
   try{
-    DIAG.mark("load: finding place");place=await resolvePlace();DIAG.mark("place ready",place&&place.name);renderPills();
+    DIAG.mark("load: finding place");const P=await resolvePlace();if(loadAgain)return;place=P;DIAG.mark("place ready",place&&place.name);renderPills();
     $("#locName").innerHTML=(place.id==="gps"?'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M21 3L3 10.5l7.5 2.5L13 21z"/></svg>':"")+esc(place.name);
     const tu=S.temp==="F"?"fahrenheit":"celsius",pu=S.rain==="in"?"inch":"mm";
-    W=await getJSON(`https://api.open-meteo.com/v1/forecast?latitude=${place.lat}&longitude=${place.lon}`+
+    const W2=await getJSON(`https://api.open-meteo.com/v1/forecast?latitude=${place.lat}&longitude=${place.lon}`+
       `&current=temperature_2m,apparent_temperature,relative_humidity_2m,dew_point_2m,precipitation,weather_code,is_day,cloud_cover,pressure_msl,wind_speed_10m,wind_direction_10m,wind_gusts_10m`+
       `&hourly=temperature_2m,precipitation_probability,precipitation,weather_code,is_day,wind_speed_10m,wind_direction_10m,wind_gusts_10m,uv_index,visibility,pressure_msl,apparent_temperature,relative_humidity_2m,dew_point_2m,cloud_cover,cloud_cover_low,cloud_cover_mid,cloud_cover_high,freezing_level_height`+
       `&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_probability_max,wind_gusts_10m_max,sunrise,sunset,uv_index_max,wind_direction_10m_dominant,precipitation_hours,sunshine_duration,daylight_duration`+
       `&temperature_unit=${tu}&wind_speed_unit=${S.wind}&precipitation_unit=${pu}&timezone=auto&past_days=7&forecast_days=10`);
-    off=W.utc_offset_seconds||0;lastLoad=Date.now();DIAG.mark("forecast downloaded");store.set("wx.cache:"+place.id,{W,t:lastLoad});pushWatch();
+    if(loadAgain)return; // the user picked another place meanwhile: skip drawing this one
+    W=W2;    off=W.utc_offset_seconds||0;lastLoad=Date.now();DIAG.mark("forecast downloaded");store.set("wx.cache:"+place.id,{W,t:lastLoad});pushWatch();
     renderAll();DIAG.mark("first screen drawn");
   }catch(e){console.error(e);const c=place&&store.get("wx.cache:"+place.id,null);if(c&&!W){W=c.W;off=W.utc_offset_seconds||0;renderAll()}$("#updated").textContent="Couldn't update — check your connection"}
-  finally{loading=false;$("#refreshBtn").classList.remove("spin")}
+  finally{loading=false;$("#refreshBtn").classList.remove("spin");if(loadAgain){loadAgain=false;setTimeout(load,0)}}
 }
 /* Each tab's data loads when that tab is first opened (per place/refresh); the visible tab goes first,
    light extras for the others are fetched once the app is idle. Keeps start-up fast on a phone. */
@@ -2346,7 +2349,13 @@ $("#fxSwitch").onclick=()=>{FX.on=!FX.on;store.set("wx.fx",FX.on);$("#fxSwitch")
 
 /* ---------- locations sheet ---------- */
 function savePlaces(){store.set("wx.places",places);store.set("wx.sel",sel);store.set("wx.settings",S)}
-function choose(id){sel=id;savePlaces();closeSheet();W=null;load();scrollTo({top:0,behavior:"smooth"})}
+function choose(id){sel=id;savePlaces();closeSheet();renderPills();
+  // show the last saved forecast for that place straight away, then refresh it
+  const p=id==="gps"?gpsPlace:places.find(x=>x.id===id),c=p&&store.get("wx.cache:"+p.id,null);
+  if(p)$("#locName").innerHTML=(p.id==="gps"?'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M21 3L3 10.5l7.5 2.5L13 21z"/></svg>':"")+esc(p.name);
+  if(c){place=p;W=c.W;off=W.utc_offset_seconds||0;try{renderAll()}catch(e){}}else W=null;
+  $("#updated").textContent="Updating…";
+  load();scrollTo({top:0,behavior:"smooth"})}
 function renderPills(){const list=[...(S.gps?[{id:"gps",name:gpsPlace?gpsPlace.name:"My location"}]:[]),...places];
   $("#pills").innerHTML=list.length>1?list.map(p=>`<button class="pill${p.id===sel?" on":""}" data-id="${esc(p.id)}">${p.id==="gps"?'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M21 3L3 10.5l7.5 2.5L13 21z"/></svg>':""}${esc(p.name)}</button>`).join(""):""}
 $("#pills").onclick=e=>{const b=e.target.closest(".pill");if(b&&b.dataset.id!==sel)choose(b.dataset.id)};
