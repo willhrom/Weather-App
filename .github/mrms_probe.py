@@ -7,19 +7,23 @@ def get(u):
 pal=re.search(r'const N0Q_PAL="([0-9a-f]+)"',open("../web/index.html").read()).group(1)
 P=np.array([[int(pal[i*6:i*6+2],16),int(pal[i*6+2:i*6+4],16),int(pal[i*6+4:i*6+6],16)] for i in range(256)])
 iem=Image.open(io.BytesIO(get("https://mesonet.agron.iastate.edu/data/gis/images/4326/USCOMP/n0q_0.png")))
+wld=[float(x) for x in get("https://mesonet.agron.iastate.edu/data/gis/images/4326/USCOMP/n0q_0.wld").decode().split()]
+dx,_,_,dy,x0,y0=wld
 W,H=3000,1300
-idx=np.array(iem.resize((W,H),Image.NEAREST)) if iem.mode=="P" else None
+lon=-126+(np.arange(W)+.5)*60/W;lat=50-(np.arange(H)+.5)*26/H
+ci=np.clip(((lon-x0)/dx).astype(int),0,iem.size[0]-1);ri=np.clip(((lat-y0)/dy).astype(int),0,iem.size[1]-1)
+idx=np.array(iem)[ri][:,ci]
 info=json.loads(get(S+"?f=pjson"));t=info["timeInfo"]["timeExtent"][1]
 m=np.array(Image.open(io.BytesIO(get(f"{S}/exportImage?bbox=-126,24,-66,50&bboxSR=4326&imageSR=4326&size={W},{H}&format=png32&f=image&time={t}"))).convert("RGBA"))
 dbz=idx*0.5-32.5
 ok=(m[:,:,3]>200)&(idx>0)
 rgb=m[:,:,:3][ok].astype(float);d=dbz[ok]
-out=[f"pairs {ok.sum()}  mrms echo px {(m[:,:,3]>0).sum()}  iem echo px {(idx>0).sum()}  iem>=10 {(dbz>=10).sum()}  mrms-only px {((m[:,:,3]>0)&(idx==0)).sum()}"]
+out=[f"wld {wld} iem size {iem.size} mode {iem.mode}",f"pairs {ok.sum()}  mrms echo px {(m[:,:,3]>0).sum()}  iem echo px {(idx>0).sum()}  iem>=10 {(dbz>=10).sum()}  mrms-only px {((m[:,:,3]>0)&(idx==0)).sum()}"]
 # median colour per dBZ bin -> ramp
 stops=[]
 for b in range(-30,76,1):
     s=(d>=b)&(d<b+1)
-    if s.sum()>=40: c=np.median(rgb[s],0);stops.append((b,[int(x) for x in c],int(s.sum())))
+    if s.sum()>=40: c=np.median(rgb[s],0);stops.append((b,[int(x) for x in c],int(s.sum()),round(float(np.mean(np.abs(rgb[s]-c).sum(1))),1)))
 out.append("ramp (dBZ, median MRMS rgb, n): "+json.dumps(stops))
 # reverse: for each MRMS colour, how consistent is the dBZ? spread of d among pixels with near-identical colour
 q=(rgb//4).astype(int);key=q[:,0]*10000+q[:,1]*100+q[:,2]
