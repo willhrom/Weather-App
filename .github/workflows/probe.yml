@@ -5,32 +5,8 @@ jobs:
   p:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
       - run: |
-          mkdir out && cd out
-          S=https://mapservices.weather.noaa.gov/eventdriven/rest/services/radar/radar_base_reflectivity_time/ImageServer
-          curl -s "$S?f=pjson" > info.json
-          curl -s "$S/rasterFunctionInfos?f=pjson" > rf.json
-          curl -s "$S/keyProperties?f=pjson" > kp.json
-          curl -s "$S/legend?f=pjson" > legend.json
-          curl -s "$S/multiDimensionalInfo?f=pjson" > md.json
-          # tile z8 41/98 in web mercator
-          B=$(python3 -c "
-          import math
-          z,x,y=8,41,98;R=20037508.342789244;s=2*R/2**z
-          print(f'{-R+x*s},{R-(y+1)*s},{-R+(x+1)*s},{R-y*s}')")
-          echo "$B" > bbox.txt
-          for f in png png8 png32 tiff lerc; do curl -s -D h_$f.txt -o img_$f.bin -w "$f %{http_code} %{size_download} %{time_total}s\n" "$S/exportImage?bbox=$B&bboxSR=3857&imageSR=3857&size=256,256&format=$f&f=image" ; done > timing.txt
-          curl -s -o img_raw.bin -w "raw-none %{http_code} %{size_download} %{time_total}s\n" "$S/exportImage?bbox=$B&bboxSR=3857&imageSR=3857&size=256,256&format=tiff&pixelType=F32&renderingRule=%7B%22rasterFunction%22%3A%22None%22%7D&f=image" >> timing.txt
-          curl -s -o img_raw_png.bin -w "png-none %{http_code} %{size_download} %{time_total}s\n" "$S/exportImage?bbox=$B&bboxSR=3857&imageSR=3857&size=256,256&format=png&renderingRule=%7B%22rasterFunction%22%3A%22None%22%7D&f=image" >> timing.txt
-          curl -s -I -H "Origin: https://willhrom-weather.pages.dev" "$S/exportImage?bbox=$B&bboxSR=3857&imageSR=3857&size=256,256&format=png&f=image" | grep -i "access-control\|cache-control\|content-type" > cors.txt
-          curl -s "$S/exportImage?bbox=$B&bboxSR=3857&imageSR=3857&size=256,256&format=png&f=pjson" > export_json.txt
-          python3 - <<'P' > pix.txt
-          from PIL import Image
-          import numpy as np,glob
-          for f in sorted(glob.glob("img_*.bin")):
-              try:
-                  im=Image.open(f);a=np.array(im);print(f,im.mode,im.size,a.dtype,"unique",len(np.unique(a.reshape(-1,a.shape[-1]) if a.ndim==3 else a,axis=0)), "sample",np.unique(a.reshape(-1,a.shape[-1]) if a.ndim==3 else a,axis=0)[:12].tolist())
-              except Exception as e: print(f,"ERR",e, open(f,'rb').read(200))
-          P
-          cat timing.txt cors.txt pix.txt
+          pip install pillow numpy >/dev/null 2>&1
+          mkdir out && cd out && python3 ../.github/mrms_probe.py || true
           git init -q && git checkout -q -b gtg-debug && git add -A && git -c user.name=ci -c user.email=ci@x commit -qm p && git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}" gtg-debug
