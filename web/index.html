@@ -14,7 +14,7 @@ DIAG.mark("html start");
 </script>
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
 <meta name="theme-color" content="#0f2a4a">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://unpkg.com; style-src 'self' 'unsafe-inline' https://unpkg.com https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob: https:; worker-src blob:; child-src blob:; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'; connect-src 'self' blob: data: wxr: https://tiles.openfreemap.org https://*.open-meteo.com https://api.open-meteo.com https://api.weather.gov https://aviationweather.gov https://api.tidesandcurrents.noaa.gov https://api.bigdatacloud.net https://api.rainviewer.com https://*.rainviewer.com https://mesonet.agron.iastate.edu https://willhrom-weather-gtg.pages.dev https://realearth.ssec.wisc.edu https://willhrom-weather.pages.dev">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://unpkg.com; style-src 'self' 'unsafe-inline' https://unpkg.com https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob: https:; worker-src blob:; child-src blob:; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'; connect-src 'self' blob: data: wxr: https://tiles.openfreemap.org https://*.open-meteo.com https://api.open-meteo.com https://api.weather.gov https://aviationweather.gov https://api.tidesandcurrents.noaa.gov https://api.bigdatacloud.net https://api.rainviewer.com https://*.rainviewer.com https://mesonet.agron.iastate.edu https://willhrom-weather-gtg.pages.dev https://realearth.ssec.wisc.edu https://willhrom-weather.pages.dev https://mapservices.weather.noaa.gov">
 <meta name="referrer" content="no-referrer">
 <title>Weather</title>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -526,8 +526,18 @@ function blur(src,w,h){const n=w*h,t=new Float32Array(n),o=new Float32Array(n);
   for(let y=0;y<h;y++)for(let x=0;x<w;x++){const i=y*w+x;t[i]=(src[i-(x>0)]+src[i]+src[i+(x<w-1)])/3}
   for(let y=0;y<h;y++)for(let x=0;x<w;x++){const i=y*w+x;o[i]=(t[i-(y>0?w:0)]+t[i]+t[i+(y<h-1?w:0)])/3}return o}
 async function pixels(buf){const bmp=await createImageBitmap(new Blob([buf])),w=bmp.width,h=bmp.height,c=new OffscreenCanvas(w,h),g=c.getContext("2d",{willReadFrequently:true});g.drawImage(bmp,0,0);return{bmp,w,h,a:g.getImageData(0,0,w,h).data}}
-async function radarField(buf,tol){const{bmp,w,h,a}=await pixels(buf),n=w*h;let cov=new Float32Array(n),val=new Float32Array(n),op=0,hit=0;
-  for(let i=0,k=0;k<n;i+=4,k++){if(a[i+3]<128)continue;op++;const v=toDbz(a[i],a[i+1],a[i+2],tol);if(v>-900)hit++;if(v>=10){cov[k]=1;val[k]=v}}
+/* ground clutter: NOAA's quality-controlled radar (MRMS) has clutter, beams bent into hills, birds and bugs
+   removed. Echoes in our radar image only count where NOAA's cleaned radar also sees something nearby. */
+async function qcMask(qc,w,h,reach){try{const p=await pixels(qc);if(p.w!==w||p.h!==h)return null;const n=w*h,on=new Uint8Array(n);
+    for(let k=0,i=3;k<n;k++,i+=4)if(p.a[i]>0)on[k]=1;
+    // reach out a few km: NOAA's copy runs several minutes behind, and storms move
+    const r=Math.max(1,Math.round(reach)),t=new Uint8Array(n),o=new Uint8Array(n);
+    for(let y=0;y<h;y++){let last=-1e9;for(let x=0;x<w;x++){if(on[y*w+x])last=x;if(x-last<=r)t[y*w+x]=1}last=1e9;for(let x=w-1;x>=0;x--){if(on[y*w+x])last=x;if(last-x<=r)t[y*w+x]=1}}
+    for(let x=0;x<w;x++){let last=-1e9;for(let y=0;y<h;y++){if(t[y*w+x])last=y;if(y-last<=r)o[y*w+x]=1}last=1e9;for(let y=h-1;y>=0;y--){if(t[y*w+x])last=y;if(last-y<=r)o[y*w+x]=1}}
+    return o}catch(e){return null}}
+async function radarField(buf,tol,qc,reach){const{bmp,w,h,a}=await pixels(buf),n=w*h;let cov=new Float32Array(n),val=new Float32Array(n),op=0,hit=0;
+  const mask=qc?await qcMask(qc,w,h,reach):null;
+  for(let i=0,k=0;k<n;i+=4,k++){if(a[i+3]<128)continue;op++;const v=toDbz(a[i],a[i+1],a[i+2],tol);if(v>-900)hit++;if(v>=10&&(!mask||mask[k])){cov[k]=1;val[k]=v}}
   if(op>150&&hit<op*.5)return{raw:bmp,w,h};
   for(let k=0;k<n;k++)val[k]*=cov[k];for(let p=0;p<2;p++){cov=blur(cov,w,h);val=blur(val,w,h)}return{w,h,cov,val}}
 async function ptField(buf){const{w,h,a}=await pixels(buf),n=w*h;let cov=[0,1,2,3].map(()=>new Float32Array(n)),val=new Float32Array(n),any=false;
@@ -549,7 +559,7 @@ async function tile(F,d,ox,oy){const S=512,n=1<<d,sz=F.w/n,sx=ox*sz,sy=oy*sz,c=n
   if(!any)return null;g.putImageData(img,0,0);return(await c.convertToBlob({type:"image/png"})).arrayBuffer()}
 onmessage=async e=>{const m=e.data;if(m.init){init(m.init);return}
   try{let F=fields.get(m.url);
-    if(!F&&m.buf){F=await (m.kind==="pt"?ptField(m.buf):radarField(m.buf,m.tol||1200));fields.set(m.url,F);if(fields.size>30)fields.delete(fields.keys().next().value)}
+    if(!F&&m.buf){F=await (m.kind==="pt"?ptField(m.buf):radarField(m.buf,m.tol||1200,m.qc,m.reach));fields.set(m.url,F);if(fields.size>30)fields.delete(fields.keys().next().value)}
     if(!F){postMessage({id:m.id,miss:true});return}
     if(F.empty){postMessage({id:m.id,data:null});return}
     const data=await tile(F,m.d,m.ox,m.oy);postMessage({id:m.id,data},data?[data]:[])}
@@ -1541,10 +1551,28 @@ function wxWorker(){if(WXW!==undefined)return WXW;WXW=null;
     WXW=pool}catch(e){WXW=null}return WXW}
 const wxHash=u=>{let h=0;for(let i=0;i<u.length;i++)h=(h*31+u.charCodeAt(i))|0;return Math.abs(h)};
 const wxCall=(m,tr)=>new Promise(res=>{const id=++wxSeq;wxPend.set(id,res);WXW[wxHash(m.url)%WXW.length].postMessage({...m,id},tr||[])});
+// NOAA's quality-controlled radar mosaic (MRMS), used only to tell real echoes from ground clutter
+const QC_SVC="https://mapservices.weather.noaa.gov/eventdriven/rest/services/radar/radar_base_reflectivity_time/ImageServer";
+let qcInfo=null;
+function qcTimes(){if(!qcInfo||Date.now()-qcInfo.at>4*6e4)qcInfo={at:Date.now(),p:fetch(QC_SVC+"?f=pjson").then(r=>r.json()).then(j=>j.timeInfo.timeExtent).catch(()=>null)};return qcInfo.p}
+const qcMemo=new Map();
+async function qcTile(z,x,y,t){const te=await qcTimes();if(!te||t<te[0]-6e5)return null;
+  const R=20037508.342789244,s=2*R/Math.pow(2,z),tq=Math.min(t,te[1]),bbox=`${-R+x*s},${R-(y+1)*s},${-R+(x+1)*s},${R-y*s}`,k=`${z}/${x}/${y}@${tq}`;
+  if(!qcMemo.has(k)){qcMemo.set(k,qcFetch(bbox,tq));if(qcMemo.size>120)qcMemo.delete(qcMemo.keys().next().value)}
+  const q=await qcMemo.get(k);return q&&{buf:q.slice(0),lag:t-tq}}
+async function qcFetch(bbox,tq){
+  try{const r=await fetch(`${QC_SVC}/exportImage?bbox=${bbox}&bboxSR=3857&imageSR=3857&size=256,256&format=png32&time=${tq}&f=image`);if(!r.ok)return null;
+    const ct=r.headers.get("content-type")||"";if(!ct.startsWith("image/"))return null;return await r.arrayBuffer()}catch(e){return null}}
 async function wxTile(kind,url,tol,d,ox,oy){
   let r=await wxCall({kind,url,tol,d,ox,oy});
   if(r.miss){let p=wxFetch.get(url);if(!p){p=fetch(via(url)).then(x=>{if(!x.ok)throw new Error("HTTP "+x.status);return x.arrayBuffer()});wxFetch.set(url,p);p.then(()=>setTimeout(()=>wxFetch.delete(url),3e4),()=>wxFetch.delete(url))}
-    let buf;try{buf=await p}catch(e){return null}r=await wxCall({kind,url,tol,d,ox,oy,buf:buf.slice(0)})}
+    const mm=kind==="radar"&&S.qc!==false&&/nexrad-n0q-900913(?:-m(\d\d)m)?\/(\d+)\/(\d+)\/(\d+)\.png\?(\d+)/.exec(url);
+    let qc=null,reach=0;
+    const qp=mm?qcTile(+mm[2],+mm[3],+mm[4],+mm[5]-(+mm[1]||0)*6e4):null;
+    let buf;try{buf=await p}catch(e){return null}
+    if(qp){const q=await qp;if(q){qc=q.buf;const z=+mm[2],lat=Math.atan(Math.sinh(Math.PI*(1-2*(+mm[4]+.5)/Math.pow(2,z))))*180/Math.PI,pxKm=40075*Math.cos(lat*Math.PI/180)/Math.pow(2,z)/256;
+      reach=(4+Math.max(0,q.lag)/6e4*0.8)/pxKm}}  // ~4 km, plus how far a storm could move while NOAA's copy catches up
+    r=await wxCall({kind,url,tol,d,ox,oy,buf:buf.slice(0),qc,reach},qc?[qc]:[])}
   return r.data||null}
 let EMPTY_TILE=null;
 function emptyTile(){if(!EMPTY_TILE)EMPTY_TILE=new Promise(r=>{const c=document.createElement("canvas");c.width=c.height=1;c.toBlob(b=>b.arrayBuffer().then(r),"image/png")});return EMPTY_TILE}
