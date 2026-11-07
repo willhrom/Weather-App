@@ -1554,14 +1554,19 @@ const wxCall=(m,tr)=>new Promise(res=>{const id=++wxSeq;wxPend.set(id,res);WXW[w
 // NOAA's quality-controlled radar mosaic (MRMS), used only to tell real echoes from ground clutter
 const QC_SVC="https://mapservices.weather.noaa.gov/eventdriven/rest/services/radar/radar_base_reflectivity_time/ImageServer";
 let qcInfo=null;
-function qcTimes(){if(!qcInfo||Date.now()-qcInfo.at>4*6e4)qcInfo={at:Date.now(),p:fetch(QC_SVC+"?f=pjson").then(r=>r.json()).then(j=>j.timeInfo.timeExtent).catch(()=>null)};return qcInfo.p}
+// NOAA's service must never hold up the radar: every request has a short time limit, and after a
+// failure the filter is skipped for a few minutes
+const tfetch=(u,ms)=>{const c=new AbortController(),t=setTimeout(()=>c.abort(),ms);return fetch(u,{signal:c.signal}).finally(()=>clearTimeout(t))};
+let qcDownUntil=0;
+function qcTimes(){if(Date.now()<qcDownUntil)return Promise.resolve(null);
+  if(!qcInfo||Date.now()-qcInfo.at>4*6e4)qcInfo={at:Date.now(),p:tfetch(QC_SVC+"?f=pjson",4000).then(r=>r.json()).then(j=>j.timeInfo.timeExtent).catch(()=>{qcDownUntil=Date.now()+5*6e4;qcInfo=null;return null})};return qcInfo?qcInfo.p:Promise.resolve(null)}
 const qcMemo=new Map();
 async function qcTile(z,x,y,t){const te=await qcTimes();if(!te||t<te[0]-6e5)return null;
   const R=20037508.342789244,s=2*R/Math.pow(2,z),tq=Math.min(t,te[1]),bbox=`${-R+x*s},${R-(y+1)*s},${-R+(x+1)*s},${R-y*s}`,k=`${z}/${x}/${y}@${tq}`;
   if(!qcMemo.has(k)){qcMemo.set(k,qcFetch(bbox,tq));if(qcMemo.size>120)qcMemo.delete(qcMemo.keys().next().value)}
   const q=await qcMemo.get(k);return q&&{buf:q.slice(0),lag:t-tq}}
 async function qcFetch(bbox,tq){
-  try{const r=await fetch(`${QC_SVC}/exportImage?bbox=${bbox}&bboxSR=3857&imageSR=3857&size=256,256&format=png32&time=${tq}&f=image`);if(!r.ok)return null;
+  try{const r=await tfetch(`${QC_SVC}/exportImage?bbox=${bbox}&bboxSR=3857&imageSR=3857&size=256,256&format=png32&time=${tq}&f=image`,5000);if(!r.ok)return null;
     const ct=r.headers.get("content-type")||"";if(!ct.startsWith("image/"))return null;return await r.arrayBuffer()}catch(e){return null}}
 async function wxTile(kind,url,tol,d,ox,oy){
   let r=await wxCall({kind,url,tol,d,ox,oy});
@@ -1570,7 +1575,7 @@ async function wxTile(kind,url,tol,d,ox,oy){
     let qc=null,reach=0;
     const qp=mm?qcTile(+mm[2],+mm[3],+mm[4],+mm[5]-(+mm[1]||0)*6e4):null;
     let buf;try{buf=await p}catch(e){return null}
-    if(qp){const q=await qp;if(q){qc=q.buf;const z=+mm[2],lat=Math.atan(Math.sinh(Math.PI*(1-2*(+mm[4]+.5)/Math.pow(2,z))))*180/Math.PI,pxKm=40075*Math.cos(lat*Math.PI/180)/Math.pow(2,z)/256;
+    if(qp){const q=await Promise.race([qp,new Promise(res=>setTimeout(()=>res(null),3500))]);if(q){qc=q.buf;const z=+mm[2],lat=Math.atan(Math.sinh(Math.PI*(1-2*(+mm[4]+.5)/Math.pow(2,z))))*180/Math.PI,pxKm=40075*Math.cos(lat*Math.PI/180)/Math.pow(2,z)/256;
       reach=(4+Math.max(0,q.lag)/6e4*0.8)/pxKm}}  // ~4 km, plus how far a storm could move while NOAA's copy catches up
     r=await wxCall({kind,url,tol,d,ox,oy,buf:buf.slice(0),qc,reach},qc?[qc]:[])}
   return r.data||null}
