@@ -1022,7 +1022,16 @@ async function clarityGrid(){
   const r=await fetch(`https://willhrom-weather-gtg.pages.dev/clarity/kd.png?d=${m.date}`);const bmp=await createImageBitmap(await r.blob(),{premultiplyAlpha:"none",colorSpaceConversion:"none"});
   const c=document.createElement("canvas");c.width=bmp.width;c.height=bmp.height;const g=c.getContext("2d",{willReadFrequently:true});g.drawImage(bmp,0,0);
   CLAR={t:Date.now(),m,w:bmp.width,h:bmp.height,d:g.getImageData(0,0,bmp.width,bmp.height).data};return CLAR}
+// freshest reading first: our relay asks the satellite feeds for this exact spot (about a day behind when skies are clear)
 async function clarityAt(lat,lon,maxDeg=.25){
+  try{const c=new AbortController(),t=setTimeout(()=>c.abort(),9000);
+    const r=await fetch(`${NDBC_API.replace("/ndbc","/clarity")}?lat=${lat.toFixed(3)}&lon=${lon.toFixed(3)}`,{signal:c.signal});clearTimeout(t);
+    if(r.ok){const j=await r.json();if(j&&j.kd>0&&j.km<=maxDeg*111){const age=Math.max(0,Math.round((Date.now()+off*1000-Date.parse(j.date+"T12:00:00Z"))/864e5));
+      const g=await clarityGridAt(lat,lon,maxDeg).catch(()=>null);
+      // the daily composite can occasionally be newer (other satellites): use whichever reading is more recent
+      if(!g||g.age>=age)return{kd:j.kd,age,km:j.km,src:j.source}}}}catch(e){}
+  return clarityGridAt(lat,lon,maxDeg)}
+async function clarityGridAt(lat,lon,maxDeg=.25){
   const C=await clarityGrid(),m=C.m,i0=Math.round((m.lat0-lat)/m.step),j0=Math.round((lon-m.lon0)/m.step),R=Math.ceil(maxDeg/m.step);
   let best=null,bd=1e9;
   for(let di=-R;di<=R;di++)for(let dj=-R;dj<=R;dj++){const i=i0+di,j=j0+dj;if(i<0||j<0||i>=C.h||j>=C.w)continue;const k=(i*C.w+j)*4;if(!C.d[k+2])continue;

@@ -3,9 +3,9 @@
 Water clarity (Kd490) composite for US coastal waters, for the app's underwater-visibility estimate.
 
 Sources (newest reading wins, per pixel, over the last 7 days):
-  - NASA Aqua MODIS K490, near real time, 4 km, daily (usually ~1 day behind)   [CoastWatch West Coast ERDDAP]
-  - NOAA S-NPP VIIRS Kd490, near real time, 4 km, daily                          [CoastWatch West Coast ERDDAP]
   - NOAA-20 / NOAA-21 VIIRS Kd490, near real time, 750 m, daily                  [CoastWatch central ERDDAP]
+The app first asks /api/clarity (functions/api/clarity.js) for the freshest single-spot reading, including
+Aqua MODIS and S-NPP VIIRS; this composite is the fallback.
 Clouds leave gaps, so each pixel keeps its most recent cloud-free value.
 Falls back to the gap-filled DINEOF product (2 km, ~10 days behind) where nothing recent exists.
 
@@ -22,9 +22,9 @@ OUT = os.path.join(sys.argv[1] if len(sys.argv) > 1 else "dist", "clarity")
 LAT = (24.0, 50.0); LON = (-126.0, -66.0)
 STEP = 0.03                       # output grid (~3 km)
 # (server, dataset, variable, has altitude dim, stride for ~3 km)
-NRT = [(W, "erdMH1kd4901day_R2022NRT", "k490", False, 1),
-       (W, "nesdisVHNkd490Daily", "kd_490", True, 1),
-       (E, "noaacwN20VIIRSkd490NSWUSDaily", "kd_490", True, 4),
+# (the West Coast ERDDAP's fresher MODIS/VIIRS feeds refuse GitHub's build machines, so the app asks them
+#  per spot through /api/clarity instead; this composite is the fallback)
+NRT = [(E, "noaacwN20VIIRSkd490NSWUSDaily", "kd_490", True, 4),
        (E, "noaacwN21VIIRSkd490NSWUSDaily", "kd_490", True, 4)]
 GAPFILL = "noaacwNPPN20S3AkdSCIDINEOF2kmDaily"
 S = requests.Session(); S.headers["User-Agent"] = "WeatherApp/1.0 (personal weather app)"
