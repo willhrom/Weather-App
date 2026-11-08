@@ -112,6 +112,15 @@ body.mapopen .tabbar{display:none}
 .today h4{display:flex;align-items:center;justify-content:space-between;margin:6px 0 4px;font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--faint)}
 .today h4 b{font-family:var(--mono);font-size:11.5px;letter-spacing:0;text-transform:none;font-weight:500;color:var(--water);padding:2px 7px;border-radius:6px;background:rgba(76,201,240,.12)}
 .today h4 b.dry{color:var(--muted);background:rgba(255,255,255,.06)}
+.bchips{display:flex;gap:6px;margin:2px 0 10px;flex-wrap:wrap}.bchips .chip{cursor:pointer}
+.bwin{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:8px;padding:8px 0;border-top:1px solid var(--line)}
+.bwin b{font-size:14.5px;font-weight:700;color:var(--text)}.bwin small{display:block;color:var(--faint);font-size:12px;margin-top:2px}
+.bscore{font:700 13px/1 'JetBrains Mono',monospace;padding:6px 8px;border-radius:8px;background:rgba(61,220,151,.14);color:#3ddc97}
+.bgrid{display:grid;grid-template-columns:34px minmax(0,1fr);gap:4px 8px;align-items:center;margin-top:10px;font-size:11px;color:var(--faint)}
+.bstrip{display:grid;grid-template-columns:repeat(24,1fr);gap:1px;height:14px}.bstrip i{border-radius:2px;background:rgba(255,255,255,.06)}
+.bticks{display:flex;justify-content:space-between;font:500 10px 'JetBrains Mono',monospace;color:var(--faint);grid-column:2}
+.sshero{display:flex;align-items:center;gap:14px;margin-bottom:6px}.ssscore{font:700 30px/1 'JetBrains Mono',monospace;color:var(--text)}
+.sshero .lab{font-size:15px;font-weight:700;color:var(--text)}.sshero small{display:block;color:var(--faint);font-size:12.5px;margin-top:3px;line-height:1.35}
 .trow{display:grid;grid-template-columns:50px minmax(0,1fr);gap:8px;padding:6px 0;border-top:1px solid var(--line);font-size:13px;line-height:1.4;color:var(--muted)}
 .trow small{font-size:10.5px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--faint);padding-top:3px}
 .trow b{color:var(--text);font-weight:600}
@@ -455,6 +464,7 @@ details.afd[open]>summary::after{content:"–"}
     </div>
   </div>
   <div class="panel"><div class="ph">Next 24 hours<span class="r" id="hrsNote"></span></div><div class="pb" id="hours"></div></div>
+  <div class="panel"><div class="ph">Best time<span class="r" id="bestNote">next 3 days</span></div><div class="pb" id="best"><div class="err">Loading…</div></div></div>
   <div class="panel"><div class="ph">Rainfall<span class="r" id="rainUnit"></span></div><div class="pb" id="rain"><div class="err">Loading…</div></div></div>
   <div class="panel"><div class="ph">Rain season<span class="r">since Oct 1</span></div><div class="pb" id="season"><div class="err">Loading…</div></div></div>
   <div class="panel"><div class="ph">Wind</div><div class="pb" id="wind"><div class="err">Loading…</div></div></div>
@@ -465,6 +475,7 @@ details.afd[open]>summary::after{content:"–"}
   <div class="panel"><div class="ph">10-day<span class="r">tap a day for details</span></div><div class="pb"><div id="daily"></div></div></div>
   </section>
   <section class="tab" data-tab="sky">
+  <div class="panel"><div class="ph">Sunset &amp; night sky<span class="r" id="ssNote"></span></div><div class="pb" id="sunsetq"><div class="err">Loading…</div></div></div>
   <div class="panel"><div class="ph">Sky now<span class="r" id="skyNote">right now · heights AGL</span></div>
     <div class="pb"><div class="skywrap"><canvas id="skyCv"></canvas></div><div id="skyInfo"><div class="err">Loading the sky…</div></div></div></div>
   <div class="panel" id="aptPanel" style="display:none"><div class="ph">Nearest airport<span class="r" id="aptDist"></span></div><div class="pb" id="apt"></div></div>
@@ -682,7 +693,7 @@ async function load(){
 }
 /* Each tab's data loads when that tab is first opened (per place/refresh); the visible tab goes first,
    light extras for the others are fetched once the app is idle. Keeps start-up fast on a phone. */
-const TABJOBS={now:[renderNow,renderHours,renderRain,renderWind,renderMoon,renderMap,renderAlerts,renderAirport],days:[renderDaily,renderAFD],sky:[renderAirport,renderAFD],
+const TABJOBS={now:[renderNow,renderHours,renderBest,renderRain,renderWind,renderMoon,renderMap,renderAlerts,renderAirport],days:[renderDaily,renderAFD],sky:[renderSunsetQ,renderAirport,renderAFD],
   tides:[renderTide,renderCurrents,renderWaves,renderWater,renderAFD]},IDLEJOBS=[renderSeason,renderDaily,renderAFD,renderAirport,renderTide];
 let jobsDone=new Set(),jobGen=0;
 function runJob(f){if(jobsDone.has(f))return;jobsDone.add(f);const t0=performance.now(),rec=[Math.round(t0),f.name,0,null];DIAG.jobs.push(rec);DIAG.cur=f.name;
@@ -825,6 +836,8 @@ function renderToday(){
   const ms=merged.slice(0,3);
   const low1=t=>/^(Skies|Clouds|Fog|Rain|Drizzle|Snow|Showers|Thunderstorms|A) /.test(t)?t[0].toLowerCase()+t.slice(1):t;
   let ol=ms.length===1?single(ms[0])+".":`${SUBJ[ms[0].k][0]} ${change(ms[0],ms[1])}`+(ms[2]?`, and ${low1(later(ms[1],ms[2]))}`:"")+".";
+  // fog / marine layer timing, when the sky story above doesn't already cover it
+  {const fs=fogSentence();if(fs&&!/fog|marine/i.test(ol))ol+=" "+fs}
   const hTxt=t=>{const h=new Date(Math.round(t/36e5)*36e5).getUTCHours();return h===0?"midnight":h===12?"noon":`${h%12} ${h<12?"AM":"PM"}`};
   const isNight=t=>{const hr=new Date(t).getUTCHours();return hr>=20||hr<4};
   if(pmax>=30){const pk=PP.indexOf(pmax),a=amt>=wet()?Math.round(amt*(S.rain==="in"?10:1))/(S.rain==="in"?10:1):0,amtTxt=a>0?`, with about ${a} ${S.rain==="in"?(a===1?"inch":"inches"):"mm"} expected`:"";
@@ -1390,6 +1403,91 @@ function moonSVG(p,f,south){const r=42,c=48,wax=p<.5,gib=f>.5,rx=Math.abs(1-2*f)
   const d=wax?`M${c} ${c-r}A${r} ${r} 0 0 1 ${c} ${c+r}A${rx} ${r} 0 0 ${gib?1:0} ${c} ${c-r}z`:`M${c} ${c-r}A${r} ${r} 0 0 0 ${c} ${c+r}A${rx} ${r} 0 0 ${gib?0:1} ${c} ${c-r}z`;
   return `<svg viewBox="0 0 96 96"${south?' style="transform:scaleX(-1)"':""}><circle cx="${c}" cy="${c}" r="${r}" fill="#141a22" stroke="#2a3f5c"/><path d="${d}" fill="#dfe4ea"/>${[[38,36,6],[58,46,4.5],[44,62,7],[62,66,3.5]].map(k=>`<circle cx="${k[0]}" cy="${k[1]}" r="${k[2]}" fill="#000" opacity=".07"/>`).join("")}</svg>`}
 function nextPhase(tg){let t=Date.now(),prev=moonIllum(t).phase;for(let k=1;k<24*32;k++){const ms=t+k*36e5,p=moonIllum(ms).phase;if(tg===.5&&prev<.5&&p>=.5)return ms;if(tg===0&&prev>.9&&p<.1)return ms;prev=p}return null}
+/* ---------- shared helpers for the planning features ---------- */
+const toF=v=>S.temp==="C"?v*9/5+32:v,toMph=v=>S.wind==="kmh"?v/1.609:S.wind==="kn"?v*1.151:v;
+const dayLbl=t=>{const d=Math.round((dayStart(t)-dayStart(nowWall()))/864e5);return d===0?"Today":d===1?"Tomorrow":["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"][new Date(t).getUTCDay()]};
+const hTxt12=t=>{const h=new Date(Math.round(t/36e5)*36e5).getUTCHours();return h===0?"midnight":h===12?"noon":`${h%12} ${h<12?"AM":"PM"}`};
+// sun height above the horizon (degrees) at a UTC time — NOAA's short formula, good to a fraction of a degree
+function sunAlt(lat,lon,ms){const d=ms/864e5-10957.5,g=(357.529+.98560028*d)*Math.PI/180,q=280.459+.98564736*d,L=(q+1.915*Math.sin(g)+.02*Math.sin(2*g))*Math.PI/180,
+  e=(23.439-3.6e-7*d)*Math.PI/180,ra=Math.atan2(Math.cos(e)*Math.sin(L),Math.cos(L)),dec=Math.asin(Math.sin(e)*Math.sin(L)),
+  gm=(18.697374558+24.06570982441908*d)%24*15,ha=(gm+lon)*Math.PI/180-ra,la=lat*Math.PI/180;
+  return Math.asin(Math.sin(la)*Math.sin(dec)+Math.cos(la)*Math.cos(dec)*Math.cos(ha))*180/Math.PI}
+// when the sun crosses a given height, searching forward from a UTC time (minute steps)
+function sunCross(lat,lon,from,alt,dir,hours=20){let prev=sunAlt(lat,lon,from);for(let t=from+6e4;t<from+hours*36e5;t+=6e4){const a=sunAlt(lat,lon,t);if(dir<0?(prev>=alt&&a<alt):(prev<=alt&&a>alt))return t;prev=a}return null}
+
+/* ---------- fog and marine layer ---------- */
+// hours that are fog or a low marine-layer deck (not rain clouds)
+function grayHour(i){const h=W.hourly,c=h.weather_code[i];if(c===45||c===48)return 2;
+  const lo=h.cloud_cover_low[i]||0,mid=h.cloud_cover_mid[i]||0,vis=h.visibility?h.visibility[i]:null,rh=h.relative_humidity_2m[i]||0,wet=(h.precipitation[i]||0)>0.02;
+  if(wet)return 0;if(vis!=null&&vis<1600&&rh>=90)return 2;return lo>=70&&mid<60?1:0}
+function fogSentence(){try{const i0=hourIndex(),n=Math.min(W.hourly.time.length,i0+24),g=[];for(let i=i0;i<n;i++)g.push(grayHour(i));
+    const at=k=>hTxt12(wall(W.hourly.time[i0+k])),name=seg=>seg.some(v=>v===2)?"Fog":"The marine layer";
+    // a stretch only counts once it lasts two hours
+    const end=k0=>{for(let k=k0;k<g.length-1;k++)if(!g[k]&&!g[k+1])return k;return -1},start=k0=>{for(let k=k0;k<g.length-1;k++)if(g[k]&&g[k+1])return k;return -1};
+    if(g[0]){const e=end(0);if(e===0)return "";const w=name(g.slice(0,Math.max(1,e)));if(e<0)return `${w} lingers through tomorrow.`;const r=start(e);
+      return `${w} clears around ${at(e)}${r>0&&r<20?` and returns around ${at(r)}`:""}.`}
+    const s0=start(1);if(s0<0||s0>18)return "";const e=end(s0),w=name(g.slice(s0,e>0?e:g.length));
+    return `${w==="Fog"?"Fog":"The marine layer"} moves in around ${at(s0)}${e>0?` and clears around ${at(e)}`:""}.`}catch(e){return ""}}
+
+/* ---------- sunset quality and night sky ---------- */
+function renderSunsetQ(){const el=$("#sunsetq");if(!el||!W)return;try{
+  const h=W.hourly,now=nowWall(),lat=place.lat,lon=place.lon,nowU=now-off*1000;
+  let ssU=sunCross(lat,lon,nowU-30*6e4,-.833,-1,30);if(!ssU){el.innerHTML='<div class="err">No sunset today at this latitude.</div>';return}
+  const ss=ssU+off*1000,iAt=t=>{let k=0;while(k+1<h.time.length&&wall(h.time[k+1])<=t)k++;return k},k=iAt(ss);
+  const hi=h.cloud_cover_high[k]||0,mid=h.cloud_cover_mid[k]||0,lo=h.cloud_cover_low[k]||0,pp=h.precipitation_probability[k]||0;
+  // clouds high up catch the color; low clouds block the sun at the horizon
+  // thin high cloud lights up even when it covers most of the sky; thick mid cloud less so
+  const canvas=Math.min(1,(.6*hi+.8*mid)/100),shape=1-Math.min(1,Math.abs(canvas-.55)*1.6),block=1-.9*Math.max(0,(lo-20)/80);
+  let sc=(.25+.75*shape)*block;if(hi+mid<10&&lo<20)sc=.42;if(pp>=60)sc*=.5;
+  // rain clearing out just before sunset often lights up
+  const was=(h.precipitation[Math.max(0,k-3)]||0)+(h.precipitation[Math.max(0,k-2)]||0);if(was>0&&lo<50&&pp<40)sc=Math.min(1,sc+.2);
+  const score=Math.max(1,Math.round(sc*10)),lab=score>=8?"Spectacular":score>=6?"Good":score>=4?"Fair":"Poor",col=score>=8?"#ff9f43":score>=6?"#ffd54a":score>=4?"#9fb2c8":"#7d8ea3";
+  const why=hi+mid<10&&lo<20?"Clear skies: a clean glow, but no clouds to light up":lo>=70?"Low clouds are likely to block the sun near the horizon":
+    canvas>=.25&&lo<40?"High and mid clouds to catch the color, with a clear view under them":canvas>.85?"A thick cloud deck may mute the color":"Some clouds to catch the color";
+  const gU=sunCross(lat,lon,ssU-3*36e5,6,-1,4),bU=sunCross(lat,lon,ssU,-6,-1,3),ft=u=>u?fTime(u+off*1000):"—";
+  // night sky: cloud cover from 9 PM to 3 AM, and how much the moon lights things up
+  const n0=iAt(dayStart(ss)+21*36e5);let cc=0,nn=0;for(let i=n0;i<Math.min(h.time.length,n0+7);i++){cc+=h.cloud_cover[i]||0;nn++}cc=nn?cc/nn:100;
+  const M=moonIllum(ssU+4*36e5),ill=M.fraction,st=(1-cc/100)*(1-.6*ill),
+    stLab=cc>=75?"Poor":st>=.65?"Excellent":st>=.45?"Good":st>=.25?"Fair":"Poor",stWhy=cc>=75?"mostly cloudy":`${cc<20?"clear":cc<50?"partly cloudy":"mostly cloudy"}, ${ill>.75?"bright moon":ill>.35?"some moonlight":"dark sky"}`;
+  $("#ssNote").textContent=dayLbl(ss)==="Today"?"tonight":dayLbl(ss).toLowerCase();
+  const row=(k,v)=>`<div class="trow"><small>${k}</small><span>${v}</span></div>`;
+  el.innerHTML=`<div class="sshero"><div class="ssscore" style="color:${col}">${score}<span style="font-size:15px;color:var(--faint)">/10</span></div><div><div class="lab">${lab} sunset at ${fTime(ss)}</div><small>${why}.</small></div></div>`+
+    row("Gold",`Golden hour <b>${ft(gU)} – ${fTime(ss)}</b>`)+row("Blue",`Blue hour <b>${fTime(ss)} – ${ft(bU)}</b>`)+
+    row("Stars",`<b>${stLab}</b> for stargazing tonight · ${stWhy}`)+
+    `<div class="tfoot" style="margin-top:6px;font-size:11px;color:var(--faint)">Clouds at sunset: high ${Math.round(hi)}% · mid ${Math.round(mid)}% · low ${Math.round(lo)}%</div>`}
+  catch(e){el.innerHTML='<div class="err">Sunset outlook unavailable.</div>';console.error(e)}}
+
+/* ---------- best time finder ---------- */
+const ACTS={
+  outdoors:{n:"Outdoors",day:true,f:(t,p,w,c,uv)=>sc([[p,20,60],[Math.abs(t-70),12,28],[w,12,25]])},
+  run:{n:"Run",day:true,f:(t,p,w,c,uv)=>sc([[p,15,50],[Math.abs(t-55),10,25],[w,10,20],[uv,6,9]])},
+  beach:{n:"Beach",day:true,f:(t,p,w,c,uv)=>sc([[p,10,40],[Math.max(0,72-t),4,14],[w,10,18],[c,35,85]])},
+  fly:{n:"Flying",day:true,f:(t,p,w,c,uv,i)=>{const g=grayHour(i),vis=W.hourly.visibility?W.hourly.visibility[i]/1609:10,gust=toMph(W.hourly.wind_gusts_10m[i]||0)*.869;
+    return g?.1:sc([[p,15,50],[Math.max(0,8-vis),2,5],[gust,15,25],[W.hourly.cloud_cover_low[i]||0,45,80]])}},
+};
+// each factor: [value, fine up to, unusable at] -> 1..0, combined as the weakest link
+function sc(fs){let m=1;for(const [v,a,b] of fs)m=Math.min(m,v<=a?1:v>=b?0:1-(v-a)/(b-a));return m}
+function renderBest(){const el=$("#best");if(!el||!W)return;try{
+  const act=ACTS[S.best]?S.best:"outdoors",A=ACTS[act],h=W.hourly,i0=hourIndex(),n=Math.min(h.time.length,i0+72),sc_=[];
+  for(let i=i0;i<n;i++){const day=h.is_day[i]===1;if(A.day&&!day){sc_.push(null);continue}
+    sc_.push(A.f(toF(h.temperature_2m[i]),h.precipitation_probability[i]||0,toMph(h.wind_speed_10m[i]||0),h.cloud_cover[i]||0,h.uv_index?h.uv_index[i]||0:0,i))}
+  // windows: runs of 2+ hours scoring 0.7 or better, best average first
+  const wins=[];for(let k=0;k<sc_.length;){if(sc_[k]!=null&&sc_[k]>=.7){let e=k;while(e+1<sc_.length&&sc_[e+1]!=null&&sc_[e+1]>=.7)e++;
+      if(e>k){const seg=sc_.slice(k,e+1);wins.push({a:k,b:e,avg:seg.reduce((x,y)=>x+y,0)/seg.length})}k=e+1}else k++}
+  wins.sort((x,y)=>y.avg-x.avg||x.a-y.a);wins.splice(3);wins.sort((x,y)=>x.a-y.a); // best three, shown in time order
+  const T=k=>wall(h.time[i0+k]),dayName=t=>dayLbl(t),why=k=>{const i=i0+k,t=Math.round(h.temperature_2m[i]),w=Math.round(h.wind_speed_10m[i]),p=h.precipitation_probability[i]||0;
+    return `${t}° · wind ${w} ${U.wl()} · ${p<10?"dry":p+"% rain"}`};
+  const chips=Object.entries(ACTS).map(([k,v])=>`<button class="chip${k===act?" on":""}" data-best="${k}">${v.n}</button>`).join("");
+  const list=wins.slice(0,3).map(w=>`<div class="bwin"><div><b>${dayName(T(w.a))} ${hTxt12(T(w.a))} – ${hTxt12(T(w.b)+36e5)}</b><small>${why(Math.round((w.a+w.b)/2))}</small></div><span class="bscore">${Math.round(w.avg*10)}/10</span></div>`).join("")
+    ||`<div class="bwin"><div><b>No great windows in the next 3 days</b><small>Conditions stay marginal for ${A.n.toLowerCase()}.</small></div></div>`;
+  // three day strips, midnight to midnight
+  const colr=v=>v==null?"rgba(255,255,255,.04)":v>=.85?"#3ddc97":v>=.7?"#7fdc9e":v>=.45?"#ffd54a":"rgba(255,138,61,.75)";
+  let strips="";const d0=dayStart(T(0));for(let d=0;d<3;d++){let cells="";for(let hr=0;hr<24;hr++){const t=d0+d*864e5+hr*36e5,k=Math.round((t-T(0))/36e5);cells+=`<i style="background:${k>=0&&k<sc_.length?colr(sc_[k]):"rgba(255,255,255,.04)"}"></i>`}
+    strips+=`<span>${dayLbl(d0+d*864e5+12*36e5).replace("Tomorrow","Tmrw").slice(0,5)}</span><div class="bstrip">${cells}</div>`}
+  el.innerHTML=`<div class="bchips">${chips}</div>${list}<div class="bgrid">${strips}<div class="bticks"><span>12a</span><span>6a</span><span>noon</span><span>6p</span><span>12a</span></div></div>`;
+  el.querySelectorAll("[data-best]").forEach(b=>b.onclick=()=>{S.best=b.dataset.best;savePlaces();renderBest()})}
+  catch(e){el.innerHTML='<div class="err">Best-time finder unavailable.</div>';console.error(e)}}
+
 function renderMoon(){
   const M=moonIllum(Date.now()),wMid=dayStart(nowWall()),T=moonTimes(wMid-off*1000,place.lat,place.lon),aw=h=>h==null?"—":fTime(wMid+h*36e5);
   const full=nextPhase(.5),nw=nextPhase(0),md=ms=>ms?fMD(ms+off*1000):"—";
