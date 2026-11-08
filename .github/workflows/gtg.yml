@@ -43,11 +43,11 @@ jobs:
         run: |
           set -o pipefail
           python -u gtg/build_gtg.py dist 2>&1 | tee build.log
-      - name: Water clarity (once a day; otherwise reuse the published copy)
+      - name: Water clarity (every ~6 hours; otherwise reuse the published copy)
         if: steps.build.outputs.skip != '1'
         run: |
           mkdir -p dist/clarity; B=https://willhrom-weather-gtg.pages.dev/clarity
-          if curl -sf "$B/clarity.json" -o dist/clarity/clarity.json && grep -q "\"date\": \"$(date -u +%F)\"" dist/clarity/clarity.json && curl -sf "$B/kd.png" -o dist/clarity/kd.png; then echo "reused today's clarity"
+          if curl -sf "$B/clarity.json" -o dist/clarity/clarity.json && python3 -c "import json,sys,datetime as d;g=json.load(open('dist/clarity/clarity.json')).get('generated','');sys.exit(0 if g and (d.datetime.now(d.timezone.utc)-d.datetime.fromisoformat(g.replace('Z','+00:00'))).total_seconds()<6*3600 else 1)" && curl -sf "$B/kd.png" -o dist/clarity/kd.png; then echo "reused recent clarity"
           else python -u gtg/build_clarity.py dist || (curl -sf "$B/kd.png" -o dist/clarity/kd.png && curl -sf "$B/clarity.json" -o dist/clarity/clarity.json) || echo "no clarity this run"; fi
           ls -la dist/clarity
       - name: Headers
