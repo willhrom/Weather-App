@@ -112,13 +112,20 @@ body.mapopen .tabbar{display:none}
 .today h4{display:flex;align-items:center;justify-content:space-between;margin:6px 0 4px;font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--faint)}
 .today h4 b{font-family:var(--mono);font-size:11.5px;letter-spacing:0;text-transform:none;font-weight:500;color:var(--water);padding:2px 7px;border-radius:6px;background:rgba(76,201,240,.12)}
 .today h4 b.dry{color:var(--muted);background:rgba(255,255,255,.06)}
-.bchips{display:flex;gap:6px;margin:2px 0 10px;flex-wrap:wrap}.bchips .chip{cursor:pointer}
-.bwin{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:8px;padding:8px 0;border-top:1px solid var(--line)}
-.bwin b{font-size:14.5px;font-weight:700;color:var(--text)}.bwin small{display:block;color:var(--faint);font-size:12px;margin-top:2px}
-.bscore{font:700 13px/1 'JetBrains Mono',monospace;padding:6px 8px;border-radius:8px;background:rgba(61,220,151,.14);color:#3ddc97}
-.bgrid{display:grid;grid-template-columns:34px minmax(0,1fr);gap:4px 8px;align-items:center;margin-top:10px;font-size:11px;color:var(--faint)}
-.bstrip{display:grid;grid-template-columns:repeat(24,1fr);gap:1px;height:14px}.bstrip i{border-radius:2px;background:rgba(255,255,255,.06)}
-.bticks{display:flex;justify-content:space-between;font:500 10px 'JetBrains Mono',monospace;color:var(--faint);grid-column:2}
+.bseg{display:flex;background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:2px;margin:2px 0 12px}
+.bseg button{flex:1;padding:7px 0;border-radius:8px;font-size:12.5px;font-weight:500;color:var(--muted)}
+.bseg button.on{background:var(--line2);color:var(--text);font-weight:600}
+.bhero{display:flex;align-items:center;gap:12px;padding:2px 0 10px}
+.bhero .bt{flex:1;min-width:0}.bhero b{display:block;font-size:17px;font-weight:700;color:var(--text);letter-spacing:-.01em}
+.bhero small{display:block;color:var(--faint);font-size:12.5px;margin-top:3px}
+.bscore{font:700 13px/1 'JetBrains Mono',monospace;padding:7px 9px;border-radius:9px;background:rgba(61,220,151,.13);color:#3ddc97;flex:none}
+.balbl{font-size:10.5px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--faint);padding:8px 0 2px;border-top:1px solid var(--line)}
+.balbl+.balt{border-top:0}
+.balt{display:flex;justify-content:space-between;gap:8px;padding:7px 0;border-top:1px solid var(--line);font-size:13px;color:var(--muted)}
+.balt span:last-child{font:600 12px 'JetBrains Mono',monospace;color:var(--faint)}
+.bgrid{display:grid;grid-template-columns:38px minmax(0,1fr);gap:5px 8px;align-items:center;margin-top:10px;padding-top:10px;border-top:1px solid var(--line);font-size:11px;color:var(--faint)}
+.bstrip{display:grid;grid-template-columns:repeat(24,1fr);gap:2px;height:8px}.bstrip i{border-radius:2px;background:rgba(255,255,255,.05)}
+.bticks{display:flex;justify-content:space-between;font:500 10px 'JetBrains Mono',monospace;color:var(--faint);grid-column:2;margin-top:1px}
 .sshero{display:flex;align-items:center;gap:14px;margin-bottom:6px}.ssscore{font:700 30px/1 'JetBrains Mono',monospace;color:var(--text)}
 .sshero .lab{font-size:15px;font-weight:700;color:var(--text)}.sshero small{display:block;color:var(--faint);font-size:12.5px;margin-top:3px;line-height:1.35}
 .trow{display:grid;grid-template-columns:50px minmax(0,1fr);gap:8px;padding:6px 0;border-top:1px solid var(--line);font-size:13px;line-height:1.4;color:var(--muted)}
@@ -448,6 +455,7 @@ details.afd[open]>summary::after{content:"–"}
     <div class="today" id="today"></div>
     <div class="readouts" id="readouts"></div>
   </div>
+  <div class="panel"><div class="ph">Best time<span class="r" id="bestNote">next 3 days</span></div><div class="pb" id="best"><div class="err">Loading…</div></div></div>
   <div class="panel" id="mapPanel">
     <div class="ph">Radar &amp; layers<span class="r" id="mapSrc"></span></div>
     <div class="mapwrap" id="mapHome">
@@ -464,7 +472,6 @@ details.afd[open]>summary::after{content:"–"}
     </div>
   </div>
   <div class="panel"><div class="ph">Next 24 hours<span class="r" id="hrsNote"></span></div><div class="pb" id="hours"></div></div>
-  <div class="panel"><div class="ph">Best time<span class="r" id="bestNote">next 3 days</span></div><div class="pb" id="best"><div class="err">Loading…</div></div></div>
   <div class="panel"><div class="ph">Rainfall<span class="r" id="rainUnit"></span></div><div class="pb" id="rain"><div class="err">Loading…</div></div></div>
   <div class="panel"><div class="ph">Rain season<span class="r">since Oct 1</span></div><div class="pb" id="season"><div class="err">Loading…</div></div></div>
   <div class="panel"><div class="ph">Wind</div><div class="pb" id="wind"><div class="err">Loading…</div></div></div>
@@ -1477,14 +1484,16 @@ function renderBest(){const el=$("#best");if(!el||!W)return;try{
   wins.sort((x,y)=>y.avg-x.avg||x.a-y.a);wins.splice(3);wins.sort((x,y)=>x.a-y.a); // best three, shown in time order
   const T=k=>wall(h.time[i0+k]),dayName=t=>dayLbl(t),why=k=>{const i=i0+k,t=Math.round(h.temperature_2m[i]),w=Math.round(h.wind_speed_10m[i]),p=h.precipitation_probability[i]||0;
     return `${t}° · wind ${w} ${U.wl()} · ${p<10?"dry":p+"% rain"}`};
-  const chips=Object.entries(ACTS).map(([k,v])=>`<button class="chip${k===act?" on":""}" data-best="${k}">${v.n}</button>`).join("");
-  const list=wins.slice(0,3).map(w=>`<div class="bwin"><div><b>${dayName(T(w.a))} ${hTxt12(T(w.a))} – ${hTxt12(T(w.b)+36e5)}</b><small>${why(Math.round((w.a+w.b)/2))}</small></div><span class="bscore">${Math.round(w.avg*10)}/10</span></div>`).join("")
-    ||`<div class="bwin"><div><b>No great windows in the next 3 days</b><small>Conditions stay marginal for ${A.n.toLowerCase()}.</small></div></div>`;
+  const chips=`<div class="bseg">${Object.entries(ACTS).map(([k,v])=>`<button class="${k===act?"on":""}" data-best="${k}">${v.n}</button>`).join("")}</div>`;
+  const span=w=>`${dayName(T(w.a))} ${hTxt12(T(w.a))} – ${hTxt12(T(w.b)+36e5)}`,top=wins.slice().sort((x,y)=>y.avg-x.avg||x.a-y.a)[0];
+  const list=top?`<div class="bhero"><div class="bt"><b>${span(top)}</b><small>${why(Math.round((top.a+top.b)/2))}</small></div><span class="bscore">${Math.round(top.avg*10)}/10</span></div>`+
+      (wins.length>1?`<div class="balbl">Also good</div>`:"")+wins.filter(w=>w!==top).map(w=>`<div class="balt"><span>${span(w)}</span><span>${Math.round(w.avg*10)}/10</span></div>`).join("")
+    :`<div class="bhero"><div class="bt"><b>No great windows soon</b><small>Conditions stay marginal for ${A.n.toLowerCase()} over the next 3 days.</small></div></div>`;
   // three day strips, midnight to midnight
   const colr=v=>v==null?"rgba(255,255,255,.04)":v>=.85?"#3ddc97":v>=.7?"#7fdc9e":v>=.45?"#ffd54a":"rgba(255,138,61,.75)";
   let strips="";const d0=dayStart(T(0));for(let d=0;d<3;d++){let cells="";for(let hr=0;hr<24;hr++){const t=d0+d*864e5+hr*36e5,k=Math.round((t-T(0))/36e5);cells+=`<i style="background:${k>=0&&k<sc_.length?colr(sc_[k]):"rgba(255,255,255,.04)"}"></i>`}
-    strips+=`<span>${dayLbl(d0+d*864e5+12*36e5).replace("Tomorrow","Tmrw").slice(0,5)}</span><div class="bstrip">${cells}</div>`}
-  el.innerHTML=`<div class="bchips">${chips}</div>${list}<div class="bgrid">${strips}<div class="bticks"><span>12a</span><span>6a</span><span>noon</span><span>6p</span><span>12a</span></div></div>`;
+    strips+=`<span>${d===0?"Today":d===1?"Tmrw":dayLbl(d0+d*864e5+12*36e5).slice(0,3)}</span><div class="bstrip">${cells}</div>`}
+  el.innerHTML=`${chips}${list}<div class="bgrid">${strips}<div class="bticks"><span>12a</span><span>6a</span><span>12p</span><span>6p</span><span>12a</span></div></div>`;
   el.querySelectorAll("[data-best]").forEach(b=>b.onclick=()=>{S.best=b.dataset.best;savePlaces();renderBest()})}
   catch(e){el.innerHTML='<div class="err">Best-time finder unavailable.</div>';console.error(e)}}
 
