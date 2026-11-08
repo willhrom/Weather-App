@@ -46,7 +46,7 @@ export async function onRequestGet({ request, waitUntil }) {
   const u = new URL(request.url), lat = +u.searchParams.get("lat"), lon = +u.searchParams.get("lon");
   if (!(Math.abs(lat) <= 90 && Math.abs(lon) <= 180)) return new Response("bad lat/lon", { status: 400 });
   const rl = (Math.round(lat * 20) / 20).toFixed(2), rn = (Math.round(lon * 20) / 20).toFixed(2);
-  const cache = caches.default, key = new Request(`https://clarity.cache/v1/${rl}/${rn}`);
+  const cache = caches.default, key = new Request(`https://clarity.cache/v2/${rl}/${rn}`);
   const dbg = u.searchParams.has("debug") ? [] : null;
   const hit = dbg ? null : await cache.match(key);
   if (hit) return hit;
