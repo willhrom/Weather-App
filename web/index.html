@@ -129,6 +129,18 @@ body.mapopen .tabbar{display:none}
 .balbl+.balt{border-top:0}
 .balt{display:flex;justify-content:space-between;gap:8px;padding:7px 0;border-top:1px solid var(--line);font-size:13px;color:var(--muted)}
 .balt span:last-child{font:600 12px 'JetBrains Mono',monospace;color:var(--faint)}
+.bkick{display:block;font-size:10.5px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--faint);margin-bottom:3px}
+.bdays{display:grid;gap:9px}
+.bday{display:grid;grid-template-columns:62px minmax(0,1fr) 92px;align-items:center;gap:10px}
+.bday .bd{font-size:13px;font-weight:600;color:var(--muted)}.bday.pick .bd{color:var(--text)}
+.bday-bar{position:relative;height:10px;border-radius:6px;background:rgba(255,255,255,.05)}
+.bday-bar i{position:absolute;top:0;bottom:0;border-radius:6px}
+.bday-bar b{position:absolute;top:-4px;bottom:-4px;border:2px solid rgba(255,255,255,.9);border-radius:8px}
+.bday .bw{font:600 12.5px/1.2 'Inter Tight',sans-serif;color:var(--text);text-align:right;white-space:nowrap}
+.bday .bw em{display:block;font:600 10.5px 'JetBrains Mono',monospace;font-style:normal;color:#3ddc97;margin-top:2px}.bday .bw .dim{color:var(--faint);font:500 11.5px 'Inter Tight',sans-serif}
+.bday.scale{margin-top:-4px}.bscale{position:relative;height:13px;font:500 10px 'JetBrains Mono',monospace;color:var(--faint)}
+.bscale span{position:absolute;transform:translateX(-50%);top:0}.bscale span:last-child{transform:translateX(-100%)}
+.bkey .ol{width:12px;height:8px;border:2px solid rgba(255,255,255,.9);border-radius:3px;background:none;box-sizing:border-box}
 .bchartw{margin-top:10px;padding-top:12px;border-top:1px solid var(--line)}.bchart{width:100%;height:76px;display:block;overflow:visible}
 .bkey{display:flex;gap:12px;font-size:11px;color:var(--faint);margin-top:6px}.bkey i{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:5px;vertical-align:0}
 .bgrid{display:grid;grid-template-columns:38px minmax(0,1fr);gap:5px 8px;align-items:center;margin-top:10px;padding-top:10px;border-top:1px solid var(--line);font-size:11px;color:var(--faint)}
@@ -1494,30 +1506,30 @@ function actScore(A,i){return Math.min(...A.facs(HX(i),i).map(fscore))}
 function renderBest(){const el=$("#best");if(!el||!W)return;try{
   const act=ACTS[S.best]?S.best:"outdoors",A=ACTS[act],h=W.hourly,i0=hourIndex(),n=Math.min(h.time.length,i0+72),sc_=[];
   for(let i=i0;i<n;i++){if(h.is_day[i]!==1){sc_.push(null);continue}sc_.push(actScore(A,i))}
-  // windows: runs of 2+ hours scoring 0.7 or better, best average first
+  // windows: runs of 2+ hours scoring 0.7 or better
   const wins=[];for(let k=0;k<sc_.length;){if(sc_[k]!=null&&sc_[k]>=.7){let e=k;while(e+1<sc_.length&&sc_[e+1]!=null&&sc_[e+1]>=.7)e++;
       if(e>k){const seg=sc_.slice(k,e+1);wins.push({a:k,b:e,avg:seg.reduce((x,y)=>x+y,0)/seg.length})}k=e+1}else k++}
-  wins.sort((x,y)=>y.avg-x.avg||x.a-y.a);wins.splice(3);wins.sort((x,y)=>x.a-y.a); // best three, shown in time order
   const T=k=>wall(h.time[i0+k]),dayName=t=>dayLbl(t),why=k=>{const i=i0+k,t=Math.round(h.temperature_2m[i]),w=Math.round(h.wind_speed_10m[i]),p=h.precipitation_probability[i]||0;
     return `${t}° · wind ${w} ${U.wl()} · ${p<10?"dry":p+"% rain"}`};
   const chips=`<div class="bseg">${Object.entries(ACTS).map(([k,v])=>`<button class="${k===act?"on":""}" data-best="${k}">${v.n}</button>`).join("")}</div>`;
-  const span=w=>`${dayName(T(w.a))} ${hTxt12(T(w.a))} – ${hTxt12(T(w.b)+36e5)}`,top=wins.slice().sort((x,y)=>y.avg-x.avg||x.a-y.a)[0];
-  const list=top?`<div class="bhero"><div class="bt"><b>${span(top)}</b><small>${why(Math.round((top.a+top.b)/2))}</small></div><span class="bscore">${Math.round(top.avg*10)}/10</span></div>`+
-      (wins.length>1?`<div class="balbl">Also good</div>`:"")+wins.filter(w=>w!==top).map(w=>`<div class="balt"><span>${span(w)}</span><span>${Math.round(w.avg*10)}/10</span></div>`).join("")
-    :`<div class="bhero"><div class="bt"><b>No great windows soon</b><small>Conditions stay marginal for ${A.n.toLowerCase()} over the next 3 days.</small></div></div>`;
-  // a smooth "how good" line over the next three days: night shaded, the best windows highlighted
-  const Wd=320,Hh=70,top0=13,bot=Hh-14,N=sc_.length,X=k=>k/(N-1)*Wd,Y=v=>bot-(bot-top0)*v;
-  let shade="",days="",path="",area="",run=[];
-  const flush=()=>{if(run.length>1){const d=run.map((p,j)=>`${j?"L":"M"}${p[0].toFixed(1)},${p[1].toFixed(1)}`).join("");path+=`<path d="${d}" fill="none" stroke="url(#bg)" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"/>`;
-      area+=`<path d="${d}L${run[run.length-1][0].toFixed(1)},${bot}L${run[0][0].toFixed(1)},${bot}Z" fill="url(#ba)"/>`}run=[]};
-  for(let k=0;k<N;k++){if(sc_[k]==null){flush();continue}run.push([X(k),Y(sc_[k])])}flush();
-  // nights: a faint dotted baseline; the top pick: a soft marker above its stretch
-  for(let k=0;k<N;k++)if(sc_[k]==null){let e=k;while(e+1<N&&sc_[e+1]==null)e++;shade+=`<line x1="${X(Math.max(0,k-1))}" x2="${X(Math.min(N-1,e+1))}" y1="${bot}" y2="${bot}" stroke="rgba(255,255,255,.14)" stroke-dasharray="2 4"/>`;k=e}
-  if(top)shade+=`<line x1="${X(top.a)}" x2="${X(top.b)}" y1="${top0-4}" y2="${top0-4}" stroke="#3ddc97" stroke-width="3" stroke-linecap="round" opacity=".9"/>`;
-  for(let d=0;d<4;d++){
-    const mid=dayStart(T(0))+d*864e5+13*36e5,km=(mid-T(0))/36e5;if(km>=0&&km<N)days+=`<text x="${Math.min(Wd-14,Math.max(14,X(km)))}" y="${Hh-1}" text-anchor="middle" fill="var(--faint)" font-size="9.5" font-family="Inter Tight,sans-serif" font-weight="600">${d===0?"Today":d===1?"Tomorrow":dayLbl(mid)}</text>`}
-  const chart=`<svg class="bchart" viewBox="0 0 ${Wd} ${Hh}" preserveAspectRatio="none"><defs><linearGradient id="bg" x1="0" x2="0" y1="${top0}" y2="${bot}" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#3ddc97"/><stop offset=".45" stop-color="#ffd54a"/><stop offset="1" stop-color="#ff8a3d"/></linearGradient>
-    <linearGradient id="ba" x1="0" x2="0" y1="${top0}" y2="${bot}" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="rgba(61,220,151,.18)"/><stop offset="1" stop-color="rgba(61,220,151,0)"/></linearGradient></defs>${shade}${days}${area}${path}</svg>`;
+  const span=w=>`${dayName(T(w.a))} ${hTxt12(T(w.a))} – ${hTxt12(T(w.b)+36e5)}`,times=w=>`${hTxt12(T(w.a))} – ${hTxt12(T(w.b)+36e5)}`;
+  // the pick: the soonest window that's about as good as the best one
+  const bestAvg=wins.reduce((m,w)=>Math.max(m,w.avg),0),top=wins.filter(w=>w.avg>=bestAvg-.06).sort((x,y)=>x.a-y.a)[0];
+  const list=top?`<div class="bhero"><div class="bt"><span class="bkick">Next good time</span><b>${span(top)}</b><small>${why(Math.round((top.a+top.b)/2))}</small></div><span class="bscore">${Math.round(top.avg*10)}/10</span></div>`
+    :`<div class="bhero"><div class="bt"><span class="bkick">Next good time</span><b>Nothing great in the next 3 days</b><small>Conditions stay marginal for ${A.n.toLowerCase()}.</small></div></div>`;
+  // one row per day: daylight drawn as a smooth bar (5 AM to 9 PM), colored by how good each hour is,
+  // with that day's best stretch outlined
+  const H0=5,H1=21,pct=hr=>(hr-H0)/(H1-H0)*100,colr=v=>v>=.85?"#3ddc97":v>=.7?"#8be0a6":v>=.45?"#ffd54a":"#ff8a3d";
+  const d0=dayStart(T(0));let rows="";
+  for(let d=0;d<3;d++){const base=d0+d*864e5,stops=[];let first=null,last=null;
+    for(let hr=H0;hr<=H1;hr++){const k=Math.round((base+hr*36e5-T(0))/36e5),v=k>=0&&k<sc_.length?sc_[k]:null;
+      if(v==null)continue;if(first==null)first=hr;last=hr;stops.push(`${colr(v)} ${pct(hr+.5).toFixed(1)}%`)}
+    const dw=wins.filter(w=>dayStart(T(w.a))===base).sort((x,y)=>y.avg-x.avg||x.a-y.a)[0];
+    const bar=first==null?`<div class="bday-bar empty"></div>`:`<div class="bday-bar"><i style="left:${pct(first)}%;right:${100-pct(last+1)}%;background:linear-gradient(90deg,${stops.length>1?stops.join(","):stops[0]+","+stops[0]})"></i>${dw?`<b style="left:${pct(new Date(T(dw.a)).getUTCHours())}%;right:${100-pct(new Date(T(dw.b)).getUTCHours()+1)}%"></b>`:""}</div>`;
+    const lbl=d===0?"Today":d===1?"Tomorrow":dayLbl(base+12*36e5);
+    rows+=`<div class="bday${dw&&dw===top?" pick":""}"><span class="bd">${lbl}</span>${bar}<span class="bw">${dw?`${times(dw)}<em>${Math.round(dw.avg*10)}/10</em>`:`<span class="dim">${first==null?"after dark":"no good window"}</span>`}</span></div>`}
+  const scale=`<div class="bday scale"><span></span><div class="bscale">${[[6,"6a"],[9,"9a"],[12,"noon"],[15,"3p"],[18,"6p"],[21,"9p"]].map(([hr,l])=>`<span style="left:${pct(hr)}%">${l}</span>`).join("")}</div><span></span></div>`;
+  const chart=`<div class="bdays">${rows}${scale}</div><div class="bkey"><span><i style="background:#3ddc97"></i>great</span><span><i style="background:#ffd54a"></i>okay</span><span><i style="background:#ff8a3d"></i>poor</span><span><i class="ol"></i>best stretch</span></div>`;
   // why: each condition across the top window (its worst hour), against what's ideal
   let info="";if(top){const hrs=[];for(let k=top.a;k<=top.b;k++)hrs.push(i0+k);
     const rows=A.facs(HX(hrs[0]),hrs[0]).map((f,j)=>{let worst=hrs[0],ws=2;for(const i of hrs){const v=fscore(A.facs(HX(i),i)[j]);if(v<ws){ws=v;worst=i}}
@@ -1526,7 +1538,7 @@ function renderBest(){const el=$("#best");if(!el||!W)return;try{
       <div class="brow bh"><span></span><span>Condition</span><span>Worst hour</span><span>Ideal</span></div>${rows}
       <div class="bitxt dim">Each hour is scored by its weakest condition, so one poor condition lowers the whole hour. Daylight hours only.</div></div>`}
   $("#bestInfoBtn").style.display=top?"":"none";
-  el.innerHTML=`${chips}${list}${info}<div class="bchartw">${chart}<div class="bkey"><span><i style="background:#3ddc97"></i>great</span><span><i style="background:#ffd54a"></i>okay</span><span><i style="background:#ff8a3d"></i>poor</span><span><i style="background:#3ddc97;height:3px;vertical-align:2px;width:12px"></i>best window</span></div></div>`;
+  el.innerHTML=`${chips}${list}${info}<div class="bchartw">${chart}</div>`;
   el.querySelectorAll("[data-best]").forEach(b=>b.onclick=()=>{S.best=b.dataset.best;savePlaces();renderBest()});
   const ib=$("#bestInfoBtn");ib.classList.toggle("on",!!S.bestInfo);ib.onclick=()=>{S.bestInfo=!S.bestInfo;savePlaces();renderBest()}}
   catch(e){el.innerHTML='<div class="err">Best-time finder unavailable.</div>';console.error(e)}}
