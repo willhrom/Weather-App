@@ -642,7 +642,9 @@ let place=null,W=null,off=0,loading=false,lastLoad=0,ALERTS=[];
 
 function toast(m){const t=$("#toast");t.textContent=m;t.classList.add("on");clearTimeout(toast.t);toast.t=setTimeout(()=>t.classList.remove("on"),2600)}
 const esc=s=>String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
-const via=u=>NATIVE?location.origin+"/proxy?u="+encodeURIComponent(u):u;
+// in the Android app most outside requests go through its built-in relay, which only knows a fixed list of
+// sites; our own Cloudflare data sites allow direct requests, so they skip it (no app update needed)
+const via=u=>NATIVE&&!/^https:\/\/willhrom-weather-[a-z]+\.pages\.dev\//.test(u)?location.origin+"/proxy?u="+encodeURIComponent(u):u;
 async function getRaw(url,timeout=15000){const ctl=new AbortController(),t=setTimeout(()=>ctl.abort(),timeout),t0=performance.now(),rec=[Math.round(t0),0,"…",url.replace(/^https?:\/\//,"").replace(/[?#].*$/,"").slice(0,70)];DIAG.net.push(rec);
   try{const r=await fetch(via(url),{signal:ctl.signal});rec[2]=r.status;if(!r.ok)throw new Error("HTTP "+r.status);return r}catch(e){if(rec[2]==="…")rec[2]=e.name==="AbortError"?"timeout":"failed";throw e}finally{rec[1]=Math.round(performance.now()-t0);clearTimeout(t)}}
 const getJSON=(u,t)=>getRaw(u,t).then(r=>r.json());
