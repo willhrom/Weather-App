@@ -45,6 +45,14 @@ export async function onRequestGet({ request, waitUntil }) {
   const hit = dbg ? null : await cache.match(key);
   if (hit) return hit;
   const got = (await Promise.all(SRC.map(s => one(s, +rl, +rn, dbg).catch(e => { if (dbg) dbg.push(s.name + " " + e); return null; })))).filter(Boolean);
+  if (dbg && u.searchParams.get("debug") === "info") {
+    for (const [nm, url] of [["modis", "https://coastwatch.pfeg.noaa.gov/erddap/info/erdMH1kd4901day_R2022NRT/index.json"],
+                             ["central", "https://coastwatch.noaa.gov/erddap/search/index.json?searchFor=kd490&itemsPerPage=400&page=1"]]) {
+      try { const j = await (await tget(url, 20000)).json(); const c = j.table.columnNames, rows = j.table.rows;
+        dbg.push(nm + ": " + JSON.stringify(nm === "modis" ? rows.filter(r => r[0] !== "attribute").map(r => r[1]) : rows.map(r => [r[c.indexOf("Dataset ID")], r[c.indexOf("Title")].slice(0, 70)]).filter(r => /daily/i.test(r[1]))));
+      } catch (e) { dbg.push(nm + " err " + e); }
+    }
+  }
   if (dbg) return new Response(JSON.stringify({ got, dbg }, null, 1), { headers: { "content-type": "application/json" } });
   // newest day wins; on the same day prefer the sharper (750 m) sensor, then the closer reading
   got.sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : a.res - b.res || a.km - b.km));
