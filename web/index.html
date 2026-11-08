@@ -585,6 +585,23 @@ async function radarField(buf,tol,qc,reach){const{bmp,w,h,a}=await pixels(buf),n
 async function ptField(buf){const{w,h,a}=await pixels(buf),n=w*h;let cov=[0,1,2,3].map(()=>new Float32Array(n)),val=new Float32Array(n),any=false;
   for(let i=0,k=0;k<n;i+=4,k++){if(a[i+3]<128)continue;const e=PTM.get(a[i]<<16|a[i+1]<<8|a[i+2]);if(!e)continue;cov[e[0]][k]=1;val[k]=e[1];any=true}
   if(!any)return{empty:true};for(let p=0;p<2;p++){cov=cov.map(c=>blur(c,w,h));val=blur(val,w,h)}return{w,h,cov,val,pt:1}}
+/* model ocean tiles hold numbers, not colours: R = (dBZ+20)*3, G = cloud % * 2.55, B = how much to show */
+async function modelField(buf){const{w,h,a}=await pixels(buf),n=w*h,dbz=new Float32Array(n),cl=new Float32Array(n),wt=new Float32Array(n);
+  for(let i=0,k=0;k<n;i+=4,k++){dbz[k]=a[i]/3-20;cl[k]=a[i+1]/255;wt[k]=a[i+2]/255}return{w,h,dbz,cl,wt,model:1}}
+async function modelTile(F,d,ox,oy,f){const S=512,n=1<<d,sz=(F.w-2)/n,sx=1+ox*sz,sy=1+oy*sz,c=new OffscreenCanvas(S,S),g=c.getContext("2d");
+  const img=g.createImageData(S,S),o=img.data,W0=F.w,H0=F.h,st=sz/S,rain=f.includes("r"),cloud=f.includes("c");let any=false;
+  for(let yy=0;yy<S;yy++){const fy=Math.min(H0-1.001,Math.max(0,sy+(yy+.5)*st-.5)),y0=fy|0,ty=fy-y0,r0=y0*W0,r1=Math.min(H0-1,y0+1)*W0;
+    for(let xx=0;xx<S;xx++){const fx=Math.min(W0-1.001,Math.max(0,sx+(xx+.5)*st-.5)),x0=fx|0,tx=fx-x0,x1=Math.min(W0-1,x0+1),w00=(1-tx)*(1-ty),w10=tx*(1-ty),w01=(1-tx)*ty,w11=tx*ty;
+      const at=A=>A[r0+x0]*w00+A[r0+x1]*w10+A[r1+x0]*w01+A[r1+x1]*w11,wt=at(F.wt);if(wt<.01)continue;
+      let r=0,gg=0,b=0,al=0;
+      // clouds: soft white sheet, thin cover barely there, overcast fairly solid
+      // clouds: a soft veil. Thin cover is barely there; overcast is brighter and denser but never hides the map
+      if(cloud){const cv=at(F.cl),t=Math.max(0,Math.min(1,(cv-.2)/.8)),e=t*t*(3-2*t),ca=(.1+.32*e)*e*wt;if(ca>.005){const sh=175+70*e;r=gg=sh;b=sh+8;al=ca}}
+      // rain on top, in the radar colours
+      if(rain){const v=at(F.dbz);if(v>=8){const bb=BAND[Math.max(0,Math.min(80,Math.round(Math.max(v,10))))];if(bb){const ra=bb[3]*Math.min(1,(v-8)/4)*wt;
+        const oa=ra+al*(1-ra);if(oa>0){r=(bb[0]*ra+r*al*(1-ra))/oa;gg=(bb[1]*ra+gg*al*(1-ra))/oa;b=(bb[2]*ra+b*al*(1-ra))/oa;al=oa}}}}
+      if(al<.01)continue;const i=(yy*S+xx)*4;o[i]=r;o[i+1]=gg;o[i+2]=Math.min(255,b);o[i+3]=Math.round(255*al);any=true}}
+  if(!any)return null;g.putImageData(img,0,0);return(await c.convertToBlob({type:"image/png"})).arrayBuffer()}
 const ptColor=(t,v)=>{let c=null;for(const b of PTC[t])if(v>=b[0]-5)c=b[1];return c};
 async function tile(F,d,ox,oy){const S=512,n=1<<d,sz=F.w/n,sx=ox*sz,sy=oy*sz,c=new OffscreenCanvas(S,S),g=c.getContext("2d");
   if(F.raw){g.imageSmoothingQuality="high";g.drawImage(F.raw,sx,sy,sz,sz,0,0,S,S);return(await c.convertToBlob({type:"image/png"})).arrayBuffer()}
@@ -601,10 +618,10 @@ async function tile(F,d,ox,oy){const S=512,n=1<<d,sz=F.w/n,sx=ox*sz,sy=oy*sz,c=n
   if(!any)return null;g.putImageData(img,0,0);return(await c.convertToBlob({type:"image/png"})).arrayBuffer()}
 onmessage=async e=>{const m=e.data;if(m.init){init(m.init);return}
   try{let F=fields.get(m.url);
-    if(!F&&m.buf){F=await (m.kind==="pt"?ptField(m.buf):radarField(m.buf,m.tol||1200,m.qc,m.reach));fields.set(m.url,F);if(fields.size>30)fields.delete(fields.keys().next().value)}
+    if(!F&&m.buf){F=await (m.kind==="pt"?ptField(m.buf):m.kind==="model"?modelField(m.buf):radarField(m.buf,m.tol||1200,m.qc,m.reach));fields.set(m.url,F);if(fields.size>30)fields.delete(fields.keys().next().value)}
     if(!F){postMessage({id:m.id,miss:true});return}
     if(F.empty){postMessage({id:m.id,data:null});return}
-    const data=await tile(F,m.d,m.ox,m.oy);postMessage({id:m.id,data},data?[data]:[])}
+    const data=F.model?await modelTile(F,m.d,m.ox,m.oy,m.f||"rc"):await tile(F,m.d,m.ox,m.oy);postMessage({id:m.id,data},data?[data]:[])}
   catch(err){postMessage({id:m.id,data:null,err:String(err)})}};
 </script>
 <script async onload="window.mlLoaded&&mlLoaded()" src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js" integrity="sha384-SYKAG6cglRMN0RVvhNeBY0r3FYKNOJtznwA0v7B5Vp9tr31xAHsZC0DqkQ/pZDmj" crossorigin="anonymous"></script>
@@ -617,7 +634,7 @@ const store={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.
 const DEFAULT={id:"sf",name:"San Francisco",sub:"California",lat:37.7749,lon:-122.4194};
 let WXN={},wxnT=0;
 let S=Object.assign({temp:"F",wind:"mph",rain:"in",gps:true,nRain:true,nAlerts:true},store.get("wx.settings",{}));
-let L=Object.assign({radar:true,ocean:true,future:false,turb:false,ir:false,vis:false,wv:false,ptype:false,lightning:false,smoke:false,fires:false,fireout:false,mrms:"",alerts:true,metar:false,gairmet:false,sigmet:false,cwa:false,pirep:false},store.get("wx.layers",{}));
+let L=Object.assign({radar:true,ocean:true,oclouds:true,future:false,turb:false,ir:false,vis:false,wv:false,ptype:false,lightning:false,smoke:false,fires:false,fireout:false,mrms:"",alerts:true,metar:false,gairmet:false,sigmet:false,cwa:false,pirep:false},store.get("wx.layers",{}));
 let places=store.get("wx.places",[]);
 let sel=store.get("wx.sel",S.gps?"gps":(places[0]?places[0].id:"sf"));
 let gpsPlace=store.get("wx.gpsPlace",null);
@@ -1646,7 +1663,8 @@ function dayDetail(j){
 /* ---------- map ---------- */
 const LAYERS=[
  {g:"Weather",k:"radar",n:"Radar loop",s:"Past hour + 3-hour forecast",c:"linear-gradient(135deg,#04e9e7,#02fd02,#fdf802,#fd0000)"},
- {g:"Weather",k:"ocean",n:"Ocean rain · model",s:"GFS forecast model where radar can't reach (Pacific)",c:"linear-gradient(135deg,#04e9e7,#02fd02,#fdf802,#fd0000)"},
+ {g:"Weather",k:"ocean",n:"Ocean rain · model",s:"GFS model, drawn where radar can't reach (Pacific)",c:"linear-gradient(135deg,#04e9e7,#02fd02,#fdf802,#fd0000)"},
+ {g:"Weather",k:"oclouds",n:"Ocean clouds · model",s:"GFS cloud cover over the open Pacific, follows the timeline",c:"linear-gradient(135deg,#5b6474,#d8dde6)"},
  {g:"Weather",k:"ir",n:"Satellite · infrared",s:"GOES, clouds day & night",c:"linear-gradient(135deg,#222,#ddd)",sat:1},
  {g:"Weather",k:"vis",n:"Satellite · visible",s:"GOES, daylight only",c:"linear-gradient(135deg,#556,#fff)",sat:1},
  {g:"Weather",k:"wv",n:"Satellite · water vapor",s:"GOES mid-level moisture, jet stream & storms",c:"linear-gradient(135deg,#1d2b6b,#3aa0d8,#e8f0ff,#d88a2a)",sat:1},
@@ -1732,8 +1750,8 @@ async function qcTile(z,x,y,t){const te=await qcTimes();if(!te||t<te[0]-6e5)retu
 async function qcFetch(bbox,tq){
   try{const r=await tfetch(`${QC_SVC}/exportImage?bbox=${bbox}&bboxSR=3857&imageSR=3857&size=256,256&format=png32&time=${tq}&f=image`,5000);if(!r.ok)return null;
     const ct=r.headers.get("content-type")||"";if(!ct.startsWith("image/"))return null;return await r.arrayBuffer()}catch(e){return null}}
-async function wxTile(kind,url,tol,d,ox,oy){
-  let r=await wxCall({kind,url,tol,d,ox,oy});
+async function wxTile(kind,url,tol,d,ox,oy,f){
+  let r=await wxCall({kind,url,tol,d,ox,oy,f});
   if(r.miss){let p=wxFetch.get(url);if(!p){p=fetch(via(url)).then(x=>{if(!x.ok)throw new Error("HTTP "+x.status);return x.arrayBuffer()});wxFetch.set(url,p);p.then(()=>setTimeout(()=>wxFetch.delete(url),3e4),()=>wxFetch.delete(url))}
     const mm=kind==="radar"&&S.qc!==false&&/nexrad-n0q-900913(?:-m(\d\d)m)?\/(\d+)\/(\d+)\/(\d+)\.png\?(\d+)/.exec(url);
     let qc=null,reach=0;
@@ -1741,7 +1759,7 @@ async function wxTile(kind,url,tol,d,ox,oy){
     let buf;try{buf=await p}catch(e){return null}
     if(qp){const q=await Promise.race([qp,new Promise(res=>setTimeout(()=>res(null),3500))]);if(q){qc=q.buf;const z=+mm[2],lat=Math.atan(Math.sinh(Math.PI*(1-2*(+mm[4]+.5)/Math.pow(2,z))))*180/Math.PI,pxKm=40075*Math.cos(lat*Math.PI/180)/Math.pow(2,z)/256;
       reach=(4+Math.max(0,q.lag)/6e4*0.8)/pxKm}}  // ~4 km, plus how far a storm could move while NOAA's copy catches up
-    r=await wxCall({kind,url,tol,d,ox,oy,buf:buf.slice(0),qc,reach},qc?[qc]:[])}
+    r=await wxCall({kind,url,tol,d,ox,oy,f,buf:buf.slice(0),qc,reach},qc?[qc]:[])}
   return r.data||null}
 let EMPTY_TILE=null;
 function emptyTile(){if(!EMPTY_TILE)EMPTY_TILE=new Promise(r=>{const c=document.createElement("canvas");c.width=c.height=1;c.toBlob(b=>b.arrayBuffer().then(r),"image/png")});return EMPTY_TILE}
@@ -1762,6 +1780,11 @@ function registerRadar(){
     const m=/^gtg:\/\/(\d+)\/(\d+)\/(\d+)\?k=([^&]+)&ac=([LMH])$/.exec(params.url);
     let d=null;if(m){try{d=await gtgTile(+m[1],+m[2],+m[3],decodeURIComponent(m[4]),m[5])}catch(e){}}
     return{data:d||await emptyTile()}});
+  // ocean model (rain + clouds) drawn on the phone from GFS data tiles; needs the tile workers
+  maplibregl.addProtocol("wxm",async params=>{
+    const m=/^wxm:\/\/(\d+)\/(\d+)\/(\d+)\?(.*)$/.exec(params.url),z=+m[1],x=+m[2],y=+m[3],q=new URLSearchParams(m[4]);
+    const nz=+q.get("nz"),d=Math.max(0,z-nz),px=x>>d,py=y>>d,url=q.get("u").replace("{z}",z-d).replace("{x}",px).replace("{y}",py);
+    let dd=null;if(wxWorker()){try{dd=await wxTile("model",url,0,d,x-px*(1<<d),y-py*(1<<d),q.get("f")||"rc")}catch(e){}}return{data:dd||await emptyTile()}});
   maplibregl.addProtocol("wxr",async params=>{
     const m=/^wxr:\/\/(\d+)\/(\d+)\/(\d+)\?(.*)$/.exec(params.url),z=+m[1],x=+m[2],y=+m[3],q=new URLSearchParams(m[4]);
     const nz=+q.get("nz"),d=Math.max(0,z-nz),px=x>>d,py=y>>d,url=q.get("u").replace("{z}",z-d).replace("{x}",px).replace("{y}",py);
@@ -1867,7 +1890,7 @@ async function applyLayers(force){
     else rmLayer(id)}
   applyExtraLayers(us,bust);
   for(const d of LAYERS.filter(x=>x.k==="mrms")){const id="mrms-"+d.v;if(L.mrms===d.v&&us)raster(id,`https://mesonet.agron.iastate.edu/cache/tile.py/1.0.0/${d.v}-900913/{z}/{x}/{y}.png?${bust}`,{opacity:.75,maxzoom:8,attr:"MRMS via IEM"});else rmLayer(id)}
-  const key=String(us)+L.ocean;
+  const key=String(us)+L.ocean+L.oclouds;
   if(L.radar){if(force||!frames.length||key!==radarKey||Date.now()-radarStamp>4*6e4){radarKey=key;await loadRadar()}}else clearRadar();
   {const an=radarAnchor();for(const f of frames)if(map.getLayer(f.id))map.moveLayer(f.id,an)}
   updateAlertLayer();updateNationalAviation();loadBboxAviation();updateGtg();updateLegend();
@@ -1894,7 +1917,7 @@ async function loadRadar(){
     $("#tls").innerHTML=`<span class="a">−${hl(pastMin)}</span>${hasF?`<i style="left:${pct}%"></i><span class="tnow" style="left:${pct}%">Now</span><span class="z" style="color:#c792ea">+${hl(futMin)}</span>`:`<span class="z tnow" style="transform:none">Now</span>`}`;
     $("#player").style.display="";showFrame(NOWF);tick();
     const gen=++radarGen;setTimeout(()=>{if(gen===radarGen)prefetchFrames(gen)},900);
-    if(L.ocean)attachOcean(gen);
+    if(L.ocean||L.oclouds)attachOcean(gen);
   }catch(e){console.error(e);$("#ftime").textContent="n/a"}
 }
 let NOWF=0,radarGen=0;
@@ -1906,11 +1929,12 @@ async function gfsManifest(){if(gfsMan.v&&Date.now()-gfsMan.t<20*6e4)return gfsM
   const ac=new AbortController(),to=setTimeout(()=>ac.abort(),5000);
   try{const r=await fetch(GFS_HOST+"/manifest.json",{signal:ac.signal,cache:"no-cache"});const j=await r.json();gfsMan={t:Date.now(),v:j};return j}finally{clearTimeout(to)}}
 async function attachOcean(gen){
-  let m;try{m=await gfsManifest()}catch(e){return}if(gen!==radarGen||!m||!m.hours)return;
+  let m;try{m=await gfsManifest()}catch(e){return}if(gen!==radarGen||!m||!m.hours||m.v!==3)return;
   const run=Date.parse(m.run.replace(/Z$/,":00Z"));
   for(const f of frames){let best=null,bd=1e15;for(const h of m.hours){const d=Math.abs(run+h*36e5-f.t);if(d<bd){bd=d;best=h}}
     if(best==null||bd>90*6e4)continue;const fh="f"+String(best).padStart(3,"0");
-    f.ocn={id:"ocn-"+m.cycle+fh,src:smoothRadar(`${GFS_HOST}/${fh}/{z}/{x}/{y}.png?${m.cycle}`,5),opts:{opacity:0,maxzoom:13,bounds:m.bounds,attr:"GFS model (NOAA)"}}}
+    const fl=(L.ocean?"r":"")+(L.oclouds?"c":"");
+    f.ocn={id:"ocn-"+m.cycle+fh+fl,src:`wxm://{z}/{x}/{y}?nz=${m.maxzoom||4}&f=${fl}&u=${encodeURIComponent(`${GFS_HOST}/m/${fh}/{z}/{x}/{y}.png?${m.cycle}`)}`,opts:{opacity:0,maxzoom:13,bounds:m.bounds,attr:"GFS model (NOAA)"}}}
   $("#mapSrc").textContent+=" · ocean: model";showFrame(fi);updateLegend()}
 // keep radar frames just under the other overlays (alerts, aviation, turbulence, lightning…)
 function radarAnchor(){const L2=map.getStyle().layers;for(const l of L2)if(/^(gtg|lightning|fires|fireout|smoke-|ptype|alerts-|sigmet|gairmet|cwa|turb-|metar|pirep)/.test(l.id))return l.id;return beforeLabels()}
@@ -2220,7 +2244,7 @@ function onMapClick(e){
 function updateLegend(){
   const us=isCONUS(place),rows=[];
   if(L.radar)rows.push(`<div class="lg">Light <i style="background:linear-gradient(90deg,${BANDS.map((b,k)=>`${b[1]} ${k/BANDS.length*100}% ${(k+1)/BANDS.length*100}%`).join(",")})"></i>Heavy</div>`);
-  if(L.radar&&L.ocean&&frames.some(f=>f.ocn))rows.push(`<div class="lgn">Open ocean: GFS model, not radar</div>`);
+  if(L.radar&&(L.ocean||L.oclouds)&&frames.some(f=>f.ocn))rows.push(`<div class="lgn">Open ocean: ${L.ocean&&L.oclouds?"rain & clouds":L.ocean?"rain":"clouds"} from the GFS model</div>`);
   extraLegend(us,rows);
   if(us&&L.mrms)rows.push(`<div class="lg">Rain <i style="background:linear-gradient(90deg,#00d0a0,#00a000,#ffff00,#ff9000,#ff0000,#c000c0)"></i>${S.rain==="in"?"→ 4+ in":"→ 100+ mm"}</div>`);
   if(us&&L.turb&&G.man){const t=G.man.times,ti=G.ti,v=Date.parse(t[ti].valid),[l,m,sv,x]=EDR_T[G.ac];

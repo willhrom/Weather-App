@@ -1,19 +1,24 @@
 #!/usr/bin/env python3
 """
-Model rain over the Pacific for the weather app's radar map.
+Model rain and clouds over the Pacific for the weather app's map.
 
-Radar can't see far past the coast, so offshore the app shows NOAA's GFS model instead:
-composite reflectivity (REFC, dBZ) from the newest 0.25-degree run, every hour from the
-run's start to +18 h. Each hour becomes a small set of Web Mercator tiles (z2..z5) over the
-eastern Pacific, coloured with the exact NEXRAD N0Q palette the app already decodes, so the
-phone smooths and colours them exactly like real radar.
+Radar can't see far past the coast and satellite only shows the present, so offshore the app
+draws NOAA's GFS model itself: composite reflectivity (REFC, dBZ) and total cloud cover (TCDC, %)
+from the newest 0.25-degree run, every hour from the run's start to +18 h.
 
-Within ~200 km of the lower-48 coast (where real radar covers it) the model is left blank.
+Each hour becomes a few Web Mercator *data* tiles (z2..z4, 256 px plus a 1 px border so
+neighbouring tiles join without a seam) over the eastern Pacific.
+They hold numbers, not colours:
+  R = reflectivity: (dBZ + 20) * 3, clamped 0..255
+  G = cloud cover:  % * 2.55
+  B = how much of the model to show, 0..255. 0 within ~150 km of the lower-48 coast, where real
+      radar and satellite cover it, fading up to 255 by ~250 km offshore.
+The phone interpolates them smoothly and paints clouds and rain (in the radar colours) itself.
 """
-import io, json, math, os, re, sys, time, datetime as dt
+import json, math, os, sys, time, datetime as dt
 from concurrent.futures import ThreadPoolExecutor
 import numpy as np, requests, pygrib
-from scipy.ndimage import distance_transform_edt
+from scipy.ndimage import distance_transform_edt, gaussian_filter, map_coordinates
 from PIL import Image
 
 BASE = "https://nomads.ncep.noaa.gov/pub/data/nccf/com/gfs/prod/"
@@ -22,17 +27,10 @@ PREV_MANIFEST = os.environ.get("PREV_MANIFEST_URL", "")
 FORCE = os.environ.get("FORCE") == "1"
 HOURS = list(range(0, 19))
 W, E, S_, N = -180.0, -100.0, 8.0, 62.0
-ZOOMS = range(2, 6)
-COAST_KM = 200
-MIN_DBZ = 10
+ZOOMS = range(2, 5)
+FADE_KM = (150, 250)
 S = requests.Session()
 S.headers["User-Agent"] = "WeatherApp-GFS/1.0 (personal weather app)"
-
-HERE = os.path.dirname(os.path.abspath(__file__))
-PAL = re.search(r'N0Q_PAL="([0-9a-f]+)"', open(os.path.join(HERE, "..", "web", "index.html")).read()).group(1)
-PALRGB = np.array([[int(PAL[i * 6:i * 6 + 2], 16), int(PAL[i * 6 + 2:i * 6 + 4], 16), int(PAL[i * 6 + 4:i * 6 + 6], 16)]
-                   for i in range(len(PAL) // 6)], np.uint8)
-
 
 def get(url, **kw):
     for i in range(6):
@@ -92,8 +90,8 @@ def subset(a):
     return a[i0:i1, j0:j1], 90 - i0 * .25, j0 * .25 - 360
 
 
-def coast_mask(land):
-    """True where we hide the model: within COAST_KM of lower-48 land (radar covers it)."""
+def coast_weight(land):
+    """0 near lower-48 land (radar and satellite cover it), rising to 1 a few hundred km offshore."""
     sub, lat0, lon0 = subset(land)
     h, w = sub.shape
     lats = lat0 - np.arange(h) * .25
@@ -102,8 +100,7 @@ def coast_mask(land):
     us = (sub > .5) & (LA <= 49.5) & (LO >= -125.5) & (((LO < -106) & (LA >= 31.3)) | ((LO >= -106) & (LA >= 25.5)))
     # distance on the 0.25-degree grid: rows ~27.8 km apart, columns ~27.8 km * cos(lat) (40N used)
     dist = distance_transform_edt(~us, sampling=(27.8, 27.8 * math.cos(math.radians(40))))
-    hide = dist < COAST_KM
-    return hide
+    return np.clip((dist - FADE_KM[0]) / (FADE_KM[1] - FADE_KM[0]), 0, 1).astype(np.float32)
 
 
 def tile_coords(z):
@@ -113,28 +110,21 @@ def tile_coords(z):
     return range(tx(W), min(n - 1, tx(E - 1e-6)) + 1), range(ty(N), ty(S_) + 1)
 
 
-def render(dbz, lat0, lon0, z, x, y):
+def render(fields, lat0, lon0, z, x, y):
+    """Sample each 0.25-degree field onto a 256 px Mercator tile with cubic interpolation (smooth, no
+    straight-edged artefacts along grid lines or tile edges)."""
     n = 2 ** z
-    px = (np.arange(256) + .5) / 256
+    px = (np.arange(-1, 257) + .5) / 256    # 256 px plus a 1 px border copied from the neighbours
     lon = (x + px) / n * 360 - 180
-    my = math.pi * (1 - 2 * (y + px) / n)
-    lat = np.degrees(np.arctan(np.sinh(my)))
-    fi = (lat0 - lat) / .25            # fractional row
-    fj = (lon - lon0) / .25            # fractional col
-    h, w = dbz.shape
-    FI, FJ = np.meshgrid(fi, fj, indexing="ij")
-    ok = (FI >= 0) & (FI <= h - 1.001) & (FJ >= 0) & (FJ <= w - 1.001)
-    FI = np.clip(FI, 0, h - 1.001); FJ = np.clip(FJ, 0, w - 1.001)
-    i0 = FI.astype(int); j0 = FJ.astype(int); ti = FI - i0; tj = FJ - j0
-    v = (dbz[i0, j0] * (1 - ti) * (1 - tj) + dbz[i0 + 1, j0] * ti * (1 - tj) +
-         dbz[i0, j0 + 1] * (1 - ti) * tj + dbz[i0 + 1, j0 + 1] * ti * tj)
-    idx = np.clip(np.round((v + 32.5) * 2), 1, 199).astype(int)
-    on = ok & (v >= MIN_DBZ)
-    img = np.zeros((256, 256, 4), np.uint8)
-    img[..., :3] = PALRGB[idx]
-    img[..., 3] = np.where(on, 255, 0)
-    img[~on, :3] = 0
-    return img, bool(on.any())
+    lat = np.degrees(np.arctan(np.sinh(math.pi * (1 - 2 * (y + px) / n))))
+    FI, FJ = np.meshgrid((lat0 - lat) / .25, (lon - lon0) / .25, indexing="ij")
+    dbz, cloud, wt = (map_coordinates(a, [FI, FJ], order=3, mode="nearest") for a in fields)
+    img = np.empty((258, 258, 4), np.uint8)
+    img[..., 0] = np.clip(np.round((dbz + 20) * 3), 0, 255)
+    img[..., 1] = np.clip(np.round(cloud * 2.55), 0, 255)
+    img[..., 2] = np.clip(np.round(wt * 255), 0, 255)
+    img[..., 3] = 255
+    return img
 
 
 def main():
@@ -152,31 +142,29 @@ def main():
             print("no previous manifest", e)
 
     land = grab(fname(day, hh, 0), "LAND", "surface")
-    hide = coast_mask(land)
-    print("coast mask cells:", int(hide.sum()))
-    empty = io.BytesIO(); Image.new("RGBA", (256, 256), (0, 0, 0, 0)).save(empty, "PNG", optimize=True); empty = empty.getvalue()
+    wt, lat0, lon0 = coast_weight(land), *subset(land)[1:]
+    print("model shown (weight>0) cells:", int((wt > 0).sum()), "of", wt.size)
 
     def one(f):
         try:
-            refc = grab(fname(day, hh, f), "REFC", "entire atmosphere")
+            refc = subset(grab(fname(day, hh, f), "REFC", "entire atmosphere"))[0]
+            try:
+                tcdc = subset(grab(fname(day, hh, f), "TCDC", "entire atmosphere"))[0]
+            except RuntimeError:   # the run's first hour has no cloud average yet: use hour 1
+                tcdc = subset(grab(fname(day, hh, f + 1), "TCDC", "entire atmosphere"))[0]
         except Exception as e:
             print(f"f{f:03d}: skipped ({e})")
             return None
-        sub, lat0, lon0 = subset(refc)
-        sub = np.where(hide, -30, sub)
-        nonempty = 0
+        # a light blur takes the blockiness out of the 28 km grid before it's scaled up
+        refc = gaussian_filter(np.maximum(refc, -20), .6, mode="nearest")
+        tcdc = gaussian_filter(tcdc, .6, mode="nearest")
         for z in ZOOMS:
             xs, ys = tile_coords(z)
             for x in xs:
+                d = os.path.join(OUT, "m", f"f{f:03d}", str(z), str(x)); os.makedirs(d, exist_ok=True)
                 for y in ys:
-                    d = os.path.join(OUT, f"f{f:03d}", str(z), str(x)); os.makedirs(d, exist_ok=True)
-                    img, any_ = render(sub, lat0, lon0, z, x, y)
-                    p = os.path.join(d, f"{y}.png")
-                    if any_:
-                        Image.fromarray(img, "RGBA").save(p, "PNG", optimize=True); nonempty += 1
-                    else:
-                        open(p, "wb").write(empty)
-        print(f"f{f:03d}: max {float(sub.max()):.0f} dBZ, {nonempty} tiles with rain")
+                    Image.fromarray(render((refc, tcdc, wt), lat0, lon0, z, x, y), "RGBA").save(os.path.join(d, f"{y}.png"), "PNG", optimize=True)
+        print(f"f{f:03d}: max {float(refc.max()):.0f} dBZ, mean cloud {float(tcdc.mean()):.0f}%")
         return f
 
     with ThreadPoolExecutor(2) as ex:
@@ -184,7 +172,8 @@ def main():
     if len(done) < 6:
         raise SystemExit(f"only {len(done)} hours built")
     man = {"cycle": cid, "run": cyc.strftime("%Y-%m-%dT%H:%MZ"), "hours": done,
-           "bounds": [W, S_, E, N], "maxzoom": max(ZOOMS),
+           "bounds": [W, S_, E, N], "maxzoom": max(ZOOMS), "v": 3,
+           "enc": {"r": "(dBZ+20)*3", "g": "cloud%*2.55", "b": "show 0..255"},
            "generated": dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")}
     os.makedirs(OUT, exist_ok=True)
     json.dump(man, open(os.path.join(OUT, "manifest.json"), "w"))
