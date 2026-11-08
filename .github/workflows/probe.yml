@@ -27,5 +27,5 @@ jobs:
           sleep 20; curl -s https://willhrom-weather-gfs.pages.dev/gfs/manifest.json > man_live.txt; curl -sI https://willhrom-weather-gfs.pages.dev/gfs/f000/5/3/12.png > hdr_live.txt; curl -sI https://willhrom-weather-gfs.pages.dev/gfs/f000/9/3/12.png >> hdr_live.txt
       - if: always()
         run: |
-          mkdir out && cp build.log man_live.txt hdr_live.txt out/ 2>/dev/null; cp -r dist/gfs out/ 2>/dev/null; cd out && python3 ../.github/pac_probe.py || true
+          mkdir out; cp build.log man_live.txt hdr_live.txt out/ 2>/dev/null || true; cp -r dist/gfs out/ 2>/dev/null || true; cd out && python3 ../.github/pac_probe.py || true
           git init -q && git checkout -q -b gtg-debug && git add -A && git -c user.name=ci -c user.email=ci@x commit -qm p && git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}" gtg-debug

@@ -35,16 +35,17 @@ PALRGB = np.array([[int(PAL[i * 6:i * 6 + 2], 16), int(PAL[i * 6 + 2:i * 6 + 4],
 
 
 def get(url, **kw):
-    for i in range(4):
+    for i in range(6):
         try:
             r = S.get(url, timeout=60, **kw)
             if r.status_code in (200, 206):
                 return r
+            print("HTTP", r.status_code, url.rsplit("/", 1)[-1], r.text[:120].replace("\n", " ") if r.status_code != 206 else "")
             if r.status_code == 404:
                 return None
         except requests.RequestException as e:
             print("retry", url, e)
-        time.sleep(3 * (i + 1))
+        time.sleep(5 * (i + 1))
     return None
 
 
@@ -67,12 +68,16 @@ def latest_cycle():
 
 def grab(url, var, lev):
     r = get(url + ".idx")
+    if r is None:
+        raise RuntimeError("no index for " + url)
     lines = r.text.strip().split("\n")
     for k, ln in enumerate(lines):
         p = ln.split(":")
         if p[3] == var and p[4] == lev:
             start = int(p[1]); end = int(lines[k + 1].split(":")[1]) - 1
             g = get(url, headers={"Range": f"bytes={start}-{end}"})
+            if g is None:
+                raise RuntimeError("download failed " + url)
             path = f"/tmp/gfs_{var}_{os.getpid()}_{abs(hash(url)) % 10**8}.grb"
             open(path, "wb").write(g.content)
             gr = pygrib.open(path); m = gr.message(1); v = m.values; gr.close(); os.remove(path)
@@ -152,7 +157,11 @@ def main():
     empty = io.BytesIO(); Image.new("RGBA", (256, 256), (0, 0, 0, 0)).save(empty, "PNG", optimize=True); empty = empty.getvalue()
 
     def one(f):
-        refc = grab(fname(day, hh, f), "REFC", "entire atmosphere")
+        try:
+            refc = grab(fname(day, hh, f), "REFC", "entire atmosphere")
+        except Exception as e:
+            print(f"f{f:03d}: skipped ({e})")
+            return None
         sub, lat0, lon0 = subset(refc)
         sub = np.where(hide, -30, sub)
         nonempty = 0
@@ -170,8 +179,10 @@ def main():
         print(f"f{f:03d}: max {float(sub.max()):.0f} dBZ, {nonempty} tiles with rain")
         return f
 
-    with ThreadPoolExecutor(4) as ex:
-        done = sorted(ex.map(one, HOURS))
+    with ThreadPoolExecutor(2) as ex:
+        done = sorted(h for h in ex.map(one, HOURS) if h is not None)
+    if len(done) < 6:
+        raise SystemExit(f"only {len(done)} hours built")
     man = {"cycle": cid, "run": cyc.strftime("%Y-%m-%dT%H:%MZ"), "hours": done,
            "bounds": [W, S_, E, N], "maxzoom": max(ZOOMS),
            "generated": dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")}

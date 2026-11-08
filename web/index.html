@@ -14,7 +14,7 @@ DIAG.mark("html start");
 </script>
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
 <meta name="theme-color" content="#0f2a4a">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://unpkg.com; style-src 'self' 'unsafe-inline' https://unpkg.com https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob: https:; worker-src blob:; child-src blob:; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'; connect-src 'self' blob: data: wxr: https://tiles.openfreemap.org https://*.open-meteo.com https://api.open-meteo.com https://api.weather.gov https://aviationweather.gov https://api.tidesandcurrents.noaa.gov https://api.bigdatacloud.net https://api.rainviewer.com https://*.rainviewer.com https://mesonet.agron.iastate.edu https://willhrom-weather-gtg.pages.dev https://realearth.ssec.wisc.edu https://willhrom-weather.pages.dev https://mapservices.weather.noaa.gov">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://unpkg.com; style-src 'self' 'unsafe-inline' https://unpkg.com https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob: https:; worker-src blob:; child-src blob:; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'; connect-src 'self' blob: data: wxr: https://tiles.openfreemap.org https://*.open-meteo.com https://api.open-meteo.com https://api.weather.gov https://aviationweather.gov https://api.tidesandcurrents.noaa.gov https://api.bigdatacloud.net https://api.rainviewer.com https://*.rainviewer.com https://mesonet.agron.iastate.edu https://willhrom-weather-gtg.pages.dev https://willhrom-weather-gfs.pages.dev https://realearth.ssec.wisc.edu https://willhrom-weather.pages.dev https://mapservices.weather.noaa.gov">
 <meta name="referrer" content="no-referrer">
 <title>Weather</title>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -202,6 +202,7 @@ body.mapopen .tabbar{display:none}
 .mapfull .legend{bottom:calc(var(--safe-bot) + 68px)}
 .legend .lg{display:flex;align-items:center;gap:6px}
 .legend .lg i{display:block;width:84px;height:6px;border-radius:2px}
+.legend .lgn{font-size:10.5px;color:var(--muted);margin-top:1px}
 .legend .key{display:flex;flex-wrap:wrap;gap:4px 10px}
 .legend .key span{display:flex;align-items:center;gap:4px}
 .legend .key i{width:8px;height:8px;border-radius:2px}
@@ -616,7 +617,7 @@ const store={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.
 const DEFAULT={id:"sf",name:"San Francisco",sub:"California",lat:37.7749,lon:-122.4194};
 let WXN={},wxnT=0;
 let S=Object.assign({temp:"F",wind:"mph",rain:"in",gps:true,nRain:true,nAlerts:true},store.get("wx.settings",{}));
-let L=Object.assign({radar:true,future:false,turb:false,ir:false,vis:false,wv:false,ptype:false,lightning:false,smoke:false,fires:false,fireout:false,mrms:"",alerts:true,metar:false,gairmet:false,sigmet:false,cwa:false,pirep:false},store.get("wx.layers",{}));
+let L=Object.assign({radar:true,ocean:true,future:false,turb:false,ir:false,vis:false,wv:false,ptype:false,lightning:false,smoke:false,fires:false,fireout:false,mrms:"",alerts:true,metar:false,gairmet:false,sigmet:false,cwa:false,pirep:false},store.get("wx.layers",{}));
 let places=store.get("wx.places",[]);
 let sel=store.get("wx.sel",S.gps?"gps":(places[0]?places[0].id:"sf"));
 let gpsPlace=store.get("wx.gpsPlace",null);
@@ -1645,9 +1646,10 @@ function dayDetail(j){
 /* ---------- map ---------- */
 const LAYERS=[
  {g:"Weather",k:"radar",n:"Radar loop",s:"Past hour + 3-hour forecast",c:"linear-gradient(135deg,#04e9e7,#02fd02,#fdf802,#fd0000)"},
- {g:"Weather",k:"ir",n:"Satellite · infrared",s:"GOES-East, clouds day & night",c:"linear-gradient(135deg,#222,#ddd)",us:1},
- {g:"Weather",k:"vis",n:"Satellite · visible",s:"GOES-East, daylight only",c:"linear-gradient(135deg,#556,#fff)",us:1},
- {g:"Weather",k:"wv",n:"Satellite · water vapor",s:"GOES mid-level moisture, jet stream & storms",c:"linear-gradient(135deg,#1d2b6b,#3aa0d8,#e8f0ff,#d88a2a)",us:1},
+ {g:"Weather",k:"ocean",n:"Ocean rain · model",s:"GFS forecast model where radar can't reach (Pacific)",c:"linear-gradient(135deg,#04e9e7,#02fd02,#fdf802,#fd0000)"},
+ {g:"Weather",k:"ir",n:"Satellite · infrared",s:"GOES, clouds day & night",c:"linear-gradient(135deg,#222,#ddd)",sat:1},
+ {g:"Weather",k:"vis",n:"Satellite · visible",s:"GOES, daylight only",c:"linear-gradient(135deg,#556,#fff)",sat:1},
+ {g:"Weather",k:"wv",n:"Satellite · water vapor",s:"GOES mid-level moisture, jet stream & storms",c:"linear-gradient(135deg,#1d2b6b,#3aa0d8,#e8f0ff,#d88a2a)",sat:1},
  {g:"Weather",k:"ptype",n:"Precip type",s:"Rain, snow, freezing rain, sleet · HRRR now",c:"linear-gradient(135deg,#3fcf5e 25%,#5b9cf0 25% 50%,#f0467f 50% 75%,#8d5fd6 75%)",us:1},
  {g:"Weather",k:"lightning",n:"Lightning",s:"GOES lightning mapper · last few minutes",c:"linear-gradient(135deg,#fff7b0,#ffd54a,#ff8a3d)",us:1},
  {g:"Weather",k:"mrms",v:"q2-n1p",n:"Rain · last hour",s:"MRMS radar estimate",c:"linear-gradient(135deg,#0a8,#ff0,#f00)",us:1},
@@ -1830,17 +1832,17 @@ function renderMap(){
   renderChips();if(mapReady){buildLayerPanel();applyLayers()}
 }
 function renderChips(){
-  const us=isCONUS(place),chips=[["radar","Radar"],...(us?[["turb","Turbulence"],["ir","Satellite"],["lightning","Lightning"],["smoke","Smoke"],["mrms","Rain 24h"],["metar","Flight cat"],["gairmet","G-AIRMET"],["sigmet","SIGMET"]]:[])];
+  const us=isCONUS(place),chips=[["radar","Radar"],...(us?[["turb","Turbulence"],["ir","Satellite"],["lightning","Lightning"],["smoke","Smoke"],["mrms","Rain 24h"],["metar","Flight cat"],["gairmet","G-AIRMET"],["sigmet","SIGMET"]]:satOK()?[["ir","Satellite"]]:[])];
   $("#chips").innerHTML=chips.map(([k,n])=>`<button class="chip${(k==="mrms"?L.mrms:L[k])?" on":""}" data-k="${k}">${n}</button>`).join("");
 }
 $("#chips").onclick=e=>{const b=e.target.closest(".chip");if(!b)return;e.stopPropagation();const k=b.dataset.k;if(k==="future")radarStamp=0;
   if(k==="mrms")L.mrms=L.mrms?"":"q2-p24h";else L[k]=!L[k];if(k==="ir"&&L.ir){L.vis=false;L.wv=false}if(k==="vis"&&L.vis){L.ir=false;L.wv=false}if(k==="wv"&&L.wv){L.ir=false;L.vis=false}if(k==="ptype"&&L.ptype)L.radar=false;if(k==="radar"&&L.radar)L.ptype=false;saveLayers();renderChips();buildLayerPanel();applyLayers()};
 function buildLayerPanel(){
   const us=isCONUS(place);let s="",g="";
-  for(const d of LAYERS){if(d.us&&!us)continue;if(d.g!==g){g=d.g;s+=`<h4>${g}</h4>`}
+  const so=satOK();for(const d of LAYERS){if(d.us&&!us||d.sat&&!so)continue;if(d.g!==g){g=d.g;s+=`<h4>${g}</h4>`}
     const on=d.k==="mrms"?L.mrms===d.v:L[d.k];
     s+=`<button class="lrow${on?" on":""}" data-k="${d.k}" data-v="${d.v||""}"><span class="sw" style="background:${d.c}"></span><span class="t">${d.n}<small>${d.s}</small></span><span class="tg"></span></button>`}
-  if(!us)s+=`<div class="foot">Satellite, rain totals, alerts and aviation layers cover the lower 48 US states.</div>`;
+  if(!us)s+=`<div class="foot">${so?"Rain totals":"Satellite, rain totals"}, alerts and aviation layers cover the lower 48 US states.</div>`;
   $("#layerPanel").innerHTML=s;
 }
 $("#layerPanel").onclick=e=>{const b=e.target.closest(".lrow");if(!b)return;const k=b.dataset.k,v=b.dataset.v;if(k==="future"){radarStamp=0;if(!L.future)L.radar=true}
@@ -1857,18 +1859,20 @@ function raster(id,url,o={}){
 async function applyLayers(force){
   if(!mapReady)return;const us=isCONUS(place),bust=Math.floor(Date.now()/3e5);
   // satellite: each image is read at its true resolution, de-speckled and scaled up smoothly (wxs protocol)
-  for(const k of ["ir","vis"]){const id="sat-"+k,hd="sat-"+k+"-hd",u=`https://mesonet.agron.iastate.edu/cache/tile.py/1.0.0/goes_east_conus_ch${k==="ir"?"13":"02"}/{z}/{x}/{y}.png?${bust}`;
+  // West of the Rockies (and out over the Pacific) use GOES-West, whose view reaches past Hawaii
+  const so=satOK(),sec=isWest()?"west":"east";if(applyLayers.sec!==sec){["ir","vis","wv"].forEach(k=>rmLayer("sat-"+k));applyLayers.sec=sec}
+  for(const k of ["ir","vis"]){const id="sat-"+k,hd="sat-"+k+"-hd",u=`https://mesonet.agron.iastate.edu/cache/tile.py/1.0.0/${SAT_SRC[sec][k]}/{z}/{x}/{y}.png?${bust}`;
     rmLayer(hd); // older builds layered a second, sharper copy on top; the smoothed single layer replaces it
-    if(L[k]&&us)raster(id,`wxs://{z}/{x}/{y}?nz=${k==="ir"?6:8}&u=${encodeURIComponent(u)}`,{opacity:k==="ir"?.6:.75,maxzoom:12,attr:"GOES via IEM"});
+    if(L[k]&&so)raster(id,`wxs://{z}/{x}/{y}?nz=${k==="ir"?6:8}&u=${encodeURIComponent(u)}`,{opacity:k==="ir"?.6:.75,maxzoom:12,attr:"GOES via IEM"});
     else rmLayer(id)}
   applyExtraLayers(us,bust);
   for(const d of LAYERS.filter(x=>x.k==="mrms")){const id="mrms-"+d.v;if(L.mrms===d.v&&us)raster(id,`https://mesonet.agron.iastate.edu/cache/tile.py/1.0.0/${d.v}-900913/{z}/{x}/{y}.png?${bust}`,{opacity:.75,maxzoom:8,attr:"MRMS via IEM"});else rmLayer(id)}
-  const key=String(us);
+  const key=String(us)+L.ocean;
   if(L.radar){if(force||!frames.length||key!==radarKey||Date.now()-radarStamp>4*6e4){radarKey=key;await loadRadar()}}else clearRadar();
   {const an=radarAnchor();for(const f of frames)if(map.getLayer(f.id))map.moveLayer(f.id,an)}
   updateAlertLayer();updateNationalAviation();loadBboxAviation();updateGtg();updateLegend();
 }
-function clearRadar(){clearTimeout(timer);radarGen++;frames.forEach(f=>rmLayer(f.id));frames=[];$("#player").style.display="none";$("#mapSrc").textContent=""}
+function clearRadar(){clearTimeout(timer);radarGen++;frames.forEach(f=>{rmLayer(f.id);f.ocn&&rmLayer(f.ocn.id)});frames=[];$("#player").style.display="none";$("#mapSrc").textContent=""}
 async function loadRadar(){
   clearRadar();radarStamp=Date.now();const us=isCONUS(place);
   try{
@@ -1890,18 +1894,37 @@ async function loadRadar(){
     $("#tls").innerHTML=`<span class="a">−${hl(pastMin)}</span>${hasF?`<i style="left:${pct}%"></i><span class="tnow" style="left:${pct}%">Now</span><span class="z" style="color:#c792ea">+${hl(futMin)}</span>`:`<span class="z tnow" style="transform:none">Now</span>`}`;
     $("#player").style.display="";showFrame(NOWF);tick();
     const gen=++radarGen;setTimeout(()=>{if(gen===radarGen)prefetchFrames(gen)},900);
+    if(L.ocean)attachOcean(gen);
   }catch(e){console.error(e);$("#ftime").textContent="n/a"}
 }
 let NOWF=0,radarGen=0;
+/* Ocean rain: radar fades out a couple hundred km offshore. Beyond that the app shows NOAA's GFS
+   model reflectivity, built into tiles every 6 h (gfs/build_gfs.py) in the same colours as radar.
+   Each radar frame gets the model hour nearest its time; it never holds up the radar itself. */
+const GFS_HOST="https://willhrom-weather-gfs.pages.dev/gfs";let gfsMan={t:0,v:null};
+async function gfsManifest(){if(gfsMan.v&&Date.now()-gfsMan.t<20*6e4)return gfsMan.v;
+  const ac=new AbortController(),to=setTimeout(()=>ac.abort(),5000);
+  try{const r=await fetch(GFS_HOST+"/manifest.json",{signal:ac.signal,cache:"no-cache"});const j=await r.json();gfsMan={t:Date.now(),v:j};return j}finally{clearTimeout(to)}}
+async function attachOcean(gen){
+  let m;try{m=await gfsManifest()}catch(e){return}if(gen!==radarGen||!m||!m.hours)return;
+  const run=Date.parse(m.run.replace(/Z$/,":00Z"));
+  for(const f of frames){let best=null,bd=1e15;for(const h of m.hours){const d=Math.abs(run+h*36e5-f.t);if(d<bd){bd=d;best=h}}
+    if(best==null||bd>90*6e4)continue;const fh="f"+String(best).padStart(3,"0");
+    f.ocn={id:"ocn-"+m.cycle+fh,src:smoothRadar(`${GFS_HOST}/${fh}/{z}/{x}/{y}.png?${m.cycle}`,5),opts:{opacity:0,maxzoom:13,bounds:m.bounds,attr:"GFS model (NOAA)"}}}
+  $("#mapSrc").textContent+=" · ocean: model";showFrame(fi);updateLegend()}
 // keep radar frames just under the other overlays (alerts, aviation, turbulence, lightning…)
 function radarAnchor(){const L2=map.getStyle().layers;for(const l of L2)if(/^(gtg|lightning|fires|fireout|smoke-|ptype|alerts-|sigmet|gairmet|cwa|turb-|metar|pirep)/.test(l.id))return l.id;return beforeLabels()}
-function addFrame(k){const f=frames[k];if(!f||!f.src||map.getLayer(f.id))return;raster(f.id,f.src,f.opts);map.moveLayer(f.id,radarAnchor())}
+function addFrame(k){const f=frames[k];if(!f)return;if(f.ocn&&!map.getLayer(f.ocn.id)){raster(f.ocn.id,f.ocn.src,f.ocn.opts);map.moveLayer(f.ocn.id,firstRadar()||radarAnchor())}
+  if(!f.src||map.getLayer(f.id))return;raster(f.id,f.src,f.opts);map.moveLayer(f.id,radarAnchor())}
+// model ocean layers sit under every radar frame
+function firstRadar(){const l=map.getStyle().layers.find(l=>/^(rad|fut)\d/.test(l.id));return l&&l.id}
 function prefetchFrames(gen){if(gen!==radarGen||!frames.length)return;
   if(!prefetchFrames.on){prefetchFrames.on=[Math.round(performance.now()),0,"loading radar frames"];DIAG.ph.push(prefetchFrames.on);DIAG.mark("radar frames: loading the rest")}
   const order=frames.map((f,k)=>k).sort((a,b)=>Math.abs(a-NOWF)-Math.abs(b-NOWF)+(a<NOWF?.1:0)-(b<NOWF?.1:0)),k=order.find(k=>!map.getLayer(frames[k].id));
   if(k==null){if(prefetchFrames.on&&!prefetchFrames.on[1]){prefetchFrames.on[1]=Math.round(performance.now());DIAG.mark("radar frames: all "+frames.length+" loaded")}return}addFrame(k);map.once("idle",()=>setTimeout(()=>prefetchFrames(gen),120))}
 const frameReady=k=>{const f=frames[k];return f&&map.getLayer(f.id)&&map.isSourceLoaded(f.id)};
-function showFrame(k){if(!frames.length)return;addFrame(k);frames.forEach((f,j)=>map.getLayer(f.id)&&map.setPaintProperty(f.id,"raster-opacity",j===k?(f.fut?.8:.88):0));fi=k;$("#slider").value=k;
+function showFrame(k){if(!frames.length)return;addFrame(k);frames.forEach((f,j)=>map.getLayer(f.id)&&map.setPaintProperty(f.id,"raster-opacity",j===k?(f.fut?.8:.88):0));
+  {const on=frames[k].ocn&&frames[k].ocn.id;for(const f of frames)if(f.ocn&&map.getLayer(f.ocn.id))map.setPaintProperty(f.ocn.id,"raster-opacity",f.ocn.id===on?.82:0)}fi=k;$("#slider").value=k;
   const f=frames[k],el=$("#ftime");el.textContent=(f.fut?"+":"")+fT(f.t+off*1000);el.classList.toggle("fut",!!f.fut);$("#player").classList.toggle("fut",!!f.fut)}
 function setPlay(){$("#play").innerHTML=playing?'<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>':'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 4l13 8-13 8z"/></svg>'}
 function tick(){clearTimeout(timer);setPlay();if(!playing||!frames.length)return;
@@ -1989,6 +2012,9 @@ async function loadBboxAviation(){
    precip type is HRRR reflectivity coloured by type, from the Iowa Environmental Mesonet. */
 const RE="https://realearth.ssec.wisc.edu";
 const isWest=()=>place.lon<-104;
+// satellite works anywhere GOES-East/West can see: the lower 48 plus the eastern Pacific out past Hawaii
+function satOK(){return isCONUS(place)||place.lon<-104&&place.lon>-180&&place.lat>-50&&place.lat<62}
+const SAT_SRC={east:{ir:"goes_east_conus_ch13",vis:"goes_east_conus_ch02",wv:"G19-ABI-CONUS-BAND09"},west:{ir:"goes_west_fulldisk_ch13",vis:"goes_west_fulldisk_ch02",wv:"G18-ABI-FD-BAND09"}};
 let smokeT={t:0,v:null};
 async function smokeTime(){ // the HRRR smoke hour closest to now
   if(smokeT.v&&Date.now()-smokeT.t<15*6e4)return smokeT.v;
@@ -1997,7 +2023,7 @@ async function smokeTime(){ // the HRRR smoke hour closest to now
   smokeT={t:Date.now(),v:best};return best}
 async function applyExtraLayers(us,bust){
   const wv="sat-wv",pt="ptype",lt="lightning",sm="smoke",fi="fires",fo="fireout",run=Math.floor((Date.now()-55*6e4)/36e5)*36e5,fm=Math.ceil((Date.now()-run)/9e5)*15;
-  if(L.wv&&us)raster(wv,`wxs://{z}/{x}/{y}?m=wv&nz=6&u=${encodeURIComponent(`${RE}/tiles/${isWest()?"G18":"G19"}-ABI-CONUS-BAND09/{z}/{x}/{y}.png?${bust}`)}`,{opacity:.9,maxzoom:12,attr:"GOES via SSEC RealEarth"});else rmLayer(wv);
+  if(L.wv&&satOK())raster(wv,`wxs://{z}/{x}/{y}?m=wv&nz=6&u=${encodeURIComponent(`${RE}/tiles/${SAT_SRC[isWest()?"west":"east"].wv}/{z}/{x}/{y}.png?${bust}`)}`,{opacity:.9,maxzoom:12,attr:"GOES via SSEC RealEarth"});else rmLayer(wv);
   const ptu=`https://mesonet.agron.iastate.edu/cache/tile.py/1.0.0/hrrr::REFP-F${String(fm).padStart(4,"0")}-0/{z}/{x}/{y}.png?${run}`,ptid=pt+fm;
   for(const l of (map.getStyle().layers||[]))if(/^ptype\d+$/.test(l.id)&&(l.id!==ptid||!(L.ptype&&us)))rmLayer(l.id);
   if(L.ptype&&us)raster(ptid,`wxp://{z}/{x}/{y}?nz=8&u=${encodeURIComponent(ptu)}`,{opacity:.9,maxzoom:13,attr:"HRRR via IEM"});
@@ -2194,6 +2220,7 @@ function onMapClick(e){
 function updateLegend(){
   const us=isCONUS(place),rows=[];
   if(L.radar)rows.push(`<div class="lg">Light <i style="background:linear-gradient(90deg,${BANDS.map((b,k)=>`${b[1]} ${k/BANDS.length*100}% ${(k+1)/BANDS.length*100}%`).join(",")})"></i>Heavy</div>`);
+  if(L.radar&&L.ocean&&frames.some(f=>f.ocn))rows.push(`<div class="lgn">Open ocean: GFS model, not radar</div>`);
   extraLegend(us,rows);
   if(us&&L.mrms)rows.push(`<div class="lg">Rain <i style="background:linear-gradient(90deg,#00d0a0,#00a000,#ffff00,#ff9000,#ff0000,#c000c0)"></i>${S.rain==="in"?"→ 4+ in":"→ 100+ mm"}</div>`);
   if(us&&L.turb&&G.man){const t=G.man.times,ti=G.ti,v=Date.parse(t[ti].valid),[l,m,sv,x]=EDR_T[G.ac];
