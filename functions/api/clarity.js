@@ -4,7 +4,7 @@
 const SRC = [
   { name: "NOAA-20 VIIRS", base: "https://coastwatch.noaa.gov/erddap/griddap/noaacwN20VIIRSkd490NSWUSDaily", v: "kd_490", alt: true, res: 0.75 },
   { name: "NOAA-21 VIIRS", base: "https://coastwatch.noaa.gov/erddap/griddap/noaacwN21VIIRSkd490NSWUSDaily", v: "kd_490", alt: true, res: 0.75 },
-  { name: "Aqua MODIS", base: "https://coastwatch.pfeg.noaa.gov/erddap/griddap/erdMH1kd4901day_R2022NRT", v: "k490", alt: false, res: 4 },
+  { name: "Aqua MODIS", base: "https://coastwatch.pfeg.noaa.gov/erddap/griddap/erdMH1kd4901day_R2022NRT", v: "Kd_490", alt: false, res: 4 },
   { name: "S-NPP VIIRS", base: "https://coastwatch.pfeg.noaa.gov/erddap/griddap/nesdisVHNkd490Daily", v: "kd_490", alt: true, res: 4 },
 ];
 const UA = { "User-Agent": "WeatherApp/1.0 (personal weather app)" };
@@ -24,14 +24,20 @@ async function one(s, lat, lon, dbg) {
     if (!r.ok) { const t = await r.text(); if (dbg) dbg.push(`${s.name} ${a > b ? "N-S" : "S-N"} ${r.status} ${t.slice(0, 160)}`); if (r.status !== 403 && a > b) continue; return null; }
     const j = await r.json(), cols = j.table.columnNames, rows = j.table.rows;
     const it = cols.indexOf("time"), ila = cols.indexOf("latitude"), ilo = cols.indexOf("longitude"), iv = cols.indexOf(s.v);
-    let best = null;
+    // newest day with any clear water; then the median of that day's readings within 6 km (one pixel by the
+    // shore can be skewed by surf or runoff), or the nearest reading if none are that close
+    const pts = [];
     for (const row of rows) {
       const v = row[iv];
       if (v == null || !(v > 0) || v > 10) continue;
-      const day = String(row[it]).slice(0, 10), dy = (row[ila] - lat) * 111, dx = (row[ilo] - lon) * 111 * Math.cos(lat * Math.PI / 180), km = Math.hypot(dx, dy);
-      if (!best || day > best.date || (day === best.date && km < best.km)) best = { kd: Math.round(v * 1000) / 1000, date: day, km: Math.round(km * 10) / 10, source: s.name, res: s.res };
+      const dy = (row[ila] - lat) * 111, dx = (row[ilo] - lon) * 111 * Math.cos(lat * Math.PI / 180);
+      pts.push({ day: String(row[it]).slice(0, 10), v, km: Math.hypot(dx, dy) });
     }
-    return best;
+    if (!pts.length) return null;
+    const day = pts.reduce((m, p) => (p.day > m ? p.day : m), ""), today = pts.filter(p => p.day === day).sort((a, b) => a.km - b.km);
+    const near = today.filter(p => p.km <= 6), use = near.length ? near : [today[0]], vs = use.map(p => p.v).sort((a, b) => a - b);
+    const kd = vs[vs.length >> 1];
+    return { kd: Math.round(kd * 1000) / 1000, date: day, km: Math.round(today[0].km * 10) / 10, n: use.length, source: s.name, res: s.res };
   }
   return null;
 }
@@ -45,14 +51,6 @@ export async function onRequestGet({ request, waitUntil }) {
   const hit = dbg ? null : await cache.match(key);
   if (hit) return hit;
   const got = (await Promise.all(SRC.map(s => one(s, +rl, +rn, dbg).catch(e => { if (dbg) dbg.push(s.name + " " + e); return null; })))).filter(Boolean);
-  if (dbg && u.searchParams.get("debug") === "info") {
-    for (const [nm, url] of [["modis", "https://coastwatch.pfeg.noaa.gov/erddap/info/erdMH1kd4901day_R2022NRT/index.json"],
-                             ["central", "https://coastwatch.noaa.gov/erddap/search/index.json?searchFor=kd490&itemsPerPage=400&page=1"]]) {
-      try { const j = await (await tget(url, 20000)).json(); const c = j.table.columnNames, rows = j.table.rows;
-        dbg.push(nm + ": " + JSON.stringify(nm === "modis" ? rows.filter(r => r[0] !== "attribute").map(r => r[1]) : rows.map(r => [r[c.indexOf("Dataset ID")], r[c.indexOf("Title")].slice(0, 70)]).filter(r => /daily/i.test(r[1]))));
-      } catch (e) { dbg.push(nm + " err " + e); }
-    }
-  }
   if (dbg) return new Response(JSON.stringify({ got, dbg }, null, 1), { headers: { "content-type": "application/json" } });
   // newest day wins; on the same day prefer the sharper (750 m) sensor, then the closer reading
   got.sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : a.res - b.res || a.km - b.km));
