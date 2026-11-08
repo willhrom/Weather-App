@@ -17,7 +17,7 @@ The phone interpolates them smoothly and paints clouds and rain (in the radar co
 import json, math, os, sys, time, datetime as dt
 from concurrent.futures import ThreadPoolExecutor
 import numpy as np, requests, pygrib
-from scipy.ndimage import distance_transform_edt
+from scipy.ndimage import distance_transform_edt, gaussian_filter, map_coordinates
 from PIL import Image
 
 BASE = "https://nomads.ncep.noaa.gov/pub/data/nccf/com/gfs/prod/"
@@ -110,19 +110,14 @@ def tile_coords(z):
 
 
 def render(fields, lat0, lon0, z, x, y):
-    """Bilinear-sample each 0.25-degree field onto a 256 px Mercator tile."""
+    """Sample each 0.25-degree field onto a 256 px Mercator tile with cubic interpolation (smooth, no
+    straight-edged artefacts along grid lines or tile edges)."""
     n = 2 ** z
     px = (np.arange(256) + .5) / 256
     lon = (x + px) / n * 360 - 180
     lat = np.degrees(np.arctan(np.sinh(math.pi * (1 - 2 * (y + px) / n))))
-    h, w = fields[0].shape
     FI, FJ = np.meshgrid((lat0 - lat) / .25, (lon - lon0) / .25, indexing="ij")
-    FI = np.clip(FI, 0, h - 1.001); FJ = np.clip(FJ, 0, w - 1.001)
-    i0 = FI.astype(int); j0 = FJ.astype(int); ti = FI - i0; tj = FJ - j0
-    def samp(a):
-        return (a[i0, j0] * (1 - ti) * (1 - tj) + a[i0 + 1, j0] * ti * (1 - tj) +
-                a[i0, j0 + 1] * (1 - ti) * tj + a[i0 + 1, j0 + 1] * ti * tj)
-    dbz, cloud, wt = (samp(a) for a in fields)
+    dbz, cloud, wt = (map_coordinates(a, [FI, FJ], order=3, mode="nearest") for a in fields)
     img = np.empty((256, 256, 4), np.uint8)
     img[..., 0] = np.clip(np.round((dbz + 20) * 3), 0, 255)
     img[..., 1] = np.clip(np.round(cloud * 2.55), 0, 255)
@@ -159,7 +154,9 @@ def main():
         except Exception as e:
             print(f"f{f:03d}: skipped ({e})")
             return None
-        refc = np.where(refc < -20, -20, refc)
+        # a light blur takes the blockiness out of the 28 km grid before it's scaled up
+        refc = gaussian_filter(np.maximum(refc, -20), .6, mode="nearest")
+        tcdc = gaussian_filter(tcdc, .6, mode="nearest")
         for z in ZOOMS:
             xs, ys = tile_coords(z)
             for x in xs:
