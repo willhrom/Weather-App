@@ -2,13 +2,13 @@
 // GET /api/clarity?lat=37.76&lon=-122.53 -> {"kd":0.088,"date":"2026-11-06","source":"Aqua MODIS","km":2.1} (or {"none":true})
 // Asks several near-real-time feeds for the last 8 days around the spot and keeps the newest clear reading.
 const SRC = [
-  { name: "NOAA-20 VIIRS", base: "https://coastwatch.noaa.gov/erddap/griddap/noaacwN20VIIRSkd490NSWUSDaily", v: "kd_490", alt: true, res: 0.75 },
-  { name: "NOAA-21 VIIRS", base: "https://coastwatch.noaa.gov/erddap/griddap/noaacwN21VIIRSkd490NSWUSDaily", v: "kd_490", alt: true, res: 0.75 },
+  { name: "NOAA-20 VIIRS", base: "https://coastwatch.noaa.gov/erddap/griddap/noaacwN20VIIRSkd490NSWUSDaily", v: "kd_490", alt: true, res: 0.75, st: 3 },
+  { name: "NOAA-21 VIIRS", base: "https://coastwatch.noaa.gov/erddap/griddap/noaacwN21VIIRSkd490NSWUSDaily", v: "kd_490", alt: true, res: 0.75, st: 3 },
   { name: "Aqua MODIS", base: "https://coastwatch.pfeg.noaa.gov/erddap/griddap/erdMH1kd4901day_R2022NRT", v: "Kd_490", alt: false, res: 4 },
   { name: "S-NPP VIIRS", base: "https://coastwatch.pfeg.noaa.gov/erddap/griddap/nesdisVHNkd490Daily", v: "kd_490", alt: true, res: 4 },
 ];
 const UA = { "User-Agent": "WeatherApp/1.0 (personal weather app)" };
-const D = 0.12; // search box half-width, degrees
+const D = 0.3; // search box half-width, degrees (places are often inland: look for the nearest open water)
 
 async function tget(url, ms) {
   const c = new AbortController(), t = setTimeout(() => c.abort(), ms);
@@ -18,13 +18,13 @@ async function tget(url, ms) {
 async function one(s, lat, lon, dbg) {
   // latitude can run either way on these grids: try north-to-south first, then the other order
   for (const [a, b] of [[lat + D, lat - D], [lat - D, lat + D]]) {
-    const q = `${s.v}[(last-7):1:(last)]${s.alt ? "[(0.0)]" : ""}[(${a.toFixed(3)}):1:(${b.toFixed(3)})][(${(lon - D).toFixed(3)}):1:(${(lon + D).toFixed(3)})]`;
+    const st = s.st || 1, q = `${s.v}[(last-7):1:(last)]${s.alt ? "[(0.0)]" : ""}[(${a.toFixed(3)}):${st}:(${b.toFixed(3)})][(${(lon - D).toFixed(3)}):${st}:(${(lon + D).toFixed(3)})]`;
     let r;
     try { r = await tget(`${s.base}.json?${q}`, 15000); } catch (e) { if (dbg) dbg.push(s.name + " fetch " + e); return null; }
     if (!r.ok) { const t = await r.text(); if (dbg) dbg.push(`${s.name} ${a > b ? "N-S" : "S-N"} ${r.status} ${t.slice(0, 160)}`); if (r.status !== 403 && a > b) continue; return null; }
     const j = await r.json(), cols = j.table.columnNames, rows = j.table.rows;
     const it = cols.indexOf("time"), ila = cols.indexOf("latitude"), ilo = cols.indexOf("longitude"), iv = cols.indexOf(s.v);
-    // newest day with any clear water; then the median of that day's readings within 6 km (one pixel by the
+    // newest day with any clear water; then the median of that day's readings near the closest one (one pixel by the
     // shore can be skewed by surf or runoff), or the nearest reading if none are that close
     const pts = [];
     for (const row of rows) {
@@ -35,7 +35,7 @@ async function one(s, lat, lon, dbg) {
     }
     if (!pts.length) return null;
     const day = pts.reduce((m, p) => (p.day > m ? p.day : m), ""), today = pts.filter(p => p.day === day).sort((a, b) => a.km - b.km);
-    const near = today.filter(p => p.km <= 6), use = near.length ? near : [today[0]], vs = use.map(p => p.v).sort((a, b) => a - b);
+    const near = today.filter(p => p.km <= today[0].km + 5), use = near.length ? near : [today[0]], vs = use.map(p => p.v).sort((a, b) => a - b);
     const kd = vs[vs.length >> 1];
     return { kd: Math.round(kd * 1000) / 1000, date: day, km: Math.round(today[0].km * 10) / 10, n: use.length, source: s.name, res: s.res };
   }
