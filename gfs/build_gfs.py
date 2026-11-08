@@ -6,7 +6,8 @@ Radar can't see far past the coast and satellite only shows the present, so offs
 draws NOAA's GFS model itself: composite reflectivity (REFC, dBZ) and total cloud cover (TCDC, %)
 from the newest 0.25-degree run, every hour from the run's start to +18 h.
 
-Each hour becomes a few Web Mercator *data* tiles (z2..z4, 256 px) over the eastern Pacific.
+Each hour becomes a few Web Mercator *data* tiles (z2..z4, 256 px plus a 1 px border so
+neighbouring tiles join without a seam) over the eastern Pacific.
 They hold numbers, not colours:
   R = reflectivity: (dBZ + 20) * 3, clamped 0..255
   G = cloud cover:  % * 2.55
@@ -113,12 +114,12 @@ def render(fields, lat0, lon0, z, x, y):
     """Sample each 0.25-degree field onto a 256 px Mercator tile with cubic interpolation (smooth, no
     straight-edged artefacts along grid lines or tile edges)."""
     n = 2 ** z
-    px = (np.arange(256) + .5) / 256
+    px = (np.arange(-1, 257) + .5) / 256    # 256 px plus a 1 px border copied from the neighbours
     lon = (x + px) / n * 360 - 180
     lat = np.degrees(np.arctan(np.sinh(math.pi * (1 - 2 * (y + px) / n))))
     FI, FJ = np.meshgrid((lat0 - lat) / .25, (lon - lon0) / .25, indexing="ij")
     dbz, cloud, wt = (map_coordinates(a, [FI, FJ], order=3, mode="nearest") for a in fields)
-    img = np.empty((256, 256, 4), np.uint8)
+    img = np.empty((258, 258, 4), np.uint8)
     img[..., 0] = np.clip(np.round((dbz + 20) * 3), 0, 255)
     img[..., 1] = np.clip(np.round(cloud * 2.55), 0, 255)
     img[..., 2] = np.clip(np.round(wt * 255), 0, 255)
@@ -171,7 +172,7 @@ def main():
     if len(done) < 6:
         raise SystemExit(f"only {len(done)} hours built")
     man = {"cycle": cid, "run": cyc.strftime("%Y-%m-%dT%H:%MZ"), "hours": done,
-           "bounds": [W, S_, E, N], "maxzoom": max(ZOOMS), "v": 2,
+           "bounds": [W, S_, E, N], "maxzoom": max(ZOOMS), "v": 3,
            "enc": {"r": "(dBZ+20)*3", "g": "cloud%*2.55", "b": "show 0..255"},
            "generated": dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")}
     os.makedirs(OUT, exist_ok=True)
