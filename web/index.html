@@ -112,6 +112,12 @@ body.mapopen .tabbar{display:none}
 .today h4{display:flex;align-items:center;justify-content:space-between;margin:6px 0 4px;font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--faint)}
 .today h4 b{font-family:var(--mono);font-size:11.5px;letter-spacing:0;text-transform:none;font-weight:500;color:var(--water);padding:2px 7px;border-radius:6px;background:rgba(76,201,240,.12)}
 .today h4 b.dry{color:var(--muted);background:rgba(255,255,255,.06)}
+.binfob{flex:none;width:22px;height:22px;border-radius:50%;border:1px solid var(--line2);color:var(--muted);font:700 12px/20px Georgia,serif;font-style:italic;text-align:center;margin-left:8px}
+.binfob.on{background:var(--accent);color:#06121f;border-color:var(--accent)}
+.binfo{margin:2px 0 8px;padding:10px 12px;border-radius:12px;background:var(--panel2);border:1px solid var(--line)}
+.bitxt{font-size:12.5px;color:var(--muted);line-height:1.4;margin-bottom:6px}.bitxt.dim{color:var(--faint);font-size:11.5px;margin:8px 0 0}
+.brow{display:grid;grid-template-columns:16px minmax(0,1.3fr) minmax(0,.8fr) minmax(0,1.2fr);gap:6px;padding:4px 0;font-size:12.5px;color:var(--text);align-items:baseline}
+.brow .dim{color:var(--faint);font-size:11.5px}.brow.bh{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--faint);padding-bottom:2px}.bok{font-weight:800}
 .bseg{display:flex;background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:2px;margin:2px 0 12px}
 .bseg button{flex:1;padding:7px 0;border-radius:8px;font-size:12.5px;font-weight:500;color:var(--muted)}
 .bseg button.on{background:var(--line2);color:var(--text);font-weight:600}
@@ -455,7 +461,7 @@ details.afd[open]>summary::after{content:"–"}
     <div class="today" id="today"></div>
     <div class="readouts" id="readouts"></div>
   </div>
-  <div class="panel"><div class="ph">Best time<span class="r" id="bestNote">next 3 days</span></div><div class="pb" id="best"><div class="err">Loading…</div></div></div>
+  <div class="panel"><div class="ph">Best time<span class="r" id="bestNote">next 3 days</span><button class="binfob" id="bestInfoBtn" aria-label="Why this time">i</button></div><div class="pb" id="best"><div class="err">Loading…</div></div></div>
   <div class="panel" id="mapPanel">
     <div class="ph">Radar &amp; layers<span class="r" id="mapSrc"></span></div>
     <div class="mapwrap" id="mapHome">
@@ -1465,19 +1471,24 @@ function renderSunsetQ(){const el=$("#sunsetq");if(!el||!W)return;try{
   catch(e){el.innerHTML='<div class="err">Sunset outlook unavailable.</div>';console.error(e)}}
 
 /* ---------- best time finder ---------- */
+// each activity: the conditions that matter, as [what, value this hour, fine up to, unusable at, how it reads, what's ideal]
+const fTmp=v=>Math.round(S.temp==="C"?(v-32)*5/9:v)+"°",fW=v=>Math.round(S.wind==="kmh"?v*1.609:S.wind==="kn"?v/1.151:v)+" "+U.wl();
+const HX=i=>{const h=W.hourly;return{t:toF(h.temperature_2m[i]),p:h.precipitation_probability[i]||0,w:toMph(h.wind_speed_10m[i]||0),
+  g:toMph(h.wind_gusts_10m[i]||0),c:h.cloud_cover[i]||0,lo:h.cloud_cover_low[i]||0,uv:h.uv_index?h.uv_index[i]||0:0,vis:h.visibility?h.visibility[i]/1609:10}};
 const ACTS={
-  outdoors:{n:"Outdoors",day:true,f:(t,p,w,c,uv)=>sc([[p,20,60],[Math.abs(t-70),12,28],[w,12,25]])},
-  run:{n:"Run",day:true,f:(t,p,w,c,uv)=>sc([[p,15,50],[Math.abs(t-55),10,25],[w,10,20],[uv,6,9]])},
-  beach:{n:"Beach",day:true,f:(t,p,w,c,uv)=>sc([[p,10,40],[Math.max(0,72-t),4,14],[w,10,18],[c,35,85]])},
-  fly:{n:"Flying",day:true,f:(t,p,w,c,uv,i)=>{const g=grayHour(i),vis=W.hourly.visibility?W.hourly.visibility[i]/1609:10,gust=toMph(W.hourly.wind_gusts_10m[i]||0)*.869;
-    return g?.1:sc([[p,15,50],[Math.max(0,8-vis),2,5],[gust,15,25],[W.hourly.cloud_cover_low[i]||0,45,80]])}},
+  outdoors:{n:"Outdoors",facs:x=>[["Rain chance",x.p,20,60,x.p+"%","under 20%"],["Temperature",Math.abs(x.t-70),12,28,fTmp(x.t),`${fTmp(58)}–${fTmp(82)}`],["Wind",x.w,12,25,fW(x.w),`under ${fW(12)}`]]},
+  run:{n:"Run",facs:x=>[["Rain chance",x.p,15,50,x.p+"%","under 15%"],["Temperature",Math.abs(x.t-55),10,25,fTmp(x.t),`${fTmp(45)}–${fTmp(65)}`],["Wind",x.w,10,20,fW(x.w),`under ${fW(10)}`],["UV index",x.uv,6,9,Math.round(x.uv),"6 or lower"]]},
+  beach:{n:"Beach",facs:x=>[["Rain chance",x.p,10,40,x.p+"%","under 10%"],["Temperature",Math.max(0,72-x.t),4,14,fTmp(x.t),`${fTmp(68)} or warmer`],["Wind",x.w,10,18,fW(x.w),`under ${fW(10)}`],["Cloud cover",x.c,35,85,Math.round(x.c)+"%","mostly sunny (under 35%)"]]},
+  fly:{n:"Flying",facs:(x,i)=>[["Fog / marine layer",grayHour(i)?1:0,0,1,grayHour(i)?"yes":"none","none"],["Visibility",Math.max(0,8-x.vis),2,5,(x.vis>=10?"10+":x.vis.toFixed(0))+" mi","6 mi or more"],
+    ["Gusts",x.g*.869,15,25,Math.round(x.g*.869)+" kt","under 15 kt"],["Low clouds",x.lo,45,80,Math.round(x.lo)+"%","under 45%"],["Rain chance",x.p,15,50,x.p+"%","under 15%"]]},
 };
-// each factor: [value, fine up to, unusable at] -> 1..0, combined as the weakest link
-function sc(fs){let m=1;for(const [v,a,b] of fs)m=Math.min(m,v<=a?1:v>=b?0:1-(v-a)/(b-a));return m}
+// each factor scores 1 (fine) .. 0 (unusable); an hour is only as good as its weakest condition
+const fscore=([,v,a,b])=>v<=a?1:v>=b?0:1-(v-a)/(b-a);
+function sc(fs){let m=1;for(const f of fs)m=Math.min(m,fscore([0,...f]));return m}
+function actScore(A,i){return Math.min(...A.facs(HX(i),i).map(fscore))}
 function renderBest(){const el=$("#best");if(!el||!W)return;try{
   const act=ACTS[S.best]?S.best:"outdoors",A=ACTS[act],h=W.hourly,i0=hourIndex(),n=Math.min(h.time.length,i0+72),sc_=[];
-  for(let i=i0;i<n;i++){const day=h.is_day[i]===1;if(A.day&&!day){sc_.push(null);continue}
-    sc_.push(A.f(toF(h.temperature_2m[i]),h.precipitation_probability[i]||0,toMph(h.wind_speed_10m[i]||0),h.cloud_cover[i]||0,h.uv_index?h.uv_index[i]||0:0,i))}
+  for(let i=i0;i<n;i++){if(h.is_day[i]!==1){sc_.push(null);continue}sc_.push(actScore(A,i))}
   // windows: runs of 2+ hours scoring 0.7 or better, best average first
   const wins=[];for(let k=0;k<sc_.length;){if(sc_[k]!=null&&sc_[k]>=.7){let e=k;while(e+1<sc_.length&&sc_[e+1]!=null&&sc_[e+1]>=.7)e++;
       if(e>k){const seg=sc_.slice(k,e+1);wins.push({a:k,b:e,avg:seg.reduce((x,y)=>x+y,0)/seg.length})}k=e+1}else k++}
@@ -1493,8 +1504,17 @@ function renderBest(){const el=$("#best");if(!el||!W)return;try{
   const colr=v=>v==null?"rgba(255,255,255,.04)":v>=.85?"#3ddc97":v>=.7?"#7fdc9e":v>=.45?"#ffd54a":"rgba(255,138,61,.75)";
   let strips="";const d0=dayStart(T(0));for(let d=0;d<3;d++){let cells="";for(let hr=0;hr<24;hr++){const t=d0+d*864e5+hr*36e5,k=Math.round((t-T(0))/36e5);cells+=`<i style="background:${k>=0&&k<sc_.length?colr(sc_[k]):"rgba(255,255,255,.04)"}"></i>`}
     strips+=`<span>${d===0?"Today":d===1?"Tmrw":dayLbl(d0+d*864e5+12*36e5).slice(0,3)}</span><div class="bstrip">${cells}</div>`}
-  el.innerHTML=`${chips}${list}<div class="bgrid">${strips}<div class="bticks"><span>12a</span><span>6a</span><span>12p</span><span>6p</span><span>12a</span></div></div>`;
-  el.querySelectorAll("[data-best]").forEach(b=>b.onclick=()=>{S.best=b.dataset.best;savePlaces();renderBest()})}
+  // why: each condition across the top window (its worst hour), against what's ideal
+  let info="";if(top){const hrs=[];for(let k=top.a;k<=top.b;k++)hrs.push(i0+k);
+    const rows=A.facs(HX(hrs[0]),hrs[0]).map((f,j)=>{let worst=hrs[0],ws=2;for(const i of hrs){const v=fscore(A.facs(HX(i),i)[j]);if(v<ws){ws=v;worst=i}}
+      const fw=A.facs(HX(worst),worst)[j],ok=ws>=.999;return `<div class="brow"><span class="bok" style="color:${ok?"#3ddc97":"#ffd54a"}">${ok?"✓":"~"}</span><span>${f[0]}</span><span>${fw[4]}</span><span class="dim">${f[5]}</span></div>`}).join("");
+    info=`<div class="binfo"${S.bestInfo?"":" hidden"}><div class="bitxt">Why ${span(top).replace(/^Tomorrow/,"tomorrow").replace(/^Today/,"today")} is good for ${A.n==="Flying"?"flying":A.n==="Outdoors"?"being outdoors":A.n==="Run"?"a run":"the beach"}:</div>
+      <div class="brow bh"><span></span><span>Condition</span><span>Worst hour</span><span>Ideal</span></div>${rows}
+      <div class="bitxt dim">Each hour is scored by its weakest condition, so one poor condition lowers the whole hour. Daylight hours only.</div></div>`}
+  $("#bestInfoBtn").style.display=top?"":"none";
+  el.innerHTML=`${chips}${list}${info}<div class="bgrid">${strips}<div class="bticks"><span>12a</span><span>6a</span><span>12p</span><span>6p</span><span>12a</span></div></div>`;
+  el.querySelectorAll("[data-best]").forEach(b=>b.onclick=()=>{S.best=b.dataset.best;savePlaces();renderBest()});
+  const ib=$("#bestInfoBtn");ib.classList.toggle("on",!!S.bestInfo);ib.onclick=()=>{S.bestInfo=!S.bestInfo;savePlaces();renderBest()}}
   catch(e){el.innerHTML='<div class="err">Best-time finder unavailable.</div>';console.error(e)}}
 
 function renderMoon(){
