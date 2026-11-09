@@ -1336,6 +1336,16 @@ function loadAir(){
 /* ---------- fire weather: a card only when there's something to act on ----------
    Shown for NWS fire warnings/watches, for genuinely dry + windy forecasts, or for smoky air. */
 let fireReq=0;
+/* NOAA's HRRR smoke model at this spot: reads the one map pixel over the place and returns its legend step
+   (0 = none, 1 = 1–2 µg/m³ … 5 = 12–16 µg/m³ … 14 = 200+) */
+let smokeHereC={k:"",v:0};
+async function smokeHere(){try{const t=await smokeTime();if(!t)return 0;const z=7,n=2**z,fx=(place.lon+180)/360*n,fy=(1-Math.asinh(Math.tan(place.lat*Math.PI/180))/Math.PI)/2*n;
+  const k=`${t.d}${t.h}/${fx|0}/${fy|0}/${place.id}`;if(smokeHereC.k===k)return smokeHereC.v;
+  const r=await fetch(`${RE}/tiles/HRRR-smoke-surface/${t.d}/${t.h}/${z}/${fx|0}/${fy|0}.png`);if(!r.ok)return 0;
+  const bmp=await createImageBitmap(await r.blob()),c=document.createElement("canvas");c.width=bmp.width;c.height=bmp.height;const g=c.getContext("2d",{willReadFrequently:true});g.drawImage(bmp,0,0);
+  const px=g.getImageData(Math.min(bmp.width-1,(fx%1)*bmp.width|0),Math.min(bmp.height-1,(fy%1)*bmp.height|0),1,1).data;let v=0;
+  if(px[3]>24){let bd=1e9;SMOKE_PAL.forEach((p,i)=>{const d=(p[0]-px[0])**2+(p[1]-px[1])**2+(p[2]-px[2])**2;if(d<bd){bd=d;v=i+1}});if(bd>300)v=0}
+  smokeHereC={k,v};return v}catch(e){return 0}}
 async function renderFire(){
   const el=$("#fire");if(!el)return;const my=++fireReq;
   const red=(ALERTS||[]).filter(f=>/Red Flag|Fire Weather|Extreme Fire/i.test(f.properties.event));
@@ -1353,12 +1363,16 @@ async function renderFire(){
     if(wet3<6)level=crit>=3?2:elev>=3?1:0;
     if(level||red.length){const gU=v=>S.wind==="kmh"?v*1.609:S.wind==="kn"?v*.869:v;
       why.push(`humidity down to <b>${Math.round(rhMin)}%</b>${tMin?` around ${fT(wall(tMin))}`:""}`,`gusts to <b>${Math.round(gU(gMax))} ${U.wl()}</b>`,since==null?"<b>7+ days</b> since real rain":since>=2?`<b>${since} days</b> since real rain`:"")}}
-  const smoky=air&&((air.aqiMax||0)>100||(air.pmMax||0)>=35.5);
+  // only speak up when air quality is forecast to be unhealthy (AQI over 100); a single hour of high PM2.5 in the
+  // model isn't enough. And only call it smoke when NOAA's smoke model actually has smoke here or a smoke/air alert is out.
+  const bad=air&&(air.aqiMax||0)>100,sm=bad?await smokeHere():0,smokeAlert=(ALERTS||[]).some(f=>/smoke|air quality/i.test(f.properties.event));
+  if(my!==fireReq)return;
+  const smoky=bad;
   if(!red.length&&!level&&!smoky){el.style.display="none";el.innerHTML="";return}
   const head=red.length?[red.map(f=>f.properties.event).filter((v,k,a)=>a.indexOf(v)===k).join(" · "),"#ff5468"]:level===2?["Critical fire weather","#ff5468"]:level===1?["Elevated fire weather","#ffb547"]:null;
   let h="";
   if(head)h+=`<div class="fh"><i style="background:${head[1]}"></i><b>${esc(head[0])}</b></div><p>${why.filter(Boolean).join(" · ").replace(/^h/,"H")}${red.length?"":`. <span class="dim">Estimated from the forecast — not an official warning.</span>`}</p>`;
-  if(smoky){const c=aqCat(air.aqiMax||air.aqi);h+=`<div class="fh"${head?' style="margin-top:10px"':""}><i style="background:${c[1]}"></i><b>Smoky air ${air.aqi>100?"now":"possible"}</b></div><p>${air.aqi>100?`Air quality is <b>${Math.round(air.aqi)} AQI</b> now${(air.aqiMax||0)>air.aqi+10?`, up to <b>${Math.round(air.aqiMax)}</b> in the next 24 h`:""}`:`Air quality may reach <b>${Math.round(air.aqiMax)} AQI</b> in the next 24 h`} (${c[0]}) · PM2.5 up to <b>${Math.round(Math.max(air.pm,air.pmMax||0))} µg/m³</b></p>`}
+  if(smoky){const c=aqCat(air.aqiMax||air.aqi);h+=`<div class="fh"${head?' style="margin-top:10px"':""}><i style="background:${c[1]}"></i><b>${sm>=5||smokeAlert?"Smoky air":"Unhealthy air"} ${air.aqi>100?"now":"possible"}</b></div><p>${air.aqi>100?`Air quality is <b>${Math.round(air.aqi)} AQI</b> now${(air.aqiMax||0)>air.aqi+10?`, up to <b>${Math.round(air.aqiMax)}</b> in the next 24 h`:""}`:`Air quality may reach <b>${Math.round(air.aqiMax)} AQI</b> in the next 24 h`} (${c[0]}) · PM2.5 up to <b>${Math.round(Math.max(air.pm,air.pmMax||0))} µg/m³</b></p>`}
   h+=`<div class="fbtn">${smoky?'<button data-l="smoke">Smoke map</button>':""}<button data-l="fires">Wildfires map</button>${head?'<button data-l="fireout">Fire outlook</button>':""}</div>`;
   el.innerHTML=h;el.style.display="";
 }
@@ -2323,7 +2337,8 @@ const bandCache=new Map();
 // HRRR smoke legend, thinnest to thickest (1 → 200+ µg/m³): thin smoke is a faint veil, thick smoke nearly solid
 const SMOKE_PAL=[[217,236,251],[177,213,245],[136,175,221],[104,146,189],[113,164,120],[138,187,72],[201,214,84],[237,210,82],[220,150,55],[204,100,39],[186,67,38],[163,49,33],[133,39,23],[120,50,205]];
 function smokeAlpha(c){let best=-1,bd=1e9;SMOKE_PAL.forEach((p,i)=>{const d=(p[0]-c[0])**2+(p[1]-c[1])**2+(p[2]-c[2])**2;if(d<bd){bd=d;best=i}});
-  if(bd>300)return[0,0,0,0];return[c[0],c[1],c[2],Math.round(255*(.12+.8*Math.pow(best/(SMOKE_PAL.length-1),.8)))]}
+  // under 6 µg/m³ is background haze you can't see or smell: leave it off the map
+  if(bd>300||best<3)return[0,0,0,0];return[c[0],c[1],c[2],Math.round(255*(.16+.76*Math.pow((best-3)/(SMOKE_PAL.length-4),.8)))]}
 function bandBase(url,mode){const ck=url+(mode||"");if(bandCache.has(ck))return bandCache.get(ck);
   const p=(async()=>{const r=await fetch(/mesonet\.agron/.test(url)?via(url):url);if(!r.ok)return null;
     const bmp=await createImageBitmap(await r.blob()),w=bmp.width,h=bmp.height,c=document.createElement("canvas");c.width=w;c.height=h;
