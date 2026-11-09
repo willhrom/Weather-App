@@ -1727,6 +1727,8 @@ function bestToday(el,act,A,chips,sc_,wins,T,times,i0){
     hero=`<div class="thero"><div class="tt"><span class="bkick">Today · ${A.n}</span><b>Daylight's done</b><small>${nx?`Next good time: ${dayLbl(T(nx.a))} ${times(nx)}`:"Nothing great in the next few days either."}</small></div></div>`}
   else if(pick){focus=pick;
     hero=`<div class="thero"><div class="tt"><span class="bkick">Today's best for ${verb}</span><b>${times(pick)}</b><small>${pick.a===0?"Good right now":"Starts in "+relIn(T(pick.a))}</small></div>${ring(pick.avg)}</div>`}
+  else if(sc_[bestHr]>=.7){focus={a:bestHr,b:bestHr,avg:sc_[bestHr]};  // a single good hour still counts
+    hero=`<div class="thero"><div class="tt"><span class="bkick">Today's best for ${verb}</span><b>${times(focus)}</b><small>${bestHr===0?"Good right now · just this hour":"Starts in "+relIn(T(bestHr))+" · just one good hour"}</small></div>${ring(sc_[bestHr])}</div>`}
   else{focus={a:bestHr,b:bestHr,avg:sc_[bestHr]};
     hero=`<div class="thero"><div class="tt"><span class="bkick">Today · ${A.n}</span><b>No great window today</b><small>Best hour: ${hTxt12(T(bestHr))}</small></div>${ring(sc_[bestHr])}</div>`}
   // hour strip: one column per daylight hour left today, taller and greener the better it is
