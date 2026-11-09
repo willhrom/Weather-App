@@ -14,7 +14,7 @@ DIAG.mark("html start");
 </script>
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
 <meta name="theme-color" content="#0f2a4a">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://unpkg.com; style-src 'self' 'unsafe-inline' https://unpkg.com https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob: https:; worker-src blob:; child-src blob:; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'; connect-src 'self' blob: data: wxr: https://tiles.openfreemap.org https://*.open-meteo.com https://api.open-meteo.com https://api.weather.gov https://aviationweather.gov https://api.tidesandcurrents.noaa.gov https://api.bigdatacloud.net https://api.rainviewer.com https://*.rainviewer.com https://mesonet.agron.iastate.edu https://willhrom-weather-gtg.pages.dev https://willhrom-weather-gfs.pages.dev https://realearth.ssec.wisc.edu https://willhrom-weather.pages.dev https://mapservices.weather.noaa.gov">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://unpkg.com; style-src 'self' 'unsafe-inline' https://unpkg.com https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob: https:; worker-src blob:; child-src blob:; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'; connect-src 'self' blob: data: wxr: https://tiles.openfreemap.org https://*.open-meteo.com https://api.open-meteo.com https://api.weather.gov https://aviationweather.gov https://api.tidesandcurrents.noaa.gov https://api.bigdatacloud.net https://api.rainviewer.com https://*.rainviewer.com https://mesonet.agron.iastate.edu https://willhrom-weather-gtg.pages.dev https://willhrom-weather-gfs.pages.dev https://services3.arcgis.com https://realearth.ssec.wisc.edu https://willhrom-weather.pages.dev https://mapservices.weather.noaa.gov">
 <meta name="referrer" content="no-referrer">
 <title>Weather</title>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -711,7 +711,7 @@ const store={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.
 const DEFAULT={id:"sf",name:"San Francisco",sub:"California",lat:37.7749,lon:-122.4194};
 let WXN={},wxnT=0;
 let S=Object.assign({temp:"F",wind:"mph",rain:"in",gps:true,nRain:true,nAlerts:true},store.get("wx.settings",{}));
-let L=Object.assign({radar:true,ocean:true,oclouds:true,future:false,turb:false,ir:false,vis:false,wv:false,ptype:false,lightning:false,smoke:false,fires:false,fireout:false,mrms:"",alerts:true,metar:false,gairmet:false,sigmet:false,cwa:false,pirep:false},store.get("wx.layers",{}));
+let L=Object.assign({fireperim:true,radar:true,ocean:true,oclouds:true,future:false,turb:false,ir:false,vis:false,wv:false,ptype:false,lightning:false,smoke:false,fires:false,fireout:false,mrms:"",alerts:true,metar:false,gairmet:false,sigmet:false,cwa:false,pirep:false},store.get("wx.layers",{}));
 let places=store.get("wx.places",[]);
 let sel=store.get("wx.sel",S.gps?"gps":(places[0]?places[0].id:"sf"));
 let gpsPlace=store.get("wx.gpsPlace",null);
@@ -1798,6 +1798,7 @@ const LAYERS=[
  {g:"Weather",k:"mrms",v:"q2-p72h",n:"Rain · last 72 h",s:"MRMS radar estimate",c:"linear-gradient(135deg,#0a8,#ff0,#f00)",us:1},
  {g:"Weather",k:"alerts",n:"NWS alerts",s:"Warnings & advisories here",c:"#ff8a3d",us:1},
  {g:"Fire & smoke",k:"smoke",n:"Smoke",s:"HRRR near-surface smoke · now",c:"linear-gradient(135deg,#b1d5f5,#8abb48,#edd252,#cc6427,#7832cd)",us:1},
+ {g:"Fire & smoke",k:"fireperim",n:"Wildfire outlines",s:"Burning fires over 1,000 acres · name, size, containment (NIFC)",c:"#ff6a2b",us:1},
  {g:"Fire & smoke",k:"fires",n:"Active wildfires",s:"Current incidents (NIFC)",c:"#ff5a1f",us:1},
  {g:"Fire & smoke",k:"fireout",n:"Fire weather outlook",s:"NOAA Storm Prediction Center",c:"linear-gradient(135deg,#ffb547,#ff5468,#e05cff)",us:1},
  {g:"Aviation · aviationweather.gov",k:"metar",n:"METARs",s:"Flight category by airport",c:"linear-gradient(135deg,#3ddc97 25%,#4ca3ff 25% 50%,#ff5468 50% 75%,#e05cff 75%)",us:1},
@@ -2027,7 +2028,7 @@ async function applyLayers(force){
   const key=String(us)+L.ocean+L.oclouds;
   if(L.radar){if(force||!frames.length||key!==radarKey||Date.now()-radarStamp>4*6e4){radarKey=key;await loadRadar()}}else clearRadar();
   {const an=radarAnchor();for(const f of frames)if(map.getLayer(f.id))map.moveLayer(f.id,an)}
-  updateAlertLayer();updateNationalAviation();loadBboxAviation();updateGtg();updateLegend();
+  updateAlertLayer();updateFirePerims();updateNationalAviation();loadBboxAviation();updateGtg();updateLegend();
 }
 function clearRadar(){clearTimeout(timer);radarGen++;frames.forEach(f=>{rmLayer(f.id);f.ocn&&rmLayer(f.ocn.id)});frames=[];$("#player").style.display="none";$("#mapSrc").textContent=""}
 async function loadRadar(){
@@ -2115,6 +2116,32 @@ async function updateAlertLayer(){
   if(!map.getLayer("alerts-fill")){map.addLayer({id:"alerts-fill",type:"fill",source:"alerts",paint:{"fill-color":col,"fill-opacity":.13}});map.addLayer({id:"alerts-line",type:"line",source:"alerts",paint:{"line-color":col,"line-width":1.5}})}
   setVis(["alerts-fill","alerts-line"],true);
 }
+/* Big wildfires: NIFC's current fire perimeters (over 1,000 acres), outlined on the map with name, size and
+   containment. Still-burning fires are bright; fully contained ones fade back. Fetched straight from NIFC
+   (it allows it), refreshed every 30 minutes. */
+const FP_URL="https://services3.arcgis.com/T4QMspbfLg3qTGWY/arcgis/rest/services/WFIGS_Interagency_Perimeters_Current/FeatureServer/0/query?"+
+  "where=poly_GISAcres%3E%3D1000&outFields=poly_IncidentName,poly_GISAcres,attr_PercentContained,poly_DateCurrent&maxAllowableOffset=0.002&geometryPrecision=4&outSR=4326&f=geojson";
+let fpCache={t:0,v:null};
+async function updateFirePerims(){
+  if(!mapReady)return;const ids=["fp-fill","fp-line","fp-lbl"];
+  if(!(L.fireperim&&isUS(place))){setVis(ids,false);return}
+  if(!fpCache.v||Date.now()-fpCache.t>30*6e4){
+    const ac=new AbortController(),to=setTimeout(()=>ac.abort(),12000);
+    try{const j=await (await fetch(FP_URL,{signal:ac.signal})).json();
+      // NIFC keeps old fires on its "current" list for months; keep the ones still burning, or mapped in the last 2 weeks
+      j.features=(j.features||[]).filter(f=>{const p=f.properties||{};return (p.attr_PercentContained==null||p.attr_PercentContained<100)&&Date.now()-(p.poly_DateCurrent||0)<14*864e5});
+      for(const f of j.features){const p=f.properties||{},ac_=p.poly_GISAcres||0,pc=p.attr_PercentContained;
+        f.properties={n:String(p.poly_IncidentName||"Fire").replace(/\b\w/g,c=>c.toUpperCase()),on:pc==null||pc<100?1:0,
+          lbl:`${String(p.poly_IncidentName||"Fire")}\n${ac_>=1e4?Math.round(ac_/1e3)+"k":Math.round(ac_).toLocaleString()} ac · ${pc==null?"containment n/a":pc+"% contained"}`}}
+      fpCache={t:Date.now(),v:j}}catch(e){console.warn("fire perimeters",e);if(!fpCache.v)return}finally{clearTimeout(to)}}
+  if(!mapReady)return;geo("fireperim",fpCache.v);
+  if(!map.getLayer("fp-fill")){
+    map.addLayer({id:"fp-fill",type:"fill",source:"fireperim",paint:{"fill-color":["case",["==",["get","on"],1],"#ff5a1f","#b07a5a"],"fill-opacity":["case",["==",["get","on"],1],.16,.06]}},beforeLabels());
+    map.addLayer({id:"fp-line",type:"line",source:"fireperim",layout:{"line-join":"round"},paint:{"line-color":["case",["==",["get","on"],1],"#ff6a2b","#c9906c"],
+      "line-width":["interpolate",["linear"],["zoom"],4,1,8,2,12,3],"line-opacity":["case",["==",["get","on"],1],1,.6]}},beforeLabels());
+    try{map.addLayer({id:"fp-lbl",type:"symbol",source:"fireperim",minzoom:6.5,layout:{"text-field":["get","lbl"],"text-size":11,"text-font":["Noto Sans Regular"],"symbol-placement":"point","text-max-width":14,"text-allow-overlap":false},
+      paint:{"text-color":["case",["==",["get","on"],1],"#ffd2b8","#c9b3a5"],"text-halo-color":"rgba(8,18,32,.9)","text-halo-width":1.4}})}catch(e){console.warn("fire labels",e)}}
+  setVis(ids,true)}
 let natCache={t:0,g:EMPTY,s:EMPTY,c:EMPTY};
 const TURB_AREA_IDS=["turb-fill","turb-line","turb-line-hi"];
 // turbulence intensity from a PIREP: AWC fields when present, otherwise parsed from the raw /TB group
