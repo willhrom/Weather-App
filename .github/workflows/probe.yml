@@ -1,0 +1,11 @@
+name: Fire probe
+on: { push: { branches: [fireperim] } }
+permissions: { contents: write }
+jobs:
+  p:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          mkdir out && cd out && python3 ../.github/fp_probe.py || true
+          git init -q && git checkout -q -b gtg-debug && git add -A && git -c user.name=ci -c user.email=ci@x commit -qm p && git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}" gtg-debug
