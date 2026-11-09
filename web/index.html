@@ -2337,7 +2337,8 @@ const bandCache=new Map();
 // HRRR smoke legend, thinnest to thickest (1 → 200+ µg/m³): thin smoke is a faint veil, thick smoke nearly solid
 const SMOKE_PAL=[[217,236,251],[177,213,245],[136,175,221],[104,146,189],[113,164,120],[138,187,72],[201,214,84],[237,210,82],[220,150,55],[204,100,39],[186,67,38],[163,49,33],[133,39,23],[120,50,205]];
 function smokeAlpha(c){let best=-1,bd=1e9;SMOKE_PAL.forEach((p,i)=>{const d=(p[0]-c[0])**2+(p[1]-c[1])**2+(p[2]-c[2])**2;if(d<bd){bd=d;best=i}});
-  if(bd>300)return[0,0,0,0];return[c[0],c[1],c[2],Math.round(255*(.12+.8*Math.pow(best/(SMOKE_PAL.length-1),.8)))]}
+  // under 6 µg/m³ is background haze you can't see or smell: leave it off the map
+  if(bd>300||best<3)return[0,0,0,0];return[c[0],c[1],c[2],Math.round(255*(.16+.76*Math.pow((best-3)/(SMOKE_PAL.length-4),.8)))]}
 function bandBase(url,mode){const ck=url+(mode||"");if(bandCache.has(ck))return bandCache.get(ck);
   const p=(async()=>{const r=await fetch(/mesonet\.agron/.test(url)?via(url):url);if(!r.ok)return null;
     const bmp=await createImageBitmap(await r.blob()),w=bmp.width,h=bmp.height,c=document.createElement("canvas");c.width=w;c.height=h;
