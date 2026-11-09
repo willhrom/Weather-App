@@ -255,6 +255,7 @@ body.mapopen .tabbar{display:none}
 .lrow.on .tg,.tg.on{background:var(--accent)}.lrow.on .tg::after,.tg.on::after{transform:translateX(14px);background:#06121f}
 .maplibregl-popup-content{background:#10213a;color:var(--text);border:1px solid var(--line2);border-radius:10px;padding:10px 12px;font-size:12px;max-width:280px;box-shadow:0 10px 30px rgba(0,0,0,.5)}
 .maplibregl-popup-content b{font-size:13px}
+.fpop{display:grid;grid-template-columns:auto 1fr;gap:3px 12px;margin-top:8px;font-size:12px}.fpop span{color:#8597b3}.fpop b{font-size:12px;font-weight:600}
 .maplibregl-popup-content pre{font-family:var(--mono);font-size:11px;white-space:pre-wrap;margin:6px 0 0;color:var(--muted)}
 .maplibregl-popup-tip{border-top-color:#10213a!important;border-bottom-color:#10213a!important}
 .maplibregl-popup-close-button{color:var(--muted);font-size:18px;padding:0 6px}
@@ -1799,7 +1800,7 @@ const LAYERS=[
  {g:"Weather",k:"alerts",n:"NWS alerts",s:"Warnings & advisories here",c:"#ff8a3d",us:1},
  {g:"Fire & smoke",k:"smoke",n:"Smoke",s:"HRRR near-surface smoke · now",c:"linear-gradient(135deg,#b1d5f5,#8abb48,#edd252,#cc6427,#7832cd)",us:1},
  {g:"Fire & smoke",k:"fireperim",n:"Wildfire outlines",s:"Burning fires over 1,000 acres · name, size, containment (NIFC)",c:"#ff6a2b",us:1},
- {g:"Fire & smoke",k:"fires",n:"Active wildfires",s:"Current incidents (NIFC)",c:"#ff5a1f",us:1},
+ {g:"Fire & smoke",k:"fires",n:"Active wildfires",s:"Burning wildfires, sized by acres · tap for details (NIFC)",c:"#ff5a1f",us:1},
  {g:"Fire & smoke",k:"fireout",n:"Fire weather outlook",s:"NOAA Storm Prediction Center",c:"linear-gradient(135deg,#ffb547,#ff5468,#e05cff)",us:1},
  {g:"Aviation · aviationweather.gov",k:"metar",n:"METARs",s:"Flight category by airport",c:"linear-gradient(135deg,#3ddc97 25%,#4ca3ff 25% 50%,#ff5468 50% 75%,#e05cff 75%)",us:1},
  {g:"Aviation · aviationweather.gov",k:"gairmet",n:"G-AIRMETs",s:"IFR, mtn obsc, turb, icing, LLWS — now",c:"#c792ea",us:1},
@@ -2142,6 +2143,36 @@ async function updateFirePerims(){
     try{map.addLayer({id:"fp-lbl",type:"symbol",source:"fireperim",minzoom:6.5,layout:{"text-field":["get","lbl"],"text-size":11,"text-font":["Noto Sans Regular"],"symbol-placement":"point","text-max-width":14,"text-allow-overlap":false},
       paint:{"text-color":["case",["==",["get","on"],1],"#ffd2b8","#c9b3a5"],"text-halo-color":"rgba(8,18,32,.9)","text-halo-width":1.4}})}catch(e){console.warn("fire labels",e)}}
   setVis(ids,true)}
+/* Wildfire dots: NIFC's current incidents, wildfires only (prescribed burns left out) that aren't fully contained
+   and were updated in the last month. Dot size grows with acres; tap one for the details. */
+const FD_URL="https://services3.arcgis.com/T4QMspbfLg3qTGWY/arcgis/rest/services/WFIGS_Incident_Locations_Current/FeatureServer/0/query?"+
+  "where="+encodeURIComponent("IncidentTypeCategory='WF' AND (PercentContained IS NULL OR PercentContained<100)")+
+  "&outFields=IncidentName,IncidentSize,PercentContained,FireDiscoveryDateTime,ModifiedOnDateTime_dt,FireCause,POOCounty,POOState,TotalIncidentPersonnel,PredominantFuelGroup,IncidentShortDescription&outSR=4326&f=geojson";
+let fdCache={t:0,v:null};
+async function updateFireDots(us){
+  if(!mapReady)return;const ids=["fd-glow","fd-dot"];
+  if(!(L.fires&&us)){setVis(ids,false);return}
+  if(!fdCache.v||Date.now()-fdCache.t>15*6e4){
+    const ac=new AbortController(),to=setTimeout(()=>ac.abort(),12000);
+    try{const j=await (await fetch(FD_URL,{signal:ac.signal})).json();
+      j.features=(j.features||[]).filter(f=>f.geometry&&Date.now()-((f.properties||{}).ModifiedOnDateTime_dt||0)<30*864e5);
+      for(const f of j.features)f.properties.acres=+f.properties.IncidentSize||0;
+      j.features.sort((a,b)=>a.properties.acres-b.properties.acres);  // big fires draw on top
+      fdCache={t:Date.now(),v:j}}catch(e){console.warn("fire dots",e);if(!fdCache.v)return}finally{clearTimeout(to)}}
+  if(!mapReady)return;geo("firedots",fdCache.v);
+  if(!map.getLayer("fd-dot")){
+    const r=["interpolate",["linear"],["sqrt",["get","acres"]],0,3.5,3,4.5,10,6,32,9,100,13,316,19,1000,26];
+    map.addLayer({id:"fd-glow",type:"circle",source:"firedots",paint:{"circle-radius":["*",r,1.9],"circle-color":"#ff5a1f","circle-opacity":.16,"circle-blur":.8}});
+    map.addLayer({id:"fd-dot",type:"circle",source:"firedots",paint:{"circle-radius":r,"circle-color":["interpolate",["linear"],["get","acres"],0,"#ffb547",1000,"#ff7a2b",10000,"#ff4a1f"],
+      "circle-opacity":.92,"circle-stroke-color":"rgba(255,240,225,.9)","circle-stroke-width":1}})}
+  setVis(ids,true)}
+function fireHtml(p){const ac=+p.IncidentSize||0,pc=p.PercentContained,d=t=>t?new Date(+t).toLocaleDateString([],{month:"short",day:"numeric"}):null;
+  const rows=[["Size",ac?Math.round(ac).toLocaleString()+" acres":"not reported"],["Contained",pc==null?"not reported":pc+"%"],["Started",d(p.FireDiscoveryDateTime)],
+    ["Where",[p.POOCounty&&p.POOCounty+" County",p.POOState&&String(p.POOState).replace(/^US-/,"")].filter(Boolean).join(", ")],["Cause",p.FireCause],["Fuel",p.PredominantFuelGroup],
+    ["Personnel",p.TotalIncidentPersonnel?Math.round(p.TotalIncidentPersonnel).toLocaleString():null],["Updated",d(p.ModifiedOnDateTime_dt)]].filter(r=>r[1]);
+  const nm=String(p.IncidentName||"Wildfire").toLowerCase().replace(/\b\w/g,c=>c.toUpperCase());
+  return `<b>${esc(/fire$/i.test(nm)?nm:nm+" Fire")}</b>${p.IncidentShortDescription?`<div style="color:#9fb2c8;margin-top:3px">${esc(p.IncidentShortDescription)}</div>`:""}
+    <div class="fpop">${rows.map(r=>`<span>${r[0]}</span><b>${esc(String(r[1]))}</b>`).join("")}</div><div style="color:#8597b3;margin-top:6px;font-size:11px">Source: NIFC</div>`}
 let natCache={t:0,g:EMPTY,s:EMPTY,c:EMPTY};
 const TURB_AREA_IDS=["turb-fill","turb-line","turb-line-hi"];
 // turbulence intensity from a PIREP: AWC fields when present, otherwise parsed from the raw /TB group
@@ -2221,7 +2252,7 @@ async function applyExtraLayers(us,bust){
   if(L.ptype&&us)raster(ptid,`wxp://{z}/{x}/{y}?nz=8&u=${encodeURIComponent(ptu)}`,{opacity:.9,maxzoom:13,attr:"HRRR via IEM"});
   if(L.lightning&&us)raster(lt,`wxs://{z}/{x}/{y}?m=glm&nz=6&u=${encodeURIComponent(`${RE}/tiles/${isWest()?"GOESWest":"GOESEast"}GLMFEDRadC/{z}/{x}/{y}.png?${bust}`)}`,{opacity:1,maxzoom:12,attr:"GOES GLM via SSEC RealEarth"});else rmLayer(lt);
   if(L.fireout&&us)raster(fo,`wxb://{z}/{x}/{y}?nz=7&u=${encodeURIComponent(`${RE}/tiles/NOAA-SPC-fire-wx/{z}/{x}/{y}.png?${bust}`)}`,{opacity:.55,maxzoom:12,attr:"NOAA SPC via RealEarth"});else rmLayer(fo);
-  if(L.fires&&us)raster(fi,`wxc://{z}/{x}/{y}?m=fire&u=${encodeURIComponent(`${RE}/tiles/WFIGS-Points/{z}/{x}/{y}.png?${bust}`)}`,{opacity:1,maxzoom:11,attr:"NIFC via RealEarth"});else rmLayer(fi);
+  rmLayer(fi);updateFireDots(us);
   if(L.smoke&&us){try{const t=await smokeTime();const id=t?"smoke-"+t.d+t.h:null;
       for(const l of (map.getStyle().layers||[]))if(l.id.startsWith("smoke-")&&l.id!==id)rmLayer(l.id);
       if(t)raster(id,`wxb://{z}/{x}/{y}?m=smoke&nz=5&u=${encodeURIComponent(`${RE}/tiles/HRRR-smoke-surface/${t.d}/${t.h}/{z}/{x}/{y}.png`)}`,{opacity:1,maxzoom:12,attr:"HRRR-Smoke via SSEC RealEarth"});SMOKE_AT=t&&t.ms;updateLegend()}catch(e){console.warn("smoke",e)}}
@@ -2430,9 +2461,11 @@ function gtgPopup(e){
   const t=G.man.times[G.ti],v=Date.parse(t.valid);
   if(popup)popup.remove();popup=new maplibregl.Popup({maxWidth:"260px"}).setLngLat(e.lngLat).setHTML(`<b>Turbulence forecast · ${cat}</b> <span class="badge">FL${String(G.fl).padStart(3,"0")}</span><pre>EDR ${edr.toFixed(2)} m²ᐟ³/s\n${EDR_N[G.ac]}\nValid ${fT(v+off*1000)} · GTG ${G.man.cycle.slice(8)}Z run</pre>`).addTo(map)}
 function onMapClick(e){
-  if(!isFull())return;const ids=["turb-pirep","metar","pirep","turb-fill","turb-line","turb-line-hi","sigmet-fill","cwa-line","gairmet-fill","alerts-fill"].filter(id=>map.getLayer(id)&&map.getLayoutProperty(id,"visibility")!=="none");
+  if(!isFull())return;const ids=["fd-dot","fp-fill","turb-pirep","metar","pirep","turb-fill","turb-line","turb-line-hi","sigmet-fill","cwa-line","gairmet-fill","alerts-fill"].filter(id=>map.getLayer(id)&&map.getLayoutProperty(id,"visibility")!=="none");
   const f=map.queryRenderedFeatures([[e.point.x-8,e.point.y-8],[e.point.x+8,e.point.y+8]],{layers:ids})[0];if(!f){gtgPopup(e);return}const p=f.properties||{};let h;
-  if(f.layer.id==="metar")h=`<b>${esc(p.id)}</b> <span class="badge"><i style="background:${catColor(p.cat)}"></i>${esc(p.cat)}</span><div style="color:#9fb2c8;margin-top:4px">${esc(p.name)}</div><pre>${esc(p.raw)}</pre>`;
+  if(f.layer.id==="fd-dot")h=fireHtml(p);
+  else if(f.layer.id==="fp-fill")h=`<b>${esc(String(p.lbl||"").split("\n")[0].replace(/^(.*?)( fire)?$/i,"$1 Fire"))}</b><div style="color:#9fb2c8;margin-top:3px">${esc(String(p.lbl||"").split("\n")[1]||"")}</div><div style="color:#8597b3;margin-top:6px;font-size:11px">Mapped fire perimeter · NIFC</div>`;
+  else if(f.layer.id==="metar")h=`<b>${esc(p.id)}</b> <span class="badge"><i style="background:${catColor(p.cat)}"></i>${esc(p.cat)}</span><div style="color:#9fb2c8;margin-top:4px">${esc(p.name)}</div><pre>${esc(p.raw)}</pre>`;
   else if(f.layer.id==="pirep")h=`<b>PIREP</b><pre>${esc(p.raw)}</pre>`;
   else if(f.layer.id==="turb-pirep")h=`<b>Turbulence report · ${["None","Light","Moderate","Severe","Extreme"][+p.sev]||""}</b>${p.fl?` <span class="badge">${esc(p.fl)}</span>`:""}<pre>${esc(p.raw)}</pre>`;
   else if(/^turb-(fill|line)/.test(f.layer.id))h=`<b>${esc(p.src)} · ${p.tk==="hi"?"High-level turbulence":p.tk==="sig"?"Severe turbulence":"Low-level turbulence"}</b><pre>${esc([p.validTime&&"Valid "+p.validTime,p.base!=null&&p.base!==""&&"Base "+p.base,p.top!=null&&p.top!==""&&"Top "+p.top,p.altitudeLow1!=null&&"From "+p.altitudeLow1,p.altitudeHi1!=null&&"To "+p.altitudeHi1,p.rawAirSigmet].filter(Boolean).join("\n"))}</pre>`;
