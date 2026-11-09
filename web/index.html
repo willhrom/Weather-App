@@ -1800,7 +1800,7 @@ const LAYERS=[
  {g:"Weather",k:"alerts",n:"NWS alerts",s:"Warnings & advisories here",c:"#ff8a3d",us:1},
  {g:"Fire & smoke",k:"smoke",n:"Smoke",s:"HRRR near-surface smoke · now",c:"linear-gradient(135deg,#b1d5f5,#8abb48,#edd252,#cc6427,#7832cd)",us:1},
  {g:"Fire & smoke",k:"fireperim",n:"Wildfire outlines",s:"Burning fires over 1,000 acres · name, size, containment (NIFC)",c:"#ff6a2b",us:1},
- {g:"Fire & smoke",k:"fires",n:"Active wildfires",s:"Burning wildfires, sized by acres · tap for details (NIFC)",c:"#ff5a1f",us:1},
+ {g:"Fire & smoke",k:"fires",n:"Active wildfires",s:"Burning wildfires over 100 acres, sized by acres · tap for details (NIFC)",c:"#ff5a1f",us:1},
  {g:"Fire & smoke",k:"fireout",n:"Fire weather outlook",s:"NOAA Storm Prediction Center",c:"linear-gradient(135deg,#ffb547,#ff5468,#e05cff)",us:1},
  {g:"Aviation · aviationweather.gov",k:"metar",n:"METARs",s:"Flight category by airport",c:"linear-gradient(135deg,#3ddc97 25%,#4ca3ff 25% 50%,#ff5468 50% 75%,#e05cff 75%)",us:1},
  {g:"Aviation · aviationweather.gov",k:"gairmet",n:"G-AIRMETs",s:"IFR, mtn obsc, turb, icing, LLWS — now",c:"#c792ea",us:1},
@@ -2143,10 +2143,10 @@ async function updateFirePerims(){
     try{map.addLayer({id:"fp-lbl",type:"symbol",source:"fireperim",minzoom:6.5,layout:{"text-field":["get","lbl"],"text-size":11,"text-font":["Noto Sans Regular"],"symbol-placement":"point","text-max-width":14,"text-allow-overlap":false},
       paint:{"text-color":["case",["==",["get","on"],1],"#ffd2b8","#c9b3a5"],"text-halo-color":"rgba(8,18,32,.9)","text-halo-width":1.4}})}catch(e){console.warn("fire labels",e)}}
   setVis(ids,true)}
-/* Wildfire dots: NIFC's current incidents, wildfires only (prescribed burns left out) that aren't fully contained
+/* Wildfire dots: NIFC's current incidents, wildfires of 100+ acres only (prescribed burns left out) that aren't fully contained
    and were updated in the last month. Dot size grows with acres; tap one for the details. */
 const FD_URL="https://services3.arcgis.com/T4QMspbfLg3qTGWY/arcgis/rest/services/WFIGS_Incident_Locations_Current/FeatureServer/0/query?"+
-  "where="+encodeURIComponent("IncidentTypeCategory='WF' AND (PercentContained IS NULL OR PercentContained<100)")+
+  "where="+encodeURIComponent("IncidentTypeCategory='WF' AND IncidentSize>=100 AND (PercentContained IS NULL OR PercentContained<100)")+
   "&outFields=IncidentName,IncidentSize,PercentContained,FireDiscoveryDateTime,ModifiedOnDateTime_dt,FireCause,POOCounty,POOState,TotalIncidentPersonnel,PredominantFuelGroup,IncidentShortDescription&outSR=4326&f=geojson";
 let fdCache={t:0,v:null};
 async function updateFireDots(us){
