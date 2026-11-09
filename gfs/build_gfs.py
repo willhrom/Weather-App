@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """
-Model rain and clouds over the Pacific for the weather app's map.
+Model rain and clouds for the whole globe, for the weather app's map.
 
 Radar can't see far past the coast and satellite only shows the present, so offshore the app
 draws NOAA's GFS model itself: composite reflectivity (REFC, dBZ) and total cloud cover (TCDC, %)
 from the newest 0.25-degree run, every hour from the run's start to +18 h.
 
-Each hour becomes a few Web Mercator *data* tiles (z2..z4, 256 px plus a 1 px border so
-neighbouring tiles join without a seam) over the eastern Pacific.
+Each hour becomes Web Mercator *data* tiles for the whole world (z2..z3, 256 px plus a 1 px border so
+neighbouring tiles join without a seam) over the whole globe.
 They hold numbers, not colours:
   R = reflectivity: (dBZ + 20) * 3, clamped 0..255
   G = cloud cover:  % * 2.55
@@ -26,8 +26,8 @@ OUT = os.path.join(sys.argv[1] if len(sys.argv) > 1 else "dist", "gfs")
 PREV_MANIFEST = os.environ.get("PREV_MANIFEST_URL", "")
 FORCE = os.environ.get("FORCE") == "1"
 HOURS = list(range(0, 19))
-W, E, S_, N = -180.0, -100.0, 8.0, 62.0
-ZOOMS = range(2, 5)
+W, E, S_, N = -180.0, 180.0, -85.06, 85.06   # the whole Web Mercator world
+ZOOMS = range(2, 4)   # z3 at 256 px is already finer than the 0.25-degree grid; the phone smooths the rest
 FADE_KM = (150, 250)
 S = requests.Session()
 S.headers["User-Agent"] = "WeatherApp-GFS/1.0 (personal weather app)"
@@ -84,10 +84,10 @@ def grab(url, var, lev):
 
 
 def subset(a):
-    # rows: lat 90 - 0.25*i ; cols: lon 0.25*j (0..360). Our box: lon 180..260, lat 62..8 (+1 cell margin)
-    i0, i1 = int((90 - N) / .25) - 1, int((90 - S_) / .25) + 2
-    j0, j1 = int((W + 360) / .25) - 1, int((E + 360) / .25) + 2
-    return a[i0:i1, j0:j1], 90 - i0 * .25, j0 * .25 - 360
+    """Global grid re-centred on Greenwich (-180..180) with 4 columns wrapped onto each side, so
+    interpolation runs straight across the date line. Rows: lat 90 - 0.25*i."""
+    g = np.roll(a, 720, axis=1)
+    return np.concatenate([g[:, -4:], g, g[:, :4]], axis=1), 90.0, -181.0
 
 
 def coast_weight(land):
@@ -107,7 +107,7 @@ def tile_coords(z):
     n = 2 ** z
     def tx(lon): return int((lon + 180) / 360 * n)
     def ty(lat): return int((1 - math.asinh(math.tan(math.radians(lat))) / math.pi) / 2 * n)
-    return range(tx(W), min(n - 1, tx(E - 1e-6)) + 1), range(ty(N), ty(S_) + 1)
+    return range(tx(W), min(n - 1, tx(E - 1e-6)) + 1), range(max(0, ty(N)), min(n - 1, ty(S_)) + 1)
 
 
 def render(fields, lat0, lon0, z, x, y):
