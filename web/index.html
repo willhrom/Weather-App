@@ -1903,7 +1903,7 @@ function registerRadar(){
   maplibregl.addProtocol("wxb",async params=>{
     const m=/^wxb:\/\/(\d+)\/(\d+)\/(\d+)\?(.*)$/.exec(params.url),z=+m[1],x=+m[2],y=+m[3],q=new URLSearchParams(m[4]);
     const nz=+q.get("nz"),d=Math.max(0,z-nz),px=x>>d,py=y>>d,url=q.get("u").replace("{z}",z-d).replace("{x}",px).replace("{y}",py);
-    let dd=null;try{dd=await bandTile(url,d,x-px*(1<<d),y-py*(1<<d))}catch(e){}return{data:dd||await emptyTile()}});
+    let dd=null;try{dd=await bandTile(url,d,x-px*(1<<d),y-py*(1<<d),q.get("m")||"")}catch(e){}return{data:dd||await emptyTile()}});
   // satellite: read each image at its true resolution, smooth out the speckle, then scale up smoothly
   maplibregl.addProtocol("wxs",async params=>{
     const m=/^wxs:\/\/(\d+)\/(\d+)\/(\d+)\?(.*)$/.exec(params.url),z=+m[1],x=+m[2],y=+m[3],q=new URLSearchParams(m[4]);
@@ -2197,7 +2197,7 @@ async function applyExtraLayers(us,bust){
   if(L.fires&&us)raster(fi,`wxc://{z}/{x}/{y}?m=fire&u=${encodeURIComponent(`${RE}/tiles/WFIGS-Points/{z}/{x}/{y}.png?${bust}`)}`,{opacity:1,maxzoom:11,attr:"NIFC via RealEarth"});else rmLayer(fi);
   if(L.smoke&&us){try{const t=await smokeTime();const id=t?"smoke-"+t.d+t.h:null;
       for(const l of (map.getStyle().layers||[]))if(l.id.startsWith("smoke-")&&l.id!==id)rmLayer(l.id);
-      if(t)raster(id,`wxb://{z}/{x}/{y}?nz=5&u=${encodeURIComponent(`${RE}/tiles/HRRR-smoke-surface/${t.d}/${t.h}/{z}/{x}/{y}.png`)}`,{opacity:.75,maxzoom:12,attr:"HRRR-Smoke via SSEC RealEarth"});SMOKE_AT=t&&t.ms;updateLegend()}catch(e){console.warn("smoke",e)}}
+      if(t)raster(id,`wxb://{z}/{x}/{y}?m=smoke&nz=5&u=${encodeURIComponent(`${RE}/tiles/HRRR-smoke-surface/${t.d}/${t.h}/{z}/{x}/{y}.png`)}`,{opacity:1,maxzoom:12,attr:"HRRR-Smoke via SSEC RealEarth"});SMOKE_AT=t&&t.ms;updateLegend()}catch(e){console.warn("smoke",e)}}
   else for(const l of (map.getStyle().layers||[]))if(l.id.startsWith("smoke-"))rmLayer(l.id);
   // keep point-like layers on top of the image layers
   for(const id of [lt,fi])if(map.getLayer(id))map.moveLayer(id,beforeLabels());
@@ -2234,22 +2234,27 @@ function satBase(url,mode){
    just makes soft staircases; instead each colour's area is traced with smooth curves: for every screen pixel,
    blend how much of each colour surrounds it and keep the strongest, so edges come out round and crisp. */
 const bandCache=new Map();
-function bandBase(url){if(bandCache.has(url))return bandCache.get(url);
+// HRRR smoke legend, thinnest to thickest (1 → 200+ µg/m³): thin smoke is a faint veil, thick smoke nearly solid
+const SMOKE_PAL=[[217,236,251],[177,213,245],[136,175,221],[104,146,189],[113,164,120],[138,187,72],[201,214,84],[237,210,82],[220,150,55],[204,100,39],[186,67,38],[163,49,33],[133,39,23],[120,50,205]];
+function smokeAlpha(c){let best=-1,bd=1e9;SMOKE_PAL.forEach((p,i)=>{const d=(p[0]-c[0])**2+(p[1]-c[1])**2+(p[2]-c[2])**2;if(d<bd){bd=d;best=i}});
+  if(bd>300)return[0,0,0,0];return[c[0],c[1],c[2],Math.round(255*(.12+.8*Math.pow(best/(SMOKE_PAL.length-1),.8)))]}
+function bandBase(url,mode){const ck=url+(mode||"");if(bandCache.has(ck))return bandCache.get(ck);
   const p=(async()=>{const r=await fetch(/mesonet\.agron/.test(url)?via(url):url);if(!r.ok)return null;
     const bmp=await createImageBitmap(await r.blob()),w=bmp.width,h=bmp.height,c=document.createElement("canvas");c.width=w;c.height=h;
     const g=c.getContext("2d",{willReadFrequently:true});g.drawImage(bmp,0,0);const a=g.getImageData(0,0,w,h).data,idx=new Uint8Array(w*h),cols=[[0,0,0,0]],key=new Map([[0,0]]);
     for(let i=0,k=0;k<w*h;i+=4,k++){if(a[i+3]<24){idx[k]=0;continue}const kk=(a[i]<<16|a[i+1]<<8|a[i+2])*1+1;let j=key.get(kk);
       if(j==null){if(cols.length>=60){idx[k]=0;continue}j=cols.length;key.set(kk,j);cols.push([a[i],a[i+1],a[i+2],a[i+3]])}idx[k]=j}
+    if(mode==="smoke")for(let j=1;j<cols.length;j++)cols[j]=smokeAlpha(cols[j]);
     return cols.length>1?{w,h,idx,cols}:null})().catch(()=>null);
-  bandCache.set(url,p);if(bandCache.size>40)bandCache.delete(bandCache.keys().next().value);return p}
-async function bandTile(url,d,qx,qy){const B=await bandBase(url);if(!B)return null;
+  bandCache.set(ck,p);if(bandCache.size>40)bandCache.delete(bandCache.keys().next().value);return p}
+async function bandTile(url,d,qx,qy,mode){const B=await bandBase(url,mode);if(!B)return null;
   const{w,h,idx,cols}=B,S=512,n=1<<d,sz=w/n,st=sz/S,c=document.createElement("canvas");c.width=c.height=S;const g=c.getContext("2d"),img=g.createImageData(S,S),o=img.data,acc=new Float32Array(cols.length);let any=false;
   for(let yy=0;yy<S;yy++){const fy=Math.min(h-1.001,Math.max(0,qy*sz+(yy+.5)*st-.5)),y0=fy|0,ty=fy-y0,y1=Math.min(h-1,y0+1);
     for(let xx=0;xx<S;xx++){const fx=Math.min(w-1.001,Math.max(0,qx*sz+(xx+.5)*st-.5)),x0=fx|0,tx=fx-x0,x1=Math.min(w-1,x0+1);
       const a0=idx[y0*w+x0],a1=idx[y0*w+x1],a2=idx[y1*w+x0],a3=idx[y1*w+x1];
-      if(a0===a1&&a1===a2&&a2===a3){if(!a0)continue;const cc=cols[a0],i=(yy*S+xx)*4;o[i]=cc[0];o[i+1]=cc[1];o[i+2]=cc[2];o[i+3]=cc[3];any=true;continue}
+      if(a0===a1&&a1===a2&&a2===a3){if(!a0||!cols[a0][3])continue;const cc=cols[a0],i=(yy*S+xx)*4;o[i]=cc[0];o[i+1]=cc[1];o[i+2]=cc[2];o[i+3]=cc[3];any=true;continue}
       acc[a0]=0;acc[a1]=0;acc[a2]=0;acc[a3]=0;acc[a0]+=(1-tx)*(1-ty);acc[a1]+=tx*(1-ty);acc[a2]+=(1-tx)*ty;acc[a3]+=tx*ty;
-      let best=a0;for(const k of [a1,a2,a3])if(acc[k]>acc[best])best=k;if(!best)continue;
+      let best=a0;for(const k of [a1,a2,a3])if(acc[k]>acc[best])best=k;if(!best||!cols[best][3])continue;
       const cc=cols[best],i=(yy*S+xx)*4;o[i]=cc[0];o[i+1]=cc[1];o[i+2]=cc[2];o[i+3]=cc[3];any=true}}
   if(!any)return null;g.putImageData(img,0,0);
   // a hair of blur takes the pixel stair off the new curved edges
