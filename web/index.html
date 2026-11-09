@@ -79,7 +79,7 @@ body.mapopen .tabbar{display:none}
 .pill svg{width:11px;height:11px;color:var(--accent)}
 
 /* panels */
-.panel{background:var(--panel);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid var(--line);border-radius:14px;margin-top:10px;overflow:hidden}
+.panel{background:var(--panel);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid var(--line);border-radius:22px;margin-top:12px;overflow:hidden}
 .ph{display:flex;align-items:center;gap:8px;padding:11px 14px 0;white-space:nowrap;font-size:11.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--faint)}
 .ph .r{margin-left:auto;min-width:0;overflow:hidden;text-overflow:ellipsis;letter-spacing:.04em;text-transform:none;font-weight:500;font-size:11.5px;color:var(--muted)}
 .pb{padding:12px 14px 14px}
@@ -124,6 +124,22 @@ body.mapopen .tabbar{display:none}
 .bhero{display:flex;align-items:center;gap:12px;padding:2px 0 10px}
 .bhero .bt{flex:1;min-width:0}.bhero b{display:block;font-size:17px;font-weight:700;color:var(--text);letter-spacing:-.01em}
 .bhero small{display:block;color:var(--faint);font-size:12.5px;margin-top:3px}
+.thero{display:flex;align-items:center;gap:14px;padding:4px 0 14px}.thero .tt{flex:1;min-width:0}
+.thero b{display:block;font:700 22px/1.15 'Inter Tight',sans-serif;color:var(--text);letter-spacing:-.02em}
+.thero small{display:block;color:var(--muted);font-size:12.5px;margin-top:4px}
+.tring{position:relative;width:52px;height:52px;flex:none}.tring svg{width:52px;height:52px;display:block}
+.tring b{position:absolute;inset:0;display:grid;place-items:center;font:700 16px 'Inter Tight',sans-serif;color:var(--text)}
+.tstrip{display:flex;align-items:flex-end;gap:3px;height:74px;padding:0 1px 0;margin-bottom:12px}
+.tcol{flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%}
+.tcol i{display:block;width:100%;max-width:18px;border-radius:5px;opacity:.28}
+.tcol.on i{opacity:1;box-shadow:0 0 12px rgba(61,220,151,.25)}
+.tcol span{height:14px;margin-top:5px;font:500 10px 'JetBrains Mono',monospace;color:var(--faint);white-space:nowrap}
+.tcol.on span{color:var(--text)}
+.tconds{display:grid;gap:5px}
+.tcond{position:relative;background:var(--panel2);border:1px solid var(--line);border-radius:11px;padding:8px 8px 9px;min-width:0}
+.tcond span{display:block;font-size:10.5px;color:var(--faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tcond b{display:block;font:600 14.5px 'Inter Tight',sans-serif;color:var(--text);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tcond i{position:absolute;top:9px;right:8px;width:6px;height:6px;border-radius:50%}
 .bscore{font:700 13px/1 'JetBrains Mono',monospace;padding:7px 9px;border-radius:9px;background:rgba(61,220,151,.13);color:#3ddc97;flex:none}
 .balbl{font-size:10.5px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--faint);padding:8px 0 2px;border-top:1px solid var(--line)}
 .balbl+.balt{border-top:0}
@@ -451,6 +467,30 @@ details.afd[open]>summary::after{content:"–"}
 .ptr svg{width:16px;height:16px}
 .toast{position:fixed;left:50%;bottom:calc(var(--safe-bot) + 20px);transform:translate(-50%,120px);z-index:4000;background:#14263f;border:1px solid var(--line2);padding:10px 14px;border-radius:10px;font-size:13px;transition:transform .3s;max-width:90vw}
 .toast.on{transform:translate(-50%,0)}
+/* ---- design B: hero card, next 12 hours, conditions list ---- */
+.panel.nowcard{border-radius:26px;padding:20px 20px 16px;position:relative}
+.nowcard .hrow{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.nowcard .hl{min-width:0}
+.nowcard #cond{display:block;font-size:14px;font-weight:500;color:var(--muted);letter-spacing:0}
+.nowcard .bigt{font-family:"Inter Tight",system-ui,sans-serif;font-size:96px;font-weight:300;letter-spacing:-.05em;line-height:1;padding:2px 0 0}
+.nowcard .bigt sup{font-size:inherit;top:0;margin-left:0;color:inherit;vertical-align:baseline}
+.nowcard .wxi{width:76px;height:76px;margin:12px -6px 0 0}
+.nowcard .feels{display:flex;gap:14px;font-size:13.5px;color:var(--muted);margin-top:4px}
+.nowcard .today{margin:14px 0 0;border:0;background:none;padding:0}
+.nowcard .today h4{display:none}
+.nowcard .today p.ol{font-size:15px;line-height:1.5;color:#d3deea;margin:0}
+.nowcard #alerts .alert{margin-top:14px;border-radius:12px}
+.nowcard .obst{position:absolute;top:22px;right:20px;display:none}
+.n12{display:block;width:100%;height:64px;margin-top:10px}
+.n12l{display:grid;margin-top:6px}.n12l div{text-align:center}
+.n12l b{display:block;font-size:14px;font-weight:600}.n12l span{display:block;font-size:11.5px;color:var(--faint);margin-top:1px}
+.readouts{display:block;padding:2px 16px}
+.readouts .ro{display:grid;grid-template-columns:96px minmax(0,1fr) auto;align-items:center;gap:8px;min-height:44px;padding:0;border:0;border-top:1px solid var(--line);border-radius:0;background:none;box-shadow:none}
+.readouts .ro:first-child{border-top:0}
+.readouts .ro small{font-size:14px;font-weight:400;letter-spacing:0;text-transform:none;color:var(--faint)}
+.readouts .ro b{font-family:"Inter Tight",system-ui,sans-serif;font-size:15px;font-weight:600;letter-spacing:0;margin:0}
+.readouts .ro b em{font-size:15px;font-weight:600;color:var(--text);margin-left:3px}
+.readouts .ro span{font-size:12.5px;color:var(--faint);margin:0;text-align:right}
 .fade{animation:fade .4s ease both}@keyframes fade{from{opacity:0}to{opacity:1}}
 </style>
 </head>
@@ -465,19 +505,19 @@ details.afd[open]>summary::after{content:"–"}
   </div>
   <div class="pills" id="pills"></div>
   <section class="tab" data-tab="now">
-  <div id="alerts"></div>
-  <div id="fire" class="firecard" style="display:none"></div>
-  <div class="panel">
-    <div class="ph">Now<span class="r" id="obsTime"></span></div>
-    <div class="now">
-      <div class="bigt" id="temp">--<sup>°</sup></div>
+  <div class="panel nowcard">
+    <div class="hrow">
+      <div class="hl"><b id="cond">&nbsp;</b><div class="bigt" id="temp">--<sup>°</sup></div></div>
       <div class="wxi" id="wxi" aria-hidden="true"></div>
-      <div class="cond"><b id="cond">&nbsp;</b><span id="feels">&nbsp;</span></div>
-      <div class="fc" id="fcat"></div>
     </div>
+    <div class="feels" id="feels">&nbsp;</div><div class="fc" id="fcat"></div>
     <div class="today" id="today"></div>
-    <div class="readouts" id="readouts"></div>
+    <div id="alerts"></div>
+    <span class="obst" id="obsTime"></span>
   </div>
+  <div id="fire" class="firecard" style="display:none"></div>
+  <div class="panel"><div class="ph">Next 12 hours<span class="r" id="n12r"></span></div><div class="pb" id="next12"></div></div>
+  <div class="panel"><div class="pb readouts" id="readouts"></div></div>
   <div class="panel"><div class="ph">Best time<span class="r" id="bestNote">next 3 days</span><button class="binfob" id="bestInfoBtn" aria-label="Why this time">i</button></div><div class="pb" id="best"><div class="err">Loading…</div></div></div>
   <div class="panel" id="mapPanel">
     <div class="ph">Radar &amp; layers<span class="r" id="mapSrc"></span></div>
@@ -814,7 +854,8 @@ function renderNow(){
   tint(c.weather_code,c.is_day);
   $("#temp").innerHTML=Math.round(c.temperature_2m)+"<sup>°</sup>";
   const nc=nowCode();$("#cond").textContent=nc.txt||wxText(nc.code);$("#wxi").innerHTML=wxIcon(nc.txt?2:nc.code,c.is_day);
-  $("#feels").innerHTML=`Feels ${U.t(c.apparent_temperature)}<br>H ${U.t(d.temperature_2m_max[ti])} · L ${U.t(d.temperature_2m_min[ti])}`;
+  $("#feels").innerHTML=`<span>Feels ${U.t(c.apparent_temperature)}</span><span>H ${U.t(d.temperature_2m_max[ti])}</span><span>L ${U.t(d.temperature_2m_min[ti])}</span>`;
+  renderNext12();
   let msg="";const wetNow=(P[i]||0)>wet()||[51,53,55,61,63,65,80,81,82,95].includes(c.weather_code);
   let k=-1;for(let j=i+1;j<Math.min(i+25,P.length);j++)if((P[j]||0)>=(S.rain==="in"?.01:.25)||(h.precipitation_probability[j]||0)>=55){k=j;break}
   if(wetNow){let e=-1;for(let j=i+1;j<Math.min(i+25,P.length);j++)if((P[j]||0)<wet()){e=j;break}msg=e>0?`Rain easing around <b>${fTime(wall(h.time[e]))}</b>.`:"Rain continuing through the next 24 hours."}
@@ -828,17 +869,27 @@ function renderNow(){
   let ts=i;const t0=dayStart(nowWall());while(ts>0&&wall(h.time[ts-1])>t0)ts--;let today=0;for(let j=ts;j<=i;j++)today+=P[j]||0;
   const [vv,vu]=visText(),[cv,cu]=ceilingText();
   const ro=(l,v,u,s)=>`<div class="ro"><small>${l}</small><b>${v}${u?`<em>${u}</em>`:""}</b><span>${s||"&nbsp;"}</span></div>`;
+  const rainP=d.precipitation_probability_max[ti];
   $("#readouts").innerHTML=
     ro("Wind",U.w(c.wind_speed_10m),U.wl(),`gust ${U.w(c.wind_gusts_10m)} · ${dirName(c.wind_direction_10m)} ${String(Math.round(c.wind_direction_10m)).padStart(3,"0")}°`)+
-    ro("Humidity",Math.round(c.relative_humidity_2m),"%",`dew pt ${U.t(c.dew_point_2m)}`)+
+    ro("Humidity",Math.round(c.relative_humidity_2m)+"%","",`dew pt ${U.t(c.dew_point_2m)}`)+
     ro("Pressure",press,S.temp==="F"?"inHg":"hPa",`${arrow} ${tr}`)+
     ro("Visibility",esc(vv),vu,"forecast")+
     ro("Clouds",cv,"",cu)+
     ro("UV",uv==null?"--":Math.round(uv),"",uv==null?"":uvT(uv)+` · max ${Math.round(d.uv_index_max[ti]||0)}`)+
-    ro("Rain today",U.r(today),U.rl(),`${d.precipitation_probability_max[ti]??"--"}% chance`)+
+    ro("Rain",(rainP??"--")+"%","",`${U.r(today)} ${U.rl()} so far`)+
     `<div class="ro" id="roAir">${airTile()}</div>`;loadAir();
   $("#obsTime").textContent="as of "+fTime(nowWall());
 }
+/* the next 12 hours as one smooth temperature line, labelled every two hours */
+function renderNext12(){const el=$("#next12");if(!el)return;const h=W.hourly,i=hourIndex(),n=Math.min(13,h.time.length-i);if(n<3){el.innerHTML="";return}
+  const t=[];for(let k=0;k<n;k++)t.push(h.temperature_2m[i+k]);t[0]=W.current.temperature_2m;
+  const lo=Math.min(...t),hi=Math.max(...t),pad=Math.max(2,(hi-lo)*.15),W0=320,H=64,y=v=>6+(hi+pad-v)/(hi-lo+2*pad)*(H-12),x=k=>4+k*(W0-8)/(n-1);
+  let line=`M${x(0).toFixed(1)} ${y(t[0]).toFixed(1)}`;for(let k=1;k<n;k++){const mx=(x(k-1)+x(k))/2;line+=` C${mx.toFixed(1)} ${y(t[k-1]).toFixed(1)} ${mx.toFixed(1)} ${y(t[k]).toFixed(1)} ${x(k).toFixed(1)} ${y(t[k]).toFixed(1)}`}
+  const pr=h.precipitation_probability,rain=[];for(let k=0;k<n;k++){const p=pr[i+k]||0;if(p>=20)rain.push(`<rect x="${(x(k)-3).toFixed(1)}" y="${(H-p/100*18).toFixed(1)}" width="6" height="${(p/100*18).toFixed(1)}" rx="2" fill="var(--water)" opacity=".55"/>`)}
+  const lbl=[];for(let k=0;k<n;k+=2)lbl.push(`<div><b>${U.t(t[k])}</b><span>${k===0?"Now":hTxt12(wall(h.time[i+k])).replace(":00","").replace(" ","").toLowerCase().replace("am","a").replace("pm","p")}</span></div>`);
+  $("#n12r").textContent=`${U.t(lo)} – ${U.t(hi)}`;
+  el.innerHTML=`<svg class="n12" viewBox="0 0 ${W0} ${H}" preserveAspectRatio="none" aria-hidden="true">${rain.join("")}<path d="${line} L${x(n-1).toFixed(1)} ${H} L${x(0).toFixed(1)} ${H} Z" fill="var(--accent)" opacity=".1"/><path d="${line}" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linecap="round" vector-effect="non-scaling-stroke"/></svg><div class="n12l" style="grid-template-columns:repeat(${lbl.length},minmax(0,1fr))">${lbl.join("")}</div>`}
 
 /* ---------- rest of today (typed summary) ---------- */
 /* What the sky is doing right now, from the most reliable source available:
@@ -1570,6 +1621,7 @@ function renderBest(){const el=$("#best");if(!el||!W)return;try{
     return `${t}° · wind ${w} ${U.wl()} · ${p<10?"dry":p+"% rain"}`};
   const chips=`<div class="bseg">${Object.entries(ACTS).map(([k,v])=>`<button class="${k===act?"on":""}" data-best="${k}">${v.n}</button>`).join("")}</div>`;
   const span=w=>`${dayName(T(w.a))} ${hTxt12(T(w.a))} – ${hTxt12(T(w.b)+36e5)}`,times=w=>`${hTxt12(T(w.a))} – ${hTxt12(T(w.b)+36e5)}`;
+  if(act!=="outdoors")return bestToday(el,act,A,chips,sc_,wins,T,times,i0);
   // the pick: the soonest window that's about as good as the best one
   const bestAvg=wins.reduce((m,w)=>Math.max(m,w.avg),0),top=wins.filter(w=>w.avg>=bestAvg-.06).sort((x,y)=>x.a-y.a)[0];
   const list=top?`<div class="bhero"><div class="bt"><span class="bkick">Next good time</span><b>${span(top)}</b><small>${why(Math.round((top.a+top.b)/2))}</small></div><span class="bscore">${Math.round(top.avg*10)}/10</span></div>`
@@ -1594,12 +1646,44 @@ function renderBest(){const el=$("#best");if(!el||!W)return;try{
     info=`<div class="binfo"${S.bestInfo?"":" hidden"}><div class="bitxt">Why ${span(top).replace(/^Tomorrow/,"tomorrow").replace(/^Today/,"today")} is good for ${A.n==="Flying"?"flying":A.n==="Outdoors"?"being outdoors":A.n==="Run"?"a run":"the beach"}:</div>
       <div class="brow bh"><span></span><span>Condition</span><span>Worst hour</span><span>Ideal</span></div>${rows}
       <div class="bitxt dim">Each hour is scored by its weakest condition, so one poor condition lowers the whole hour. Daylight hours only.</div></div>`}
-  $("#bestInfoBtn").style.display=top?"":"none";
+  $("#bestInfoBtn").style.display=top?"":"none";$("#bestNote").textContent="next 3 days";
   el.innerHTML=`${chips}${list}${info}<div class="bchartw">${chart}</div>`;
   el.querySelectorAll("[data-best]").forEach(b=>b.onclick=()=>{S.best=b.dataset.best;savePlaces();renderBest()});
   const ib=$("#bestInfoBtn");ib.classList.toggle("on",!!S.bestInfo);ib.onclick=()=>{S.bestInfo=!S.bestInfo;savePlaces();renderBest()}}
   catch(e){el.innerHTML='<div class="err">Best-time finder unavailable.</div>';console.error(e)}}
 
+/* Run, Flying and Beach are about today: one clean card with today's best stretch, an hour-by-hour strip
+   and the conditions that matter for it */
+function bestToday(el,act,A,chips,sc_,wins,T,times,i0){
+  const today=dayStart(T(0)),inToday=k=>k<sc_.length&&dayStart(T(k))===today,colr=v=>v>=.85?"#3ddc97":v>=.7?"#8be0a6":v>=.45?"#ffd54a":"#ff8a3d";
+  const hrs=[];for(let k=0;inToday(k);k++)if(sc_[k]!=null)hrs.push(k);
+  const tw=wins.filter(w=>inToday(w.a)).map(w=>({...w,b:Math.min(w.b,hrs.length?hrs[hrs.length-1]:w.b)}));
+  const pick=tw.sort((x,y)=>y.avg-x.avg||x.a-y.a)[0];
+  const bestHr=hrs.reduce((m,k)=>m==null||sc_[k]>sc_[m]?k:m,null);
+  const verb={run:"a run",fly:"flying",beach:"the beach"}[act];
+  const ring=v=>{const r=21,c=2*Math.PI*r,col=colr(v);return `<div class="tring"><svg viewBox="0 0 52 52"><circle cx="26" cy="26" r="${r}" fill="none" stroke="rgba(255,255,255,.08)" stroke-width="5"/><circle cx="26" cy="26" r="${r}" fill="none" stroke="${col}" stroke-width="5" stroke-linecap="round" stroke-dasharray="${(c*v).toFixed(1)} ${c.toFixed(1)}" transform="rotate(-90 26 26)"/></svg><b>${Math.round(v*10)}</b></div>`};
+  let hero,focus=null;
+  if(!hrs.length){
+    const nx=wins.filter(w=>!inToday(w.a)).sort((x,y)=>x.a-y.a)[0];
+    hero=`<div class="thero"><div class="tt"><span class="bkick">Today · ${A.n}</span><b>Daylight's done</b><small>${nx?`Next good time: ${dayLbl(T(nx.a))} ${times(nx)}`:"Nothing great in the next few days either."}</small></div></div>`}
+  else if(pick){focus=pick;
+    hero=`<div class="thero"><div class="tt"><span class="bkick">Today's best for ${verb}</span><b>${times(pick)}</b><small>${pick.a===0?"Good right now":"Starts in "+relIn(T(pick.a))}</small></div>${ring(pick.avg)}</div>`}
+  else{focus={a:bestHr,b:bestHr,avg:sc_[bestHr]};
+    hero=`<div class="thero"><div class="tt"><span class="bkick">Today · ${A.n}</span><b>No great window today</b><small>Best hour: ${hTxt12(T(bestHr))}</small></div>${ring(sc_[bestHr])}</div>`}
+  // hour strip: one column per daylight hour left today, taller and greener the better it is
+  const strip=hrs.length?`<div class="tstrip">${hrs.map(k=>{const v=sc_[k],on=focus&&k>=focus.a&&k<=focus.b,hh=new Date(T(k)).getUTCHours();
+      return `<div class="tcol${on?" on":""}"><i style="height:${(22+34*v).toFixed(0)}px;background:${colr(v)}"></i><span>${k===0?"Now":hh%3===0?hTxt12(T(k)).replace(/:00| /g,"").toLowerCase():""}</span></div>`}).join("")}</div>`:"";
+  // conditions during the stretch: each at its worst hour, ticked when it's ideal throughout
+  let conds="";if(focus){const ks=[];for(let k=focus.a;k<=focus.b;k++)ks.push(i0+k);
+    const short={"Fog / marine layer":"Fog","Rain chance":"Rain","Temperature":"Temp","Cloud cover":"Clouds","UV index":"UV","Visibility":"Vis","Low clouds":"Clouds"};
+    const fl=A.facs(HX(ks[0]),ks[0]);
+    conds=`<div class="tconds" style="grid-template-columns:repeat(${fl.length},minmax(0,1fr))">${fl.map((f,j)=>{let worst=ks[0],ws=2;for(const i of ks){const v=fscore(A.facs(HX(i),i)[j]);if(v<ws){ws=v;worst=i}}
+      const fw=A.facs(HX(worst),worst)[j],col=ws>=.999?"#3ddc97":ws>=.5?"#ffd54a":"#ff8a3d";
+      return `<div class="tcond"><span>${short[f[0]]||f[0]}</span><b>${fw[4]}</b><i style="background:${col}"></i></div>`}).join("")}</div>`}
+  $("#bestInfoBtn").style.display="none";$("#bestNote").textContent="today";
+  el.innerHTML=`${chips}${hero}${strip}${conds}`;
+  el.querySelectorAll("[data-best]").forEach(b=>b.onclick=()=>{S.best=b.dataset.best;savePlaces();renderBest()})}
+function relIn(t){const m=Math.max(0,Math.round((t-nowWall())/6e4));return m<60?m+" min":Math.floor(m/60)+" h"+(m%60>=10?" "+m%60+" min":"")}
 function renderMoon(){
   const M=moonIllum(Date.now()),wMid=dayStart(nowWall()),T=moonTimes(wMid-off*1000,place.lat,place.lon),aw=h=>h==null?"—":fTime(wMid+h*36e5);
   const full=nextPhase(.5),nw=nextPhase(0),md=ms=>ms?fMD(ms+off*1000):"—";
