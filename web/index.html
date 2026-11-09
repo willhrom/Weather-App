@@ -975,7 +975,10 @@ function renderToday(){
     return grp(prev.k)==="cloudy"||WET(prev.k)?`Clouds break up ${t1}`:`A few clouds develop ${t1}`};
   const ms=merged.slice(0,3);
   const low1=t=>/^(Skies|Clouds|Fog|Rain|Drizzle|Snow|Showers|Thunderstorms|A) /.test(t)?t[0].toLowerCase()+t.slice(1):t;
-  let ol=ms.length===1?single(ms[0])+".":`${SUBJ[ms[0].k][0]} ${change(ms[0],ms[1])}`+(ms[2]?`, and ${low1(later(ms[1],ms[2]))}`:"")+".";
+  // a sky that lasts a while "holds" first: "Cloudy skies hold through this evening, then clear overnight."
+  const holdV={foggy:"linger",rainy:"continue",drizzly:"continue",showery:"continue",stormy:"continue",snowy:"continue"};
+  const first=ms.length>1&&toks(ms[0].p).length>1?`${SUBJ[ms[0].k][0]} ${vb(holdV[ms[0].k]||"hold",SUBJ[ms[0].k][1])} through ${toks(ms[0].p).slice(-1)[0]}, then ${change(ms[0],ms[1])}`:null;
+  let ol=ms.length===1?single(ms[0])+".":(first||`${SUBJ[ms[0].k][0]} ${change(ms[0],ms[1])}`)+"."+(ms[2]?` ${later(ms[1],ms[2])}.`:"");
   // fog / marine layer timing, when the sky story above doesn't already cover it
   {const fs=fogSentence();if(fs&&!/fog|marine/i.test(ol))ol+=" "+fs}
   const hTxt=t=>{const h=new Date(Math.round(t/36e5)*36e5).getUTCHours();return h===0?"midnight":h===12?"noon":`${h%12} ${h<12?"AM":"PM"}`};
@@ -988,6 +991,20 @@ function renderToday(){
     ol+=` Temperatures peak at <b>${U.t(max(T))}</b> around ${hTxt(at(hiK))}${lo<max(T)-2?` before falling to ${U.t(lo)} ${isNight(loT)?"tonight":"by "+hTxt(loT)}`:""}${gust}.`}
   else ol+=` Temperatures fall to <b>${U.t(min(T))}</b> ${isNight(at(loK))?"tonight":"by "+hTxt(at(loK))}${gust}.`;
   const row=(k,v)=>`<div class="trow"><small>${k}</small><span>${v}</span></div>`;
+  // how today compares with yesterday
+  {const ti=todayIndex();if(!tonight&&ti>0){const dT=d.temperature_2m_max[ti]-d.temperature_2m_max[ti-1],th=S.temp==="C"?2:4;
+    if(Math.abs(dT)>=th)ol+=` That's about ${Math.round(Math.abs(dT))}° ${dT>0?"warmer":"cooler"} than yesterday.`}}
+  const DIRW={N:"north",NNE:"north",NE:"northeast",ENE:"east",E:"east",ESE:"east",SE:"southeast",SSE:"south",S:"south",SSW:"south",SW:"southwest",WSW:"west",W:"west",WNW:"west",NW:"northwest",NNW:"north"};
+  // breezy spells, when the gust clause above hasn't already covered the wind
+  const wsMax=max(WS),breezy=S.wind==="kmh"?22:S.wind==="kn"?12:14;
+  if(!gust&&wsMax>=breezy){const wk=WS.indexOf(wsMax),wd=DIRW[dirName(h.wind_direction_10m[idx[wk]])]||"";
+    ol+=` ${wk<=1?"Winds are breezy now":`Winds pick up ${per(new Date(at(wk)).getUTCHours(),at(wk)>=mid)}`}, ${wd?`from the ${wd} `:""}at up to ${U.w(wsMax)} ${U.wl()}.`}
+  // strong sun
+  const uvm=max(UV);if(!tonight&&uvm>=6){const uk=UV.indexOf(uvm);ol+=` The UV index peaks at <b>${Math.round(uvm)}</b>${uk>0?` around ${hTxt(at(uk))}`:" now"}.`}
+  // in the evening, a look at tomorrow
+  if(tonight){const tj=todayIndex()+(new Date(now).getUTCHours()>=4?1:0);if(d.time[tj]){const c=d.weather_code[tj],pp=d.precipitation_probability_max?d.precipitation_probability_max[tj]:null,k=kind(c,1);
+    const sky2=WET(k)?`${NOUN[k]}${pp!=null?` (${pp}% chance)`:""}`:ADJ[k]?`${ADJ[k]} skies`:NOUN[k]||"mixed skies";
+    ol+=` Tomorrow brings ${sky2} with a high of <b>${U.t(d.temperature_2m_max[tj])}</b>.`}}
   $("#today").innerHTML=`<h4>${label}<b class="${pmax<15?"dry":""}">${pmax}% rain</b></h4><p class="ol">${ol}</p>`;
 }
 
