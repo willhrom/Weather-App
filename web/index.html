@@ -1702,8 +1702,8 @@ function dayDetail(j){
 /* ---------- map ---------- */
 const LAYERS=[
  {g:"Weather",k:"radar",n:"Radar loop",s:"Past hour + 3-hour forecast",c:"linear-gradient(135deg,#04e9e7,#02fd02,#fdf802,#fd0000)"},
- {g:"Weather",k:"ocean",n:"Ocean rain · model",s:"GFS model, drawn where radar can't reach (Pacific)",c:"linear-gradient(135deg,#04e9e7,#02fd02,#fdf802,#fd0000)"},
- {g:"Weather",k:"oclouds",n:"Ocean clouds · model",s:"GFS cloud cover over the open Pacific, follows the timeline",c:"linear-gradient(135deg,#5b6474,#d8dde6)"},
+ {g:"Weather",k:"ocean",n:"Model rain · beyond radar",s:"GFS model worldwide, drawn wherever radar can't reach",c:"linear-gradient(135deg,#04e9e7,#02fd02,#fdf802,#fd0000)"},
+ {g:"Weather",k:"oclouds",n:"Model clouds · beyond radar",s:"GFS cloud cover worldwide, follows the timeline",c:"linear-gradient(135deg,#5b6474,#d8dde6)"},
  {g:"Weather",k:"ir",n:"Satellite · infrared",s:"GOES, clouds day & night",c:"linear-gradient(135deg,#222,#ddd)",sat:1},
  {g:"Weather",k:"vis",n:"Satellite · visible",s:"GOES, daylight only",c:"linear-gradient(135deg,#556,#fff)",sat:1},
  {g:"Weather",k:"wv",n:"Satellite · water vapor",s:"GOES mid-level moisture, jet stream & storms",c:"linear-gradient(135deg,#1d2b6b,#3aa0d8,#e8f0ff,#d88a2a)",sat:1},
@@ -2297,7 +2297,7 @@ function onMapClick(e){
 function updateLegend(){
   const us=isCONUS(place),rows=[];
   if(L.radar)rows.push(`<div class="lg">Light <i style="background:linear-gradient(90deg,${BANDS.map((b,k)=>`${b[1]} ${k/BANDS.length*100}% ${(k+1)/BANDS.length*100}%`).join(",")})"></i>Heavy</div>`);
-  if(L.radar&&(L.ocean||L.oclouds)&&frames.some(f=>f.ocn))rows.push(`<div class="lgn">Open ocean: ${L.ocean&&L.oclouds?"rain & clouds":L.ocean?"rain":"clouds"} from the GFS model</div>`);
+  if(L.radar&&(L.ocean||L.oclouds)&&frames.some(f=>f.ocn))rows.push(`<div class="lgn">Beyond radar: ${L.ocean&&L.oclouds?"rain & clouds":L.ocean?"rain":"clouds"} from the GFS model</div>`);
   extraLegend(us,rows);
   if(us&&L.mrms)rows.push(`<div class="lg">Rain <i style="background:linear-gradient(90deg,#00d0a0,#00a000,#ffff00,#ff9000,#ff0000,#c000c0)"></i>${S.rain==="in"?"→ 4+ in":"→ 100+ mm"}</div>`);
   if(us&&L.turb&&G.man){const t=G.man.times,ti=G.ti,v=Date.parse(t[ti].valid),[l,m,sv,x]=EDR_T[G.ac];
