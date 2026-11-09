@@ -856,7 +856,7 @@ function renderNow(){
   const c=W.current,d=W.daily,ti=todayIndex(),h=W.hourly,i=hourIndex(),P=h.precipitation;
   tint(c.weather_code,c.is_day);
   $("#temp").innerHTML=Math.round(c.temperature_2m)+"<sup>°</sup>";
-  const nc=nowCode();$("#cond").textContent=nc.txt||wxText(nc.code);$("#wxi").innerHTML=wxIcon(nc.txt?2:nc.code,c.is_day);
+  const nc=nowCode();$("#cond").textContent=condLabel(nc);$("#wxi").innerHTML=wxIcon(nc.txt?2:nc.code,c.is_day);
   $("#feels").innerHTML=`<span>Feels ${U.t(c.apparent_temperature)}</span><span>H ${U.t(d.temperature_2m_max[ti])}</span><span>L ${U.t(d.temperature_2m_min[ti])}</span>`;
   renderNext12();
   let msg="";const wetNow=(P[i]||0)>wet()||[51,53,55,61,63,65,80,81,82,95].includes(c.weather_code);
@@ -898,6 +898,20 @@ function renderNext12(){const el=$("#next12");if(!el)return;const h=W.hourly,i=h
 /* What the sky is doing right now, from the most reliable source available:
    a nearby airport observation (within ~12 mi, under 90 min old) beats the model;
    otherwise the model's 15-minute "current" analysis, which is fresher than its hourly forecast. */
+/* "Overcast" says which deck it is: low (fog-like stratus, under 6,500 ft), mid-level (6,500–20,000 ft) or high
+   (thin cirrus, over 20,000 ft). The nearby airport's report gives the real base of the lowest deck; airport
+   sensors can't see above 12,000 ft, so higher decks come from the model's low/mid/high cloud cover. */
+function cloudDeck(){
+  const m=typeof skyMetar==="function"?skyMetar():null;
+  if(m&&m.km<=20&&!(m.obsTime&&Date.now()/1000-m.obsTime>5400)){const d=(m.clouds||[]).filter(c=>/BKN|OVC|OVX|VV/.test(c.cover)&&c.base!=null).sort((a,b)=>a.base-b.base)[0];
+    if(d){const ft=Math.round(d.base/100)*100;return{lvl:d.base<6500?"low":"mid",ft}}}
+  const h=W.hourly,i=hourIndex(),lo=h.cloud_cover_low?h.cloud_cover_low[i]:null,mi=h.cloud_cover_mid?h.cloud_cover_mid[i]:null,hi=h.cloud_cover_high?h.cloud_cover_high[i]:null;
+  if(lo==null)return null;
+  if(lo>=50)return{lvl:"low"};if(mi>=50)return{lvl:"mid"};if(hi>=50)return{lvl:"high"};
+  const top=Math.max(lo,mi,hi);return top<25?null:{lvl:top===lo?"low":top===mi?"mid":"high"}}
+function condLabel(nc){const t=nc.txt||wxText(nc.code);if(!/overcast|mostly cloudy/i.test(t))return t;const d=cloudDeck();if(!d)return t;
+  const word={low:"Low",mid:"Mid-level",high:"High"}[d.lvl],ft=d.ft?` · ${d.ft.toLocaleString("en-US")} ft`:"";
+  return /overcast/i.test(t)?`${word} overcast${ft}`:`Mostly cloudy · ${word.toLowerCase()} clouds${ft}`}
 function nowCode(){const c=W.current.weather_code,m=typeof skyMetar==="function"?skyMetar():null;
   if(!m||m.km>20||(m.obsTime&&Date.now()/1000-m.obsTime>5400))return{code:c,src:"model"};
   const raw=" "+String(m.rawOb||"").replace(/\sRMK\s.*$/,"")+" ";let wx=null;
@@ -1134,7 +1148,7 @@ async function renderAirport(){
     const arr=await getJSON(`https://aviationweather.gov/api/data/metar?bbox=${b}&format=json`);if(place.id!==pid)return;
     const list=(Array.isArray(arr)?arr:[]).filter(m=>m&&m.rawOb&&Number.isFinite(+m.lat)&&Number.isFinite(+m.lon)).map(cleanMetar).filter(m=>m.icaoId).map(m=>Object.assign(m,{km:km(place.lat,place.lon,m.lat,m.lon)})).sort((a,b)=>a.km-b.km);
     if(!list.length){METAR=null;$("#fcat").innerHTML="";panel.style.display="none";return}
-    const m=list[0];METAR=m;wxn("apt",{id:m.icaoId,name:(m.name||"").replace(/,.*$/,"")});if(typeof TAB!=="undefined"&&TAB==="sky"&&SKY)drawSky();try{const nc=nowCode();$("#cond").textContent=nc.txt||wxText(nc.code);$("#wxi").innerHTML=wxIcon(nc.txt?2:nc.code,W.current.is_day);renderToday()}catch(e){}const cat=flightCat(m),badge=`<span class="badge"><i style="background:${catColor(cat)}"></i>${cat}</span>`;
+    const m=list[0];METAR=m;wxn("apt",{id:m.icaoId,name:(m.name||"").replace(/,.*$/,"")});if(typeof TAB!=="undefined"&&TAB==="sky"&&SKY)drawSky();try{const nc=nowCode();$("#cond").textContent=condLabel(nc);$("#wxi").innerHTML=wxIcon(nc.txt?2:nc.code,W.current.is_day);renderToday()}catch(e){}const cat=flightCat(m),badge=`<span class="badge"><i style="background:${catColor(cat)}"></i>${cat}</span>`;
     $("#aptDist").textContent=`${Math.round(m.km*.621)} mi`;
     const age=m.obsTime?Math.round((Date.now()/1000-m.obsTime)/60):null;
     $("#apt").innerHTML=`<div class="apt"><b>${esc(m.icaoId)}</b><span>${esc((m.name||"").replace(/,\s*US$/,""))}</span>${badge}</div>
