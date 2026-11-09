@@ -92,6 +92,7 @@ body.mapopen .tabbar{display:none}
 .alert b::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--warn);flex:none}
 .alert.sev b::before{background:var(--bad)}
 .alert span{display:block;font-size:11.5px;color:var(--faint);margin-top:3px}
+.alert .asrc{display:block;font-style:normal;font-size:13px;color:#ffd2b8;margin-top:4px;line-height:1.4}
 .alert p{display:none;font-size:12.5px;line-height:1.5;color:var(--muted);white-space:pre-wrap;margin:8px 0 0}
 .alert.open p{display:block}
 
@@ -1063,10 +1064,35 @@ async function renderAlerts(){
   try{const j=await getJSON(`https://api.weather.gov/alerts/active?point=${place.lat},${place.lon}`);if(place.id!==pid)return;
     ALERTS=(j.features||[]).filter(f=>f.properties&&f.properties.status==="Actual");setTimeout(renderFire,0);
     el.innerHTML=ALERTS.map((f,k)=>{const p=f.properties,sev=/Extreme|Severe/.test(p.severity),until=p.ends||p.expires;
-      return `<button class="alert${sev?" sev":""}"><b>${esc(p.event)}</b><span>${until?"Until "+esc(new Date(until).toLocaleString([],{weekday:"short",hour:"numeric",minute:"2-digit"}))+" · ":""}tap for details</span><p>${esc((p.headline?p.headline+"\n\n":"")+(p.description||"")+(p.instruction?"\n\n"+p.instruction:""))}</p></button>`}).join("");
+      const smoky=/smoke|air quality|air stagnation/i.test(p.event+" "+(p.headline||""));
+      return `<button class="alert${sev?" sev":""}"${smoky?` data-smoke="${k}"`:""}><b>${esc(p.event)}</b>${smoky?`<em class="asrc">Finding the smoke source…</em>`:""}<span>${until?"Until "+esc(new Date(until).toLocaleString([],{weekday:"short",hour:"numeric",minute:"2-digit"}))+" · ":""}tap for details</span><p>${esc((p.headline?p.headline+"\n\n":"")+(p.description||"")+(p.instruction?"\n\n"+p.instruction:""))}</p></button>`}).join("");
     updateAlertLayer();
+    el.querySelectorAll("[data-smoke]").forEach(b=>smokeSource(ALERTS[+b.dataset.smoke]).then(t=>{if(place.id!==pid)return;const s=b.querySelector(".asrc");if(s){if(t)s.textContent=t;else s.remove()}}));
   }catch(e){console.warn("alerts",e);renderFire()}
 }
+/* Where's the smoke from? If the alert names a fire, use that (and find it in NIFC's list for distance and size);
+   otherwise pick the burning fire that best fits: big, near, and upwind given the last 12 hours of wind. */
+function kmTo(a,b,c,d){const R=6371,r=Math.PI/180,x=Math.sin((c-a)*r/2)**2+Math.cos(a*r)*Math.cos(c*r)*Math.sin((d-b)*r/2)**2;return 2*R*Math.asin(Math.sqrt(x))}
+function bearTo(a,b,c,d){const r=Math.PI/180,y=Math.sin((d-b)*r)*Math.cos(c*r),x=Math.cos(a*r)*Math.sin(c*r)-Math.sin(a*r)*Math.cos(c*r)*Math.cos((d-b)*r);return(Math.atan2(y,x)/r+360)%360}
+async function smokeSource(al){
+  const p=al&&al.properties||{},txt=`${p.headline||""}\n${p.description||""}`;
+  const named=[...new Set([...txt.matchAll(/\b((?:[A-Z][A-Za-z'.-]+\s){0,3}[A-Z][A-Za-z'.-]+)\s+(?:Complex\s+)?Fires?\b/g)].map(m=>m[1].replace(/^(The|From|Of|And|Wild|Smoke|Brush|Grass)\s+/,"").trim()).filter(n=>n&&!/^(Wild|Brush|Grass|Forest|Red|Area|Several|Multiple|Nearby|Local|Canadian|These|This|The)$/i.test(n)))].slice(0,3);
+  let fires=[];try{fires=(await loadFires()).features||[]}catch(e){}
+  const d=f=>{const[lo,la]=f.geometry.coordinates;return{km:kmTo(place.lat,place.lon,la,lo),br:bearTo(place.lat,place.lon,la,lo)}};
+  const mi=km=>Math.round(km*.621),desc=(f,x)=>{const q=f.properties,ac=+q.IncidentSize||0,pc=q.PercentContained;
+    return `${mi(x.km)<15?"nearby":mi(x.km)+" mi "+dirName(x.br)}${ac?` · ${ac>=1e4?Math.round(ac/1e3)+"k":Math.round(ac).toLocaleString()} acres`:""}${pc!=null?` · ${pc}% contained`:""}`};
+  const nm=f=>{const n=String(f.properties.IncidentName||"").replace(/^\d+\s+/,"").toLowerCase().replace(/\b\w/g,c=>c.toUpperCase());return /fire$/i.test(n)?n:n+" Fire"};
+  if(named.length){const parts=named.map(n=>{// several incidents can share a name: take the biggest, closest one
+      const f=fires.filter(f=>String(f.properties.IncidentName||"").toLowerCase()===n.toLowerCase()).sort((a,b)=>(+b.properties.IncidentSize||0)/Math.max(50,d(b).km)-(+a.properties.IncidentSize||0)/Math.max(50,d(a).km))[0];
+      return f?`${nm(f)} (${desc(f,d(f))})`:/fire$/i.test(n)?n:n+" Fire"});
+    return "Smoke from the "+parts.join(" and the ")}
+  // no fire named: wind has been coming from where? (vector-average the last 12 hours)
+  let wx=0,wy=0;const h=W&&W.hourly,i=hourIndex();if(h)for(let j=Math.max(0,i-12);j<=i;j++){const r=h.wind_direction_10m[j]*Math.PI/180,s_=h.wind_speed_10m[j]||0;wx+=Math.sin(r)*s_;wy+=Math.cos(r)*s_}
+  const from=(Math.atan2(wx,wy)*180/Math.PI+360)%360,calm=Math.hypot(wx,wy)<1;
+  let best=null,bs=0;for(const f of fires){const x=d(f),ac=+f.properties.IncidentSize||0;if(x.km>800||ac<100||ac<1000&&x.km>150)continue;  // a small fire only counts if it's close
+    const up=calm?1:.35+.65*Math.max(0,Math.cos((x.br-from)*Math.PI/180));const sc=Math.sqrt(ac)*up/Math.pow(Math.max(20,x.km),1.3);if(sc>bs){bs=sc;best={f,x}}}
+  if(!best)return "No large fires nearby, so the smoke is likely from far away or local burning";
+  return `Likely from the ${nm(best.f)} (${desc(best.f,best.x)})`}
 $("#alerts").onclick=e=>{const b=e.target.closest(".alert");if(b)b.classList.toggle("open")};
 
 /* ---------- nearest airport ---------- */
@@ -2148,17 +2174,19 @@ async function updateFirePerims(){
 const FD_URL="https://services3.arcgis.com/T4QMspbfLg3qTGWY/arcgis/rest/services/WFIGS_Incident_Locations_Current/FeatureServer/0/query?"+
   "where="+encodeURIComponent("IncidentTypeCategory='WF' AND IncidentSize>=100 AND (PercentContained IS NULL OR PercentContained<100)")+
   "&outFields=IncidentName,IncidentSize,PercentContained,FireDiscoveryDateTime,ModifiedOnDateTime_dt,FireCause,POOCounty,POOState,TotalIncidentPersonnel,PredominantFuelGroup,IncidentShortDescription&outSR=4326&f=geojson";
-let fdCache={t:0,v:null};
+let fdCache={t:0,v:null,p:null};
+function loadFires(){if(fdCache.v&&Date.now()-fdCache.t<15*6e4)return Promise.resolve(fdCache.v);if(fdCache.p)return fdCache.p;
+  const ac=new AbortController(),to=setTimeout(()=>ac.abort(),12000);
+  fdCache.p=fetch(FD_URL,{signal:ac.signal}).then(r=>r.json()).then(j=>{
+    j.features=(j.features||[]).filter(f=>f.geometry&&Date.now()-((f.properties||{}).ModifiedOnDateTime_dt||0)<30*864e5);
+    for(const f of j.features)f.properties.acres=+f.properties.IncidentSize||0;
+    j.features.sort((a,b)=>a.properties.acres-b.properties.acres);  // big fires draw on top
+    fdCache={t:Date.now(),v:j,p:null};return j}).finally(()=>{clearTimeout(to);fdCache.p=null});
+  return fdCache.p}
 async function updateFireDots(us){
   if(!mapReady)return;const ids=["fd-glow","fd-dot"];
   if(!(L.fires&&us)){setVis(ids,false);return}
-  if(!fdCache.v||Date.now()-fdCache.t>15*6e4){
-    const ac=new AbortController(),to=setTimeout(()=>ac.abort(),12000);
-    try{const j=await (await fetch(FD_URL,{signal:ac.signal})).json();
-      j.features=(j.features||[]).filter(f=>f.geometry&&Date.now()-((f.properties||{}).ModifiedOnDateTime_dt||0)<30*864e5);
-      for(const f of j.features)f.properties.acres=+f.properties.IncidentSize||0;
-      j.features.sort((a,b)=>a.properties.acres-b.properties.acres);  // big fires draw on top
-      fdCache={t:Date.now(),v:j}}catch(e){console.warn("fire dots",e);if(!fdCache.v)return}finally{clearTimeout(to)}}
+  try{await loadFires()}catch(e){console.warn("fire dots",e);if(!fdCache.v)return}
   if(!mapReady)return;geo("firedots",fdCache.v);
   if(!map.getLayer("fd-dot")){
     const r=["interpolate",["linear"],["sqrt",["get","acres"]],0,3.5,3,4.5,10,6,32,9,100,13,316,19,1000,26];
@@ -2170,7 +2198,7 @@ function fireHtml(p){const ac=+p.IncidentSize||0,pc=p.PercentContained,d=t=>t?ne
   const rows=[["Size",ac?Math.round(ac).toLocaleString()+" acres":"not reported"],["Contained",pc==null?"not reported":pc+"%"],["Started",d(p.FireDiscoveryDateTime)],
     ["Where",[p.POOCounty&&p.POOCounty+" County",p.POOState&&String(p.POOState).replace(/^US-/,"")].filter(Boolean).join(", ")],["Cause",p.FireCause],["Fuel",p.PredominantFuelGroup],
     ["Personnel",p.TotalIncidentPersonnel?Math.round(p.TotalIncidentPersonnel).toLocaleString():null],["Updated",d(p.ModifiedOnDateTime_dt)]].filter(r=>r[1]);
-  const nm=String(p.IncidentName||"Wildfire").toLowerCase().replace(/\b\w/g,c=>c.toUpperCase());
+  const nm=String(p.IncidentName||"Wildfire").replace(/^\d+\s+/,"").toLowerCase().replace(/\b\w/g,c=>c.toUpperCase());
   return `<b>${esc(/fire$/i.test(nm)?nm:nm+" Fire")}</b>${p.IncidentShortDescription?`<div style="color:#9fb2c8;margin-top:3px">${esc(p.IncidentShortDescription)}</div>`:""}
     <div class="fpop">${rows.map(r=>`<span>${r[0]}</span><b>${esc(String(r[1]))}</b>`).join("")}</div><div style="color:#8597b3;margin-top:6px;font-size:11px">Source: NIFC</div>`}
 let natCache={t:0,g:EMPTY,s:EMPTY,c:EMPTY};
