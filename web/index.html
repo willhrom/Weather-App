@@ -641,7 +641,19 @@ async function tile(F,d,ox,oy){const S=512,n=1<<d,sz=F.w/n,sx=ox*sz,sy=oy*sz,c=n
       const v=(F.val[r0+x0]*w00+F.val[r0+x1]*w10+F.val[r1+x0]*w01+F.val[r1+x1]*w11)/cv,b=BAND[Math.max(0,Math.min(80,Math.round(v)))];if(!b)continue;
       o[i]=b[0];o[i+1]=b[1];o[i+2]=b[2];o[i+3]=Math.round(255*b[3]*Math.min(1,(cv-.4)/.2));any=true}}
   if(!any)return null;g.putImageData(img,0,0);return(await c.convertToBlob({type:"image/png"})).arrayBuffer()}
+async function modelMsg(m){
+  // two model hours and how far between them this frame is, so the ocean moves in 15-minute steps, not hourly jumps
+  const keep=(u,F)=>{fields.set(u,F);if(fields.size>30)fields.delete(fields.keys().next().value)};
+  let A=fields.get(m.url),B=m.url2?fields.get(m.url2):null;
+  if(!A&&m.buf){A=await modelField(m.buf);keep(m.url,A)}
+  if(m.url2&&!B&&m.buf2){B=await modelField(m.buf2);keep(m.url2,B)}
+  if(!A||m.url2&&!B){postMessage({id:m.id,miss:true,need:[!A&&m.url,m.url2&&!B&&m.url2].filter(Boolean)});return}
+  let F=A;const w=m.w||0;
+  if(B&&w>0&&B.w===A.w&&B.h===A.h){const n=A.dbz.length,dbz=new Float32Array(n),cl=new Float32Array(n);
+    for(let i=0;i<n;i++){dbz[i]=A.dbz[i]+(B.dbz[i]-A.dbz[i])*w;cl[i]=A.cl[i]+(B.cl[i]-A.cl[i])*w}F={w:A.w,h:A.h,dbz,cl,wt:A.wt,model:1}}
+  const data=await modelTile(F,m.d,m.ox,m.oy,m.f||"rc",m.g);postMessage({id:m.id,data},data?[data]:[])}
 onmessage=async e=>{const m=e.data;if(m.init){init(m.init);return}
+  if(m.kind==="model2"){try{await modelMsg(m)}catch(err){postMessage({id:m.id,data:null,err:String(err)})}return}
   try{let F=fields.get(m.url);
     if(!F&&m.buf){F=await (m.kind==="pt"?ptField(m.buf):m.kind==="model"?modelField(m.buf):radarField(m.buf,m.tol||1200,m.qc,m.reach));fields.set(m.url,F);if(fields.size>30)fields.delete(fields.keys().next().value)}
     if(!F){postMessage({id:m.id,miss:true});return}
@@ -1788,6 +1800,12 @@ async function wxTile(kind,url,tol,d,ox,oy,f,g){
       reach=(4+Math.max(0,q.lag)/6e4*0.8)/pxKm}}  // ~4 km, plus how far a storm could move while NOAA's copy catches up
     r=await wxCall({kind,url,tol,d,ox,oy,f,g,buf:buf.slice(0),qc,reach},qc?[qc]:[])}
   return r.data||null}
+const wxGet=url=>{let p=wxFetch.get(url);if(!p){p=fetch(via(url)).then(x=>{if(!x.ok)throw new Error("HTTP "+x.status);return x.arrayBuffer()});wxFetch.set(url,p);p.then(()=>setTimeout(()=>wxFetch.delete(url),3e4),()=>wxFetch.delete(url))}return p};
+async function wxModel(url,url2,w,d,ox,oy,f,g){
+  const m={kind:"model2",url,url2,w,d,ox,oy,f,g,route:url};let r=await wxCall(m);
+  if(r.miss){let bufs;try{bufs=await Promise.all(r.need.map(wxGet))}catch(e){return null}
+    const x={...m};r.need.forEach((u,i)=>{x[u===url?"buf":"buf2"]=bufs[i].slice(0)});r=await wxCall(x)}
+  return r.data||null}
 let EMPTY_TILE=null;
 function emptyTile(){if(!EMPTY_TILE)EMPTY_TILE=new Promise(r=>{const c=document.createElement("canvas");c.width=c.height=1;c.toBlob(b=>b.arrayBuffer().then(r),"image/png")});return EMPTY_TILE}
 function registerRadar(){
@@ -1811,7 +1829,8 @@ function registerRadar(){
   maplibregl.addProtocol("wxm",async params=>{
     const m=/^wxm:\/\/(\d+)\/(\d+)\/(\d+)\?(.*)$/.exec(params.url),z=+m[1],x=+m[2],y=+m[3],q=new URLSearchParams(m[4]);
     const nz=+q.get("nz"),d=Math.max(0,z-nz),px=x>>d,py=y>>d,url=q.get("u").replace("{z}",z-d).replace("{x}",px).replace("{y}",py);
-    let dd=null;if(wxWorker()){try{dd=await wxTile("model",url,0,d,x-px*(1<<d),y-py*(1<<d),q.get("f")||"rc",[z,x,y])}catch(e){}}return{data:dd||await emptyTile()}});
+    const u2=q.get("u2"),url2=u2?u2.replace("{z}",z-d).replace("{x}",px).replace("{y}",py):null;
+    let dd=null;if(wxWorker()){try{dd=await wxModel(url,url2,+q.get("w")||0,d,x-px*(1<<d),y-py*(1<<d),q.get("f")||"rc",[z,x,y])}catch(e){}}return{data:dd||await emptyTile()}});
   maplibregl.addProtocol("wxr",async params=>{
     const m=/^wxr:\/\/(\d+)\/(\d+)\/(\d+)\?(.*)$/.exec(params.url),z=+m[1],x=+m[2],y=+m[3],q=new URLSearchParams(m[4]);
     const nz=+q.get("nz"),d=Math.max(0,z-nz),px=x>>d,py=y>>d,url=q.get("u").replace("{z}",z-d).replace("{x}",px).replace("{y}",py);
@@ -1958,10 +1977,13 @@ async function gfsManifest(){if(gfsMan.v&&Date.now()-gfsMan.t<20*6e4)return gfsM
 async function attachOcean(gen){
   let m;try{m=await gfsManifest()}catch(e){return}if(gen!==radarGen||!m||!m.hours||m.v!==3)return;
   const run=Date.parse(m.run.replace(/Z$/,":00Z"));
-  for(const f of frames){let best=null,bd=1e15;for(const h of m.hours){const d=Math.abs(run+h*36e5-f.t);if(d<bd){bd=d;best=h}}
-    if(best==null||bd>90*6e4)continue;const fh="f"+String(best).padStart(3,"0");
-    const fl=(L.ocean?"r":"")+(L.oclouds?"c":"");
-    f.ocn={id:"ocn-"+m.cycle+fh+fl,src:`wxm://{z}/{x}/{y}?nz=${m.maxzoom||4}&f=${fl}&u=${encodeURIComponent(`${GFS_HOST}/m/${fh}/{z}/{x}/{y}.png?${m.cycle}`)}`,opts:{opacity:0,maxzoom:13,bounds:m.bounds,attr:"GFS model (NOAA)"}}}
+  const fl=(L.ocean?"r":"")+(L.oclouds?"c":""),hs=m.hours,tu=h=>encodeURIComponent(`${GFS_HOST}/m/f${String(h).padStart(3,"0")}/{z}/{x}/{y}.png?${m.cycle}`);
+  for(const f of frames){
+    // the model is hourly; each frame blends the two hours around it (snapped to 15 min so past frames share layers)
+    const t=Math.round(f.t/9e5)*9e5,fh=(t-run)/36e5;if(fh<hs[0]-1.5||fh>hs[hs.length-1]+1.5)continue;
+    let h0=hs[0],h1=null;for(const h of hs){if(h<=fh)h0=h;else{h1=h;break}}
+    const w=h1==null||fh<=h0?0:Math.round((fh-h0)/(h1-h0)*100)/100;
+    f.ocn={id:`ocn-${m.cycle}-${h0}-${w}-${fl}`,src:`wxm://{z}/{x}/{y}?nz=${m.maxzoom||4}&f=${fl}&u=${tu(h0)}`+(w>0?`&u2=${tu(h1)}&w=${w}`:""),opts:{opacity:0,maxzoom:13,bounds:m.bounds,attr:"GFS model (NOAA)"}}}
   $("#mapSrc").textContent+=" · ocean: model";showFrame(fi);updateLegend()}
 // keep radar frames just under the other overlays (alerts, aviation, turbulence, lightning…)
 function radarAnchor(){const L2=map.getStyle().layers;for(const l of L2)if(/^(gtg|lightning|fires|fireout|smoke-|ptype|alerts-|sigmet|gairmet|cwa|turb-|metar|pirep)/.test(l.id))return l.id;return beforeLabels()}
@@ -1974,7 +1996,11 @@ function prefetchFrames(gen){if(gen!==radarGen||!frames.length)return;
   const order=frames.map((f,k)=>k).sort((a,b)=>Math.abs(a-NOWF)-Math.abs(b-NOWF)+(a<NOWF?.1:0)-(b<NOWF?.1:0)),k=order.find(k=>!map.getLayer(frames[k].id));
   if(k==null){if(prefetchFrames.on&&!prefetchFrames.on[1]){prefetchFrames.on[1]=Math.round(performance.now());DIAG.mark("radar frames: all "+frames.length+" loaded")}return}addFrame(k);map.once("idle",()=>setTimeout(()=>prefetchFrames(gen),120))}
 const frameReady=k=>{const f=frames[k];return f&&map.getLayer(f.id)&&map.isSourceLoaded(f.id)};
-function showFrame(k){if(!frames.length)return;addFrame(k);frames.forEach((f,j)=>map.getLayer(f.id)&&map.setPaintProperty(f.id,"raster-opacity",j===k?(f.fut?.8:.88):0));
+// frames dissolve into each other while playing, so storms appear to glide instead of jumping
+function fadeT(){return{duration:playing?380:0,delay:0}}
+function showFrame(k){if(!frames.length)return;addFrame(k);
+  {const tr=fadeT();for(const f of frames){map.getLayer(f.id)&&map.setPaintProperty(f.id,"raster-opacity-transition",tr);f.ocn&&map.getLayer(f.ocn.id)&&map.setPaintProperty(f.ocn.id,"raster-opacity-transition",tr)}}
+  frames.forEach((f,j)=>map.getLayer(f.id)&&map.setPaintProperty(f.id,"raster-opacity",j===k?(f.fut?.8:.88):0));
   {const on=frames[k].ocn&&frames[k].ocn.id;for(const f of frames)if(f.ocn&&map.getLayer(f.ocn.id))map.setPaintProperty(f.ocn.id,"raster-opacity",f.ocn.id===on?.82:0)}fi=k;$("#slider").value=k;
   const f=frames[k],el=$("#ftime");el.textContent=(f.fut?"+":"")+fT(f.t+off*1000);el.classList.toggle("fut",!!f.fut);$("#player").classList.toggle("fut",!!f.fut)}
 function setPlay(){$("#play").innerHTML=playing?'<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>':'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 4l13 8-13 8z"/></svg>'}
