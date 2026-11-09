@@ -2143,14 +2143,18 @@ function prefetchFrames(gen){if(gen!==radarGen||!frames.length)return;
   if(!prefetchFrames.on){prefetchFrames.on=[Math.round(performance.now()),0,"loading radar frames"];DIAG.ph.push(prefetchFrames.on);DIAG.mark("radar frames: loading the rest")}
   const order=frames.map((f,k)=>k).sort((a,b)=>Math.abs(a-NOWF)-Math.abs(b-NOWF)+(a<NOWF?.1:0)-(b<NOWF?.1:0)),k=order.find(k=>!map.getLayer(frames[k].id));
   if(k==null){if(prefetchFrames.on&&!prefetchFrames.on[1]){prefetchFrames.on[1]=Math.round(performance.now());DIAG.mark("radar frames: all "+frames.length+" loaded")}return}addFrame(k);map.once("idle",()=>setTimeout(()=>prefetchFrames(gen),120))}
-const frameReady=k=>{const f=frames[k];return f&&map.getLayer(f.id)&&map.isSourceLoaded(f.id)};
-// frames dissolve into each other while playing, so storms appear to glide instead of jumping
-function fadeT(){return{duration:playing?380:0,delay:0}}
+// a frame counts as ready only when both its radar and its ocean-model tiles are in, so nothing blinks out mid-play
+const frameReady=k=>{const f=frames[k];return f&&map.getLayer(f.id)&&map.isSourceLoaded(f.id)&&(!f.ocn||!map.getLayer(f.ocn.id)||map.isSourceLoaded(f.ocn.id))};
+/* Frames swap in one step, with no fades: fading made the radar dim or brighten on every step, which read as
+   flashing. Playback only steps onto a frame once its radar and ocean tiles are loaded (frameReady), so a swap
+   never shows an empty map either. */
+function setOp(id,v,ms){if(!map.getLayer(id))return;map.setPaintProperty(id,"raster-opacity-transition",{duration:ms,delay:0});map.setPaintProperty(id,"raster-opacity",v)}
 function showFrame(k){if(!frames.length)return;addFrame(k);
-  {const tr=fadeT();for(const f of frames){map.getLayer(f.id)&&map.setPaintProperty(f.id,"raster-opacity-transition",tr);f.ocn&&map.getLayer(f.ocn.id)&&map.setPaintProperty(f.ocn.id,"raster-opacity-transition",tr)}}
-  frames.forEach((f,j)=>map.getLayer(f.id)&&map.setPaintProperty(f.id,"raster-opacity",j===k?(f.fut?.8:.88):0));
-  {const on=frames[k].ocn&&frames[k].ocn.id;for(const f of frames)if(f.ocn&&map.getLayer(f.ocn.id))map.setPaintProperty(f.ocn.id,"raster-opacity",f.ocn.id===on?.88:0)}fi=k;$("#slider").value=k;
-  const f=frames[k],el=$("#ftime");el.textContent=(f.fut?"+":"")+fT(f.t+off*1000);el.classList.toggle("fut",!!f.fut);$("#player").classList.toggle("fut",!!f.fut)}
+  const f=frames[k],tgt=f.fut?.8:.88,oid=f.ocn&&f.ocn.id;
+  for(const g of frames){if(g.id!==f.id)setOp(g.id,0,0);if(g.ocn&&g.ocn.id!==oid)setOp(g.ocn.id,0,0)}
+  setOp(f.id,tgt,0);if(oid)setOp(oid,.88,0);
+  fi=k;$("#slider").value=k;
+  const el=$("#ftime");el.textContent=(f.fut?"+":"")+fT(f.t+off*1000);el.classList.toggle("fut",!!f.fut);$("#player").classList.toggle("fut",!!f.fut)}
 function setPlay(){$("#play").innerHTML=playing?'<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>':'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 4l13 8-13 8z"/></svg>'}
 function tick(){clearTimeout(timer);setPlay();if(!playing||!frames.length)return;
   // don't step onto a frame that hasn't loaded yet (no blank flashes); wait up to ~2 s for it
