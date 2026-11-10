@@ -31,7 +31,10 @@ HOURS = list(range(0, 19))
 W, E, S_, N = -180.0, 180.0, -85.06, 85.06   # the whole Web Mercator world
 ZOOMS = range(2, 4)   # z3 at 256 px is already finer than the 0.25-degree grid; the phone smooths the rest
 FADE_KM = (150, 250)          # clouds: distance from the lower-48 coast
-RADAR_KM = (170, 250)         # rain: distance from the nearest lower-48 NEXRAD site
+RADAR_KM = (150, 300)         # rain: distance from the nearest lower-48 NEXRAD site (a wide, smooth hand-over)
+RADAR_BOX = (-126.0, 23.0, -66.0, 50.0)   # where the app's radar mosaic has data at all (W, S, E, N)
+EDGE_DEG = 1.8                # the model fades in over this band inside the box edge (the app fades the radar out
+                              # over the outer 0.8 degrees of it), so the join is a gradual blend, not a line
 NEXRAD_URL = "https://mesonet.agron.iastate.edu/geojson/network/NEXRAD.geojson"
 S = requests.Session()
 S.headers["User-Agent"] = "WeatherApp-GFS/1.0 (personal weather app)"
@@ -94,6 +97,11 @@ def subset(a):
     return np.concatenate([g[:, -4:], g, g[:, :4]], axis=1), 90.0, -181.0
 
 
+def smooth(t):
+    """smoothstep: an eased 0..1 ramp, so hand-overs have no visible start or end line"""
+    return t * t * (3 - 2 * t)
+
+
 def coast_weight(land):
     """0 near lower-48 land (radar and satellite cover it), rising to 1 a few hundred km offshore."""
     sub, lat0, lon0 = subset(land)
@@ -104,7 +112,7 @@ def coast_weight(land):
     us = (sub > .5) & (LA <= 49.5) & (LO >= -125.5) & (((LO < -106) & (LA >= 31.3)) | ((LO >= -106) & (LA >= 25.5)))
     # distance on the 0.25-degree grid: rows ~27.8 km apart, columns ~27.8 km * cos(lat) (40N used)
     dist = distance_transform_edt(~us, sampling=(27.8, 27.8 * math.cos(math.radians(40))))
-    return np.clip((dist - FADE_KM[0]) / (FADE_KM[1] - FADE_KM[0]), 0, 1).astype(np.float32)
+    return smooth(np.clip((dist - FADE_KM[0]) / (FADE_KM[1] - FADE_KM[0]), 0, 1)).astype(np.float32)
 
 
 def radar_weight(lat0, lon0, shape):
@@ -130,7 +138,13 @@ def radar_weight(lat0, lon0, shape):
         p1, p2 = np.radians(la), np.radians(LA)
         a = np.sin((p2 - p1) / 2) ** 2 + np.cos(p1) * np.cos(p2) * np.sin(np.radians(LO - lo) / 2) ** 2
         dist[i0:i1, j0:j1] = np.minimum(dist[i0:i1, j0:j1], 12742 * np.arcsin(np.sqrt(a)))
-    return np.clip((dist - RADAR_KM[0]) / (RADAR_KM[1] - RADAR_KM[0]), 0, 1).astype(np.float32)
+    w = smooth(np.clip((dist - RADAR_KM[0]) / (RADAR_KM[1] - RADAR_KM[0]), 0, 1))
+    # the radar mosaic simply stops at the edge of its box, radar in range or not: the model takes over there,
+    # rising across the same band the app fades the radar out over, so there is neither a gap nor a hard edge
+    LA, LO = np.meshgrid(lats, lons, indexing="ij")
+    bw, bs, be, bn = RADAR_BOX
+    inside = np.minimum(np.minimum(LO - bw, be - LO), np.minimum(LA - bs, bn - LA)) / EDGE_DEG
+    return np.maximum(w, 1 - smooth(np.clip(inside, 0, 1))).astype(np.float32)
 
 
 def tile_coords(z):
