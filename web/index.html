@@ -22,7 +22,7 @@ DIAG.mark("html start");
 <link rel="preconnect" href="https://mesonet.agron.iastate.edu" crossorigin>
 <link rel="preconnect" href="https://realearth.ssec.wisc.edu" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
-<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" integrity="sha384-MinO0mNliZ3vwppuPOUnGa+iq619pfMhLVUXfC4LHwSCvF9H+6P/KO4Q7qBOYV5V" crossorigin="anonymous">
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.css" integrity="sha384-uTttxo/aOKbdE5RlD/SPzSDoDmNvGlUYPjONi2MN/b7c9HPSvW07OIuyP7uL6jxK" crossorigin="anonymous">
 <style>
 :root{
   --bg:#08121f;--panel:rgba(16,32,54,.62);--panel2:rgba(255,255,255,.05);--line:rgba(140,190,255,.11);--line2:rgba(140,190,255,.2);
@@ -180,7 +180,7 @@ body.mapopen .tabbar{display:none}
 
 /* map (no blur behind the map — it can clip map rendering on Android) */
 #mapPanel{backdrop-filter:none;-webkit-backdrop-filter:none;background:#0b1a2c}
-.mapwrap{position:relative;height:360px;border-top:1px solid var(--line);margin-top:11px;background:#0a1626}
+.mapwrap{position:relative;height:360px;border-top:1px solid var(--line);margin-top:11px;background:radial-gradient(ellipse at center,#0b1a30 0%,#050b14 75%)}
 #map{position:absolute;inset:0}
 .mapfull{position:fixed;inset:0;z-index:2000;background:#0a1626;display:none}
 .mapfull.on{display:block}
@@ -718,7 +718,7 @@ onmessage=async e=>{const m=e.data;if(m.init){init(m.init);return}
     const data=F.model?await modelTile(F,m.d,m.ox,m.oy,m.f||"rc",m.g):await tile(F,m.d,m.ox,m.oy);postMessage({id:m.id,data},data?[data]:[])}
   catch(err){postMessage({id:m.id,data:null,err:String(err)})}};
 </script>
-<script async onload="window.mlLoaded&&mlLoaded()" src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js" integrity="sha384-SYKAG6cglRMN0RVvhNeBY0r3FYKNOJtznwA0v7B5Vp9tr31xAHsZC0DqkQ/pZDmj" crossorigin="anonymous"></script>
+<script async onload="window.mlLoaded&&mlLoaded()" src="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.js" integrity="sha384-5+cfbwT0iiub6VsQAdn6yz16nr6sDiQoHx6tm4O8OVYXHYOxcffFmCJBL0dgdvGp" crossorigin="anonymous"></script>
 <script>
 "use strict";
 const REPO="__REPO__",BUILD="__BUILD__";
@@ -2081,6 +2081,7 @@ async function wxModel(url,url2,w,d,ox,oy,f,g){
     const x={...m};r.need.forEach((u,i)=>{x[u===url?"buf":"buf2"]=bufs[i].slice(0)});r=await wxCall(x)}
   return r.data||null}
 let EMPTY_TILE=null;
+const PROTO={},addProto=(n,f)=>{PROTO[n]=f;maplibregl.addProtocol(n,f)};
 function emptyTile(){if(!EMPTY_TILE)EMPTY_TILE=new Promise(r=>{const c=document.createElement("canvas");c.width=c.height=1;c.toBlob(b=>b.arrayBuffer().then(r),"image/png")});return EMPTY_TILE}
 function registerRadar(){
   maplibregl.addProtocol("wxp",async params=>{
@@ -2095,7 +2096,7 @@ function registerRadar(){
     const nz=+q.get("nz"),d=Math.max(0,z-nz),px=x>>d,py=y>>d,url=q.get("u").replace("{z}",z-d).replace("{x}",px).replace("{y}",py);
     let dd=null;try{dd=await bandTile(url,d,x-px*(1<<d),y-py*(1<<d),q.get("m")||"")}catch(e){}return{data:dd||await emptyTile()}});
   // satellite: read each image at its true resolution, smooth out the speckle, then scale up smoothly
-  maplibregl.addProtocol("wxs",async params=>{
+  addProto("wxs",async params=>{
     const m=/^wxs:\/\/(\d+)\/(\d+)\/(\d+)\?(.*)$/.exec(params.url),z=+m[1],x=+m[2],y=+m[3],q=new URLSearchParams(m[4]);
     const nz=+q.get("nz"),d=Math.max(0,z-nz),px=x>>d,py=y>>d,url=q.get("u").replace("{z}",z-d).replace("{x}",px).replace("{y}",py);
     let dd=null;try{dd=await satTile(url,q.get("m")||"",d,x-px*(1<<d),y-py*(1<<d))}catch(e){}return{data:dd||await emptyTile()}});
@@ -2104,12 +2105,12 @@ function registerRadar(){
     let d=null;if(m){try{d=await gtgTile(+m[1],+m[2],+m[3],decodeURIComponent(m[4]),m[5])}catch(e){}}
     return{data:d||await emptyTile()}});
   // ocean model (rain + clouds) drawn on the phone from GFS data tiles; needs the tile workers
-  maplibregl.addProtocol("wxm",async params=>{
+  addProto("wxm",async params=>{
     const m=/^wxm:\/\/(\d+)\/(\d+)\/(\d+)\?(.*)$/.exec(params.url),z=+m[1],x=+m[2],y=+m[3],q=new URLSearchParams(m[4]);
     const nz=+q.get("nz"),d=Math.max(0,z-nz),px=x>>d,py=y>>d,url=q.get("u").replace("{z}",z-d).replace("{x}",px).replace("{y}",py);
     const u2=q.get("u2"),url2=u2?u2.replace("{z}",z-d).replace("{x}",px).replace("{y}",py):null;
     let dd=null;if(wxWorker()){try{dd=await wxModel(url,url2,+q.get("w")||0,d,x-px*(1<<d),y-py*(1<<d),q.get("f")||"rc",[z,x,y])}catch(e){}}return{data:dd||await emptyTile()}});
-  maplibregl.addProtocol("wxr",async params=>{
+  addProto("wxr",async params=>{
     const m=/^wxr:\/\/(\d+)\/(\d+)\/(\d+)\?(.*)$/.exec(params.url),z=+m[1],x=+m[2],y=+m[3],q=new URLSearchParams(m[4]);
     const nz=+q.get("nz"),d=Math.max(0,z-nz),px=x>>d,py=y>>d,url=q.get("u").replace("{z}",z-d).replace("{x}",px).replace("{y}",py);
     if(wxWorker()){const dd=await wxTile("radar",url,+q.get("tol")||1200,d,x-px*(1<<d),y-py*(1<<d));return{data:dd||await emptyTile()}}
@@ -2139,6 +2140,9 @@ function initMap(){
     fadeDuration:0,pixelRatio:Math.min(window.devicePixelRatio||1,2),renderWorldCopies:false,transformRequest:u=>NATIVE&&/^https?:/.test(u)&&/mesonet\.agron\.iastate\.edu|rainviewer\.com/.test(u)?{url:via(u)}:{url:u}});
   map.touchZoomRotate.disableRotation();setInteractive(false);
   DIAG.mark("map starting");map.once("idle",()=>DIAG.mark("map first idle"));
+  // a globe: zoom out far enough and it's the Earth (it flattens to a normal map by itself as you zoom in)
+  map.on("style.load",()=>{try{map.setProjection({type:"globe"});map.setSky({"sky-color":"#0b1a30","horizon-color":"#1b3a63","fog-color":"#0a1626","atmosphere-blend":["interpolate",["linear"],["zoom"],0,1,4.5,.8,6.5,0]})}catch(e){}});
+  const reblanket=()=>{clearTimeout(blTimer);blTimer=setTimeout(()=>{buildBlankets();buildSat()},250)};map.on("moveend",reblanket);map.on("resize",reblanket);
   map.on("load",()=>{DIAG.mark("map style loaded");mapReady=true;dimStyle();buildLayerPanel();applyLayers(true)});
   map.on("moveend",()=>{if(isFull()){clearTimeout(avTimer);avTimer=setTimeout(loadBboxAviation,500)}});
   map.on("click",onMapClick);
@@ -2210,20 +2214,19 @@ async function applyLayers(force){
   const so=satOK(),sec=isWest()?"west":"east";if(applyLayers.sec!==sec){["ir","vis","wv"].forEach(k=>rmLayer("sat-"+k));applyLayers.sec=sec}
   for(const k of ["ir","vis"]){const id="sat-"+k,hd="sat-"+k+"-hd",u=`https://mesonet.agron.iastate.edu/cache/tile.py/1.0.0/${SAT_SRC[sec][k]}/{z}/{x}/{y}.png?${bust}`;
     rmLayer(hd); // older builds layered a second, sharper copy on top; the smoothed single layer replaces it
-    if(L[k]&&so){raster(id,`wxs://{z}/{x}/{y}?m=${k}&nz=${k==="ir"?6:8}&u=${encodeURIComponent(u)}`,{opacity:k==="ir"?.9:.95,maxzoom:12,attr:"GOES via IEM"});
-      // clouds always sit under rain: keep satellite below every radar and model layer
-      const fr=map.getStyle().layers.find(l=>/^(ocn-|rad\d|fut\d)/.test(l.id));if(fr&&map.getLayer(id))map.moveLayer(id,fr.id)}
-    else rmLayer(id)}
+    if(L[k]&&so){const tpl=`wxs://{z}/{x}/{y}?m=${k}&nz=${k==="ir"?6:8}&u=${encodeURIComponent(u)}`;if(!satBl[k]||satBl[k].tpl!==tpl)satBl[k]={tpl}}
+    else{delete satBl[k];rmLayer(id)}}
+  buildSat();
   applyExtraLayers(us,bust);
   for(const d of LAYERS.filter(x=>x.k==="mrms")){const id="mrms-"+d.v;if(L.mrms===d.v&&us)raster(id,`wxb://{z}/{x}/{y}?nz=7&u=${encodeURIComponent(`https://mesonet.agron.iastate.edu/cache/tile.py/1.0.0/${d.v}-900913/{z}/{x}/{y}.png?${bust}`)}`,{opacity:.75,maxzoom:12,attr:"MRMS via IEM"});else rmLayer(id)}
   const key=String(us)+L.ocean+L.oclouds+!!(L.ir||L.vis);
   if(L.radar){if(force||!frames.length||key!==radarKey||Date.now()-radarStamp>4*6e4){radarKey=key;await loadRadar()}}else clearRadar();
-  {const an=radarAnchor();for(const f of frames)if(map.getLayer(f.id))map.moveLayer(f.id,an)}
+  {const an=radarAnchor();if(map.getLayer(RB)&&an!==RB)map.moveLayer(RB,an)}
   updateAlertLayer();updateFirePerims();updateNationalAviation();loadBboxAviation();updateGtg();updateLegend();
 }
-function clearRadar(){clearTimeout(timer);radarGen++;{const e=$("#rainEta");if(e)e.style.display="none"}frames.forEach(f=>{rmLayer(f.id);f.ocn&&rmLayer(f.ocn.id)});frames=[];$("#player").style.display="none";$("#mapSrc").textContent=""}
+function clearRadar(keep){clearTimeout(timer);radarGen++;{const e=$("#rainEta");if(e)e.style.display="none"}blGen++;frames.forEach(f=>{f.bl&&f.bl.bmp&&f.bl.bmp.close()});if(!keep)rmLayer(RB);frames=[];$("#player").style.display="none";$("#mapSrc").textContent=""}
 async function loadRadar(){
-  clearRadar();radarStamp=Date.now();const us=isCONUS(place);
+  clearRadar(true);radarStamp=Date.now();const us=isCONUS(place);   // the picture on screen stays until the fresh one is ready
   try{
     if(us){const base=Math.floor((Date.now()-2*6e4)/3e5)*3e5;
       frames=[55,50,45,40,35,30,25,20,15,10,5,0].map(m=>({id:"rad"+m,t:base-m*6e4,url:`https://mesonet.agron.iastate.edu/cache/tile.py/1.0.0/nexrad-n0q-900913${m?"-m"+String(m).padStart(2,"0")+"m":""}/{z}/{x}/{y}.png?${base}`}));
@@ -2235,17 +2238,19 @@ async function loadRadar(){
     else{const j=await getJSON("https://api.rainviewer.com/public/weather-maps.json");
       frames=j.radar.past.map((f,k)=>({id:"rad"+k,t:f.time*1000,url:`${j.host}${f.path}/256/{z}/{x}/{y}/2/1_1.png`,mz:7}));$("#mapSrc").textContent="Past 2 h"}
     // frames are added one at a time: "now" first, then the rest in the background as the map goes idle
-    for(const f of frames){f.src=us?smoothRadar(f.url,8):f.url;f.opts={opacity:0,maxzoom:us?13:7,attr:f.fut?"HRRR via IEM":us?"NEXRAD via IEM":"RainViewer"}}
+    for(const f of frames){f.src=us?smoothRadar(f.url,8):f.url;f.bounds=us?[-130,20,-60,53]:null;f.opts={opacity:0,maxzoom:us?13:7,attr:f.fut?"HRRR via IEM":us?"NEXRAD via IEM":"RainViewer"}}
     NOWF=frames.filter(f=>!f.fut).length-1;
     $("#slider").max=frames.length-1;const sl=$("#slider"),pct=frames.length>1?NOWF/(frames.length-1)*100:100;
     const hasF=frames.length>NOWF+1;sl.style.background=hasF?`linear-gradient(90deg,transparent ${pct}%,rgba(199,146,234,.35) ${pct}%)`:"";
     const pastMin=Math.round((frames[NOWF].t-frames[0].t)/6e4),futMin=hasF?Math.round((frames[frames.length-1].t-frames[NOWF].t)/6e4):0,hl=m=>m>=90?Math.round(m/60)+"h":m>=55?"1h":m+"m";
     $("#tls").innerHTML=`<span class="a">−${hl(pastMin)}</span>${hasF?`<i style="left:${pct}%"></i><span class="tnow" style="left:${pct}%">Now</span><span class="z" style="color:#c792ea">+${hl(futMin)}</span>`:`<span class="z tnow" style="transform:none">Now</span>`}`;
     $("#player").style.display="";showFrame(NOWF);tick();
-    const gen=++radarGen;setTimeout(()=>{if(gen===radarGen)prefetchFrames(gen)},900);
-    if(L.ocean||L.oclouds)attachOcean(gen);
+    const gen=++radarGen;
+    // give the ocean model a moment to join, so each frame is put together once with both in it
+    if(L.ocean||L.oclouds)await Promise.race([attachOcean(gen),new Promise(r=>setTimeout(r,1200))]);
+    if(gen===radarGen)buildBlankets();
     setTimeout(()=>{if(gen===radarGen)rainTiming(gen)},2500);
-  }catch(e){console.error(e);$("#ftime").textContent="n/a"}
+  }catch(e){console.error(e);$("#ftime").textContent="n/a";rmLayer(RB)}
 }
 let NOWF=0,radarGen=0;
 /* Ocean rain: radar fades out a couple hundred km offshore. Beyond that the app shows NOAA's GFS
@@ -2265,34 +2270,76 @@ async function attachOcean(gen){
     let h0=hs[0],h1=null;for(const h of hs){if(h<=fh)h0=h;else{h1=h;break}}
     const w=h1==null||fh<=h0?0:Math.round((fh-h0)/(h1-h0)*100)/100;
     f.ocn={id:`ocn-${m.cycle}-${h0}-${w}-${fl}`,src:`wxm://{z}/{x}/{y}?nz=${m.maxzoom||4}&f=${fl}&u=${tu(h0)}`+(w>0?`&u2=${tu(h1)}&w=${w}`:""),opts:{opacity:0,maxzoom:13,bounds:m.bounds,attr:"GFS model (NOAA)"}}}
-  $("#mapSrc").textContent+=" · ocean: model";showFrame(fi);updateLegend()}
+  $("#mapSrc").textContent+=" · ocean: model";showFrame(fi);updateLegend();buildBlankets()}
 // keep radar frames just under the other overlays (alerts, aviation, turbulence, lightning…)
 function radarAnchor(){const L2=map.getStyle().layers;for(const l of L2)if(/^(gtg|lightning|fires|fireout|smoke-|ptype|alerts-|sigmet|gairmet|cwa|turb-|metar|pirep)/.test(l.id))return l.id;return beforeLabels()}
-function addFrame(k){const f=frames[k];if(!f)return;if(f.ocn&&!map.getLayer(f.ocn.id)){raster(f.ocn.id,f.ocn.src,f.ocn.opts);map.moveLayer(f.ocn.id,firstRadar()||radarAnchor())}
-  if(!f.src||map.getLayer(f.id))return;raster(f.id,f.src,f.opts);map.moveLayer(f.id,radarAnchor())}
-// model ocean layers sit under every radar frame
-function firstRadar(){const l=map.getStyle().layers.find(l=>/^(rad|fut)\d/.test(l.id));return l&&l.id}
-function prefetchFrames(gen){if(gen!==radarGen||!frames.length)return;
-  if(!prefetchFrames.on){prefetchFrames.on=[Math.round(performance.now()),0,"loading radar frames"];DIAG.ph.push(prefetchFrames.on);DIAG.mark("radar frames: loading the rest")}
-  const order=frames.map((f,k)=>k).sort((a,b)=>Math.abs(a-NOWF)-Math.abs(b-NOWF)+(a<NOWF?.1:0)-(b<NOWF?.1:0)),k=order.find(k=>!map.getLayer(frames[k].id));
-  if(k==null){if(prefetchFrames.on&&!prefetchFrames.on[1]){prefetchFrames.on[1]=Math.round(performance.now());DIAG.mark("radar frames: all "+frames.length+" loaded")}return}addFrame(k);map.once("idle",()=>setTimeout(()=>prefetchFrames(gen),120))}
-// a frame counts as ready only when both its radar and its ocean-model tiles are in, so nothing blinks out mid-play
-const frameReady=k=>{const f=frames[k];return f&&map.getLayer(f.id)&&map.isSourceLoaded(f.id)&&(!f.ocn||!map.getLayer(f.ocn.id)||map.isSourceLoaded(f.ocn.id))};
-/* Frames swap in one step, with no fades: fading made the radar dim or brighten on every step, which read as
-   flashing. Playback only steps onto a frame once its radar and ocean tiles are loaded (frameReady), so a swap
-   never shows an empty map either. */
-function setOp(id,v,ms){if(!map.getLayer(id))return;map.setPaintProperty(id,"raster-opacity-transition",{duration:ms,delay:0});map.setPaintProperty(id,"raster-opacity",v)}
-function showFrame(k){if(!frames.length)return;addFrame(k);
-  const f=frames[k],tgt=f.fut?.8:.88,oid=f.ocn&&f.ocn.id;
-  for(const g of frames){if(g.id!==f.id)setOp(g.id,0,0);if(g.ocn&&g.ocn.id!==oid)setOp(g.ocn.id,0,0)}
-  setOp(f.id,tgt,0);if(oid)setOp(oid,.88,0);
-  fi=k;$("#slider").value=k;
+/* ---- Blankets: radar and satellite are each drawn as ONE picture covering the screen and a margin around it,
+   not as a patchwork of map tiles that pop in square by square. The pieces are fetched and stitched off-screen;
+   the finished picture appears in one step and stays put (moving with the map) until the next one is ready.
+   Every radar frame is one stitched picture (ocean model underneath, radar on top), so playback just swaps
+   pictures on a single map layer. ---- */
+const RB="radar-b",satBl={};let blGen=0,blTimer=0;
+function blanketView(){
+  const Z=map.getZoom(),c=map.getCenter(),el=map.getContainer(),w=el.clientWidth||393,h=el.clientHeight||600,world=512*2**Z,pad=1.35;
+  const cx=(c.lng+180)/360,cy=(1-Math.asinh(Math.tan(Math.max(-85,Math.min(85,c.lat))*Math.PI/180))/Math.PI)/2,full=Z<3.3,hw=full?1:w*pad/2/world,hh=full?1:h*pad/2/world;
+  let z=Math.max(1,Math.min(13,Math.floor(Z+1.35))),r;
+  const rng=z=>{const n=1<<z,cl=v=>Math.max(0,Math.min(n-1,Math.floor(v*n)));return{z,n,x0:cl(cx-hw),x1:cl(cx+hw),y0:cl(cy-hh),y1:cl(cy+hh)}};
+  for(;;){r=rng(z);if((r.x1-r.x0+1)*(r.y1-r.y0+1)<=40||z<=1)break;z--}
+  const lon=x=>x/r.n*360-180,lat=y=>Math.atan(Math.sinh(Math.PI*(1-2*y/r.n)))*180/Math.PI,W_=lon(r.x0),E_=lon(r.x1+1),N_=lat(r.y0),S_=lat(r.y1+1);
+  return{...r,co:[[W_,N_],[E_,N_],[E_,S_],[W_,S_]],key:`${r.z}/${r.x0}-${r.x1}/${r.y0}-${r.y1}`}}
+async function tileBitmap(t,z,x,y){
+  if(t.b){const n=1<<z,w=x/n*360-180,e=(x+1)/n*360-180,la=q=>Math.atan(Math.sinh(Math.PI*(1-2*q/n)))*180/Math.PI;if(e<t.b[0]||w>t.b[2]||la(y)<t.b[1]||la(y+1)>t.b[3])return null}
+  const m=/^(wx[rsm]):/.exec(t.u);
+  if(m){const r=await PROTO[m[1]]({url:t.u.replace("{z}",z).replace("{x}",x).replace("{y}",y)});if(!r||!r.data||r.data.byteLength<200)return null;return createImageBitmap(new Blob([r.data],{type:"image/png"}))}
+  // plain picture tiles (worldwide radar): past the source's deepest zoom, cut the piece out of its parent
+  const d=Math.max(0,z-(t.mz||z)),u=t.u.replace("{z}",z-d).replace("{x}",x>>d).replace("{y}",y>>d);
+  const r=await fetch(NATIVE&&/mesonet\.agron\.iastate\.edu|rainviewer\.com/.test(u)?via(u):u);if(!r.ok)return null;const b=await createImageBitmap(await r.blob());
+  if(!d)return b;const n=1<<d,sz=b.width/n,o=await createImageBitmap(b,(x-(x>>d)*n)*sz,(y-(y>>d)*n)*sz,sz,sz);b.close();return o}
+async function blanketCompose(ts,v){
+  const nx=v.x1-v.x0+1,ny=v.y1-v.y0+1,P=Math.max(96,Math.min(384,Math.floor(Math.sqrt(2e6/(nx*ny))))),c=document.createElement("canvas");c.width=nx*P;c.height=ny*P;
+  const g=c.getContext("2d");g.imageSmoothingEnabled=true;g.imageSmoothingQuality="high";
+  const layers=await Promise.all(ts.map(t=>{const a=[];for(let y=v.y0;y<=v.y1;y++)for(let x=v.x0;x<=v.x1;x++)a.push(tileBitmap(t,v.z,x,y).catch(()=>null).then(b=>({b,x,y})));return Promise.all(a)}));
+  let any=false;for(const L_ of layers)for(const t of L_)if(t.b){g.drawImage(t.b,(t.x-v.x0)*P,(t.y-v.y0)*P,P,P);t.b.close&&t.b.close();any=true}
+  const bmp=any?await createImageBitmap(c):null;c.width=c.height=0;return{bmp,co:v.co}}
+// put a finished picture on the map: one canvas-backed layer per blanket, redrawn and re-placed in a single step
+const blCv={};
+function blanketLayer(id,bmp,co,op,before){
+  const cv=blCv[id]||(blCv[id]=document.createElement("canvas"));cv.width=bmp.width;cv.height=bmp.height;cv.getContext("2d").drawImage(bmp,0,0);
+  let s=map.getSource(id);
+  if(!s){map.addSource(id,{type:"canvas",canvas:cv,coordinates:co,animate:false});
+    map.addLayer({id,type:"raster",source:id,paint:{"raster-opacity":op,"raster-opacity-transition":{duration:0,delay:0},"raster-fade-duration":0,"raster-resampling":"linear"}},before&&map.getLayer(before)?before:beforeLabels());s=map.getSource(id)}
+  else{s.setCoordinates(co);map.setPaintProperty(id,"raster-opacity",op)}
+  try{s.play();map.triggerRepaint();requestAnimationFrame(()=>requestAnimationFrame(()=>{try{s.pause()}catch(e){}}))}catch(e){}}
+const radarTiles=f=>{const a=[];if(f.ocn)a.push({u:f.ocn.src});if(f.src)a.push({u:f.src,b:f.bounds,mz:f.mz});return a};
+function paintRadar(){const f=frames[fi];if(!f||!f.bl)return;   // not put together yet: leave what is showing
+  if(!f.bl.bmp){if(map.getLayer(RB))map.setPaintProperty(RB,"raster-opacity",0);return}
+  blanketLayer(RB,f.bl.bmp,f.bl.co,f.fut?.8:.88,radarAnchor())}
+// build (or rebuild after the map moves) every frame's picture: the one on screen first, then outwards from it
+async function buildBlankets(){
+  if(!mapReady||!frames.length)return;const gen=++blGen,rg=radarGen,v=blanketView(),t0=performance.now();
+  const order=frames.map((f,k)=>k).sort((a,b)=>Math.abs(a-fi)-Math.abs(b-fi));let built=0;
+  for(const k of order){const f=frames[k];if(!f)return;const ts=radarTiles(f),key=v.key+"|"+ts.map(t=>t.u).join("|");if(f.bl&&f.bl.key===key)continue;
+    let r;try{r=await blanketCompose(ts,v)}catch(e){r={bmp:null,co:v.co}}
+    if(gen!==blGen||rg!==radarGen){r.bmp&&r.bmp.close();return}
+    if(f.bl&&f.bl.bmp)f.bl.bmp.close();f.bl={...r,key};built++;if(k===fi)paintRadar()}
+  if(built)DIAG.mark(`radar: ${built} frame pictures in ${Math.round(performance.now()-t0)} ms`)}
+async function buildSat(){
+  if(!mapReady)return;
+  for(const k of ["ir","vis"]){const st=satBl[k],id="sat-"+k;if(!st)continue;const v=blanketView(),key=v.key+st.tpl;if(st.key===key)continue;st.key=key;
+    let r=null;try{r=await blanketCompose([{u:st.tpl}],v)}catch(e){}
+    if(satBl[k]!==st||st.key!==key){r&&r.bmp&&r.bmp.close();continue}
+    // clouds always sit under rain: satellite goes below the radar picture
+    if(r&&r.bmp){blanketLayer(id,r.bmp,r.co,k==="ir"?.9:.95,map.getLayer(RB)?RB:radarAnchor());r.bmp.close()}else if(map.getLayer(id))map.setPaintProperty(id,"raster-opacity",0)}}
+// a frame is ready once its picture has been put together, so playback never steps onto an empty map
+const frameReady=k=>{const f=frames[k];return!!(f&&f.bl)};
+function showFrame(k){if(!frames.length)return;const f=frames[k];if(!f)return;
+  fi=k;paintRadar();$("#slider").value=k;
   const el=$("#ftime");el.textContent=(f.fut?"+":"")+fT(f.t+off*1000);el.classList.toggle("fut",!!f.fut);$("#player").classList.toggle("fut",!!f.fut)}
 function setPlay(){$("#play").innerHTML=playing?'<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>':'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 4l13 8-13 8z"/></svg>'}
 function tick(){clearTimeout(timer);setPlay();if(!playing||!frames.length)return;
   // don't step onto a frame that hasn't loaded yet (no blank flashes); wait up to ~2 s for it
-  const nx=(fi+1)%frames.length;let waited=0;addFrame(nx);
-  const go=()=>{if(!playing)return;if(!frameReady(nx)&&waited<2000){waited+=150;timer=setTimeout(go,150);return}showFrame(nx);tick()};
+  const nx=(fi+1)%frames.length;let waited=0;
+  const go=()=>{if(!playing)return;if(!frameReady(nx)&&waited<8000){waited+=150;timer=setTimeout(go,150);return}showFrame(nx);tick()};
   timer=setTimeout(go,(fi===frames.length-1||fi===NOWF?1500:450)/SPDS[spd])}
 // playback speed: tap to cycle 1× → 2× → ½×
 const SPDS=[1,2,.5],SPDL=["1×","2×","½×"];let spd=0;try{spd=+localStorage.getItem("wx.spd")||0;if(!(spd in SPDS))spd=0}catch(e){}
