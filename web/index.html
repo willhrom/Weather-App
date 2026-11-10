@@ -3052,7 +3052,7 @@ function fxFromWeather(){
   if(kind===FX.kind&&Math.abs(I-FX.I)<.01)return;FX.kind=kind;FX.I=I;fxBuild();fxRun();
 }
 function fxBuild(){
-  fxSize();const k=FX.kind,area=FX.w*FX.h/(400*850),R=Math.random;FX.parts=[];FX.far=[];FX.clouds=[];FX.stars=[];FX.shoot=null;FX.bolt=null;
+  fxSize();const k=FX.kind,area=FX.w*FX.h/(400*850),R=Math.random;FX.parts=[];FX.far=[];FX.beams=null;FX.clouds=[];FX.stars=[];FX.shoot=null;FX.bolt=null;
   const nClouds={partly:4,partlyN:4,cloudy:10,rain:9,storm:10,snow:7,fog:0}[k]||0;
   const shade=k==="storm"?"74,80,104":k==="rain"?"120,132,156":k==="snow"?"205,214,230":FX.day?"226,234,248":"125,140,172";
   for(let i=0;i<nClouds;i++){const sp=cloudSprite(shade,k==="cloudy"||k==="storm"||k==="rain"?.5:.42),s=.9+R()*1.1;
@@ -3080,10 +3080,20 @@ function fxDraw(dt,now){
   // a wash over the whole sky in the colour of the weather
   const wash={rain:"rgba(38,62,96,.42)",storm:"rgba(40,30,70,.5)",cloudy:"rgba(70,84,108,.32)",fog:"rgba(120,132,150,.22)",snow:"rgba(150,170,205,.2)",stars:"rgba(30,40,110,.25)",partlyN:"rgba(30,40,100,.2)"}[k];
   if(wash){const gr=g.createLinearGradient(0,0,0,h);gr.addColorStop(0,wash);gr.addColorStop(.75,"rgba(0,0,0,0)");g.fillStyle=gr;g.fillRect(0,0,w,h)}
-  if(k==="sun"||k==="partly"){const cx=w*.84,cy=h*.02,R=Math.max(w,h)*.85,pulse=.85+.15*Math.sin(t*.5);
-    const gr=g.createRadialGradient(cx,cy,0,cx,cy,R*.62);gr.addColorStop(0,`rgba(255,220,130,${.5*pulse})`);gr.addColorStop(.12,`rgba(255,205,115,${.26*pulse})`);gr.addColorStop(.45,`rgba(255,190,100,${.08*pulse})`);gr.addColorStop(1,"rgba(255,190,100,0)");g.fillStyle=gr;g.fillRect(0,0,w,h);
-    g.save();g.translate(cx,cy);g.rotate(t*.025);for(let i=0;i<12;i++){g.rotate(Math.PI*2/12);const L=R*(i%2?.8:1),rg=g.createLinearGradient(0,0,0,L);rg.addColorStop(0,`rgba(255,225,160,${i%2?.1:.16})`);rg.addColorStop(1,"rgba(255,225,160,0)");g.fillStyle=rg;g.beginPath();g.moveTo(0,0);g.lineTo(-L*.06,L);g.lineTo(L*.06,L);g.closePath();g.fill()}g.restore();
-    const core=g.createRadialGradient(cx,cy,0,cx,cy,46);core.addColorStop(0,"rgba(255,250,225,.95)");core.addColorStop(.45,"rgba(255,232,170,.55)");core.addColorStop(1,"rgba(255,220,140,0)");g.fillStyle=core;g.beginPath();g.arc(cx,cy,46,0,7);g.fill();
+  if(k==="sun"||k==="partly"){
+    /* sunlight: a soft bloom just off the top corner, broad beams of light slanting down across the screen that
+       slowly sway and breathe, and a faint lens flare — warm light rather than a spiky cartoon sun */
+    const cx=w*1.02,cy=-h*.05,D=Math.hypot(w,h)*1.15,pulse=.9+.1*Math.sin(t*.45);
+    let gr=g.createRadialGradient(cx,cy,0,cx,cy,D*.55);gr.addColorStop(0,`rgba(255,228,160,${.7*pulse})`);gr.addColorStop(.12,`rgba(255,206,120,${.34*pulse})`);gr.addColorStop(.42,`rgba(255,180,95,${.12*pulse})`);gr.addColorStop(1,"rgba(255,180,95,0)");g.fillStyle=gr;g.fillRect(0,0,w,h);
+    g.save();g.translate(cx,cy);g.globalCompositeOperation="lighter";
+    const beams=FX.beams||(FX.beams=[...Array(7)].map((_,i)=>({a:.42+i*.13+(Math.random()-.5)*.05,wd:.025+Math.random()*.045,p:Math.random()*6.3,s:.15+Math.random()*.25,o:.1+Math.random()*.07})));
+    for(const bm of beams){const ang=Math.PI/2+bm.a+Math.sin(t*.05+bm.p)*.03,al=bm.o*(.55+.45*Math.sin(t*bm.s+bm.p));
+      g.save();g.rotate(ang);const lg=g.createLinearGradient(0,0,D,0);lg.addColorStop(0,`rgba(255,226,165,${al*1.6})`);lg.addColorStop(.45,`rgba(255,214,150,${al})`);lg.addColorStop(1,"rgba(255,214,150,0)");
+      g.fillStyle=lg;g.beginPath();g.moveTo(0,0);g.lineTo(D,-D*bm.wd);g.lineTo(D,D*bm.wd);g.closePath();g.fill();g.restore()}
+    g.restore();
+    // lens flare: a few soft rings along the line from the sun through the middle of the screen
+    [[.42,26,.12,"255,214,150"],[.62,12,.16,"190,225,255"],[.8,44,.08,"255,190,140"],[1.05,18,.11,"200,240,220"]].forEach(([f,r,a,c])=>{const x=cx+(w*.5-cx)*f*1.6,y=cy+(h*.42-cy)*f*1.6;
+      const fg=g.createRadialGradient(x,y,r*.2,x,y,r);fg.addColorStop(0,`rgba(${c},${a*pulse})`);fg.addColorStop(.8,`rgba(${c},${a*.7*pulse})`);fg.addColorStop(1,`rgba(${c},0)`);g.fillStyle=fg;g.beginPath();g.arc(x,y,r,0,7);g.fill()});
     FX.parts.forEach(p=>{p.y-=p.v*dt;p.x+=Math.sin(t*.3+p.p)*.18;if(p.y<-5){p.y=h+5;p.x=Math.random()*w}g.fillStyle=`rgba(255,236,190,${.3+.2*Math.sin(t+p.p)})`;g.beginPath();g.arc(p.x,p.y,p.r,0,7);g.fill()})}
   if(FX.stars.length){FX.stars.forEach(s=>{const a=.35+.6*(.5+.5*Math.sin(t*s.s+s.p));g.fillStyle=`rgba(232,240,255,${a})`;g.beginPath();g.arc(s.x,s.y,s.r,0,7);g.fill()});
     // the moon: a soft glow with a crescent
