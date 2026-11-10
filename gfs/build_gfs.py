@@ -33,7 +33,8 @@ ZOOMS = range(2, 4)   # z3 at 256 px is already finer than the 0.25-degree grid;
 FADE_KM = (150, 250)          # clouds: distance from the lower-48 coast
 RADAR_KM = (150, 300)         # rain: distance from the nearest lower-48 NEXRAD site (a wide, smooth hand-over)
 RADAR_BOX = (-126.0, 23.0, -66.0, 50.0)   # where the app's radar mosaic has data at all (W, S, E, N)
-EDGE_DEG = 0.8                # the app fades radar out over this band inside the box edge; the model fades in over it
+EDGE_DEG = 1.8                # the model fades in over this band inside the box edge (the app fades the radar out
+                              # over the outer 0.8 degrees of it), so the join is a gradual blend, not a line
 NEXRAD_URL = "https://mesonet.agron.iastate.edu/geojson/network/NEXRAD.geojson"
 S = requests.Session()
 S.headers["User-Agent"] = "WeatherApp-GFS/1.0 (personal weather app)"

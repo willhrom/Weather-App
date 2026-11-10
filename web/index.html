@@ -206,10 +206,11 @@ body.mapopen .tabbar{display:none}
 .player input{flex:1;accent-color:var(--accent);min-width:0}
 .player #ftime{font-family:var(--mono);font-size:11.5px;color:var(--muted);min-width:58px;text-align:right}
 .player #ftime.fut{color:#c792ea}
-.player.fut::before{content:"FORECAST";position:absolute;top:-20px;right:10px;font-size:10.5px;font-weight:700;letter-spacing:.1em;color:#c792ea;background:rgba(8,18,32,.86);padding:2px 6px;border-radius:5px}
+.player.fut::before{content:attr(data-src);position:absolute;top:-20px;right:10px;font-size:10.5px;font-weight:700;letter-spacing:.1em;color:#c792ea;background:rgba(8,18,32,.86);padding:2px 6px;border-radius:5px}
 .player input{border-radius:4px}
 .player .tl{flex:1;min-width:0;position:relative;padding:4px 0 16px}
 .player .tl input{width:100%;margin:0;display:block}
+#buf{position:absolute;left:0;bottom:13px;height:2px;border-radius:1px;background:var(--accent);opacity:.9;transition:width .2s,opacity .6s;pointer-events:none}#buf.done{opacity:0}
 .tls{position:absolute;left:0;right:0;bottom:0;height:13px;font-family:var(--mono);font-size:10.5px;color:var(--faint)}
 .tls span{position:absolute;top:0;white-space:nowrap}
 .tls .a{left:0}.tls .z{right:0}.tls .tnow{transform:translateX(-50%)}
@@ -544,7 +545,7 @@ details.afd[open]>summary::after{content:"–"}
       <div class="edr" id="edr"></div>
       <div class="legend" id="legend"></div>
       <div class="mapcred">© OpenStreetMap · OpenMapTiles</div>
-      <div class="player" id="player"><button class="play" id="play"></button><div class="tl"><input type="range" id="slider" min="0" max="0" value="0"><div class="tls" id="tls"></div></div><span id="ftime">--</span><button class="spd" id="spd" aria-label="Playback speed">1×</button></div>
+      <div class="player" id="player"><button class="play" id="play"></button><div class="tl"><input type="range" id="slider" min="0" max="0" value="0"><b id="buf" class="done"></b><div class="tls" id="tls"></div></div><span id="ftime">--</span><button class="spd" id="spd" aria-label="Playback speed">1×</button></div>
     </div>
   </div>
   <div class="panel"><div class="ph">Next 24 hours<span class="r" id="hrsNote"></span></div><div class="pb" id="hours"></div></div>
@@ -626,15 +627,49 @@ async function pixels(buf){const bmp=await createImageBitmap(new Blob([buf])),w=
 async function qcMask(qc,w,h,reach){try{const p=await pixels(qc);if(p.w!==w||p.h!==h)return null;const n=w*h,on=new Uint8Array(n);
     for(let k=0,i=3;k<n;k++,i+=4)if(p.a[i]>0)on[k]=1;
     // reach out a few km: NOAA's copy runs several minutes behind, and storms move
-    const r=Math.max(1,Math.round(reach)),t=new Uint8Array(n),o=new Uint8Array(n);
-    for(let y=0;y<h;y++){let last=-1e9;for(let x=0;x<w;x++){if(on[y*w+x])last=x;if(x-last<=r)t[y*w+x]=1}last=1e9;for(let x=w-1;x>=0;x--){if(on[y*w+x])last=x;if(last-x<=r)t[y*w+x]=1}}
-    for(let x=0;x<w;x++){let last=-1e9;for(let y=0;y<h;y++){if(t[y*w+x])last=y;if(y-last<=r)o[y*w+x]=1}last=1e9;for(let y=h-1;y>=0;y--){if(t[y*w+x])last=y;if(last-y<=r)o[y*w+x]=1}}
-    return o}catch(e){return null}}
-async function radarField(buf,tol,qc,reach){const{bmp,w,h,a}=await pixels(buf),n=w*h;let cov=new Float32Array(n),val=new Float32Array(n),op=0,hit=0;
+    return dilate(on,w,h,reach)}catch(e){return null}}
+// grow a yes/no mask outwards by r pixels
+function dilate(on,w,h,reach){const n=w*h,r=Math.max(1,Math.round(reach)),t=new Uint8Array(n),o=new Uint8Array(n);
+  for(let y=0;y<h;y++){let last=-1e9;for(let x=0;x<w;x++){if(on[y*w+x])last=x;if(x-last<=r)t[y*w+x]=1}last=1e9;for(let x=w-1;x>=0;x--){if(on[y*w+x])last=x;if(last-x<=r)t[y*w+x]=1}}
+  for(let x=0;x<w;x++){let last=-1e9;for(let y=0;y<h;y++){if(t[y*w+x])last=y;if(y-last<=r)o[y*w+x]=1}last=1e9;for(let y=h-1;y>=0;y--){if(t[y*w+x])last=y;if(last-y<=r)o[y*w+x]=1}}
+  return o}
+/* ---- Radar clean-up engine: works on every radar tile, with or without NOAA's cleaned copy ----
+   1. Flicker: an echo that was not there (or anywhere near) five minutes earlier is a one-scan blip, not rain,
+      unless it is strong: a new storm cell is let through at once.
+   2. Speckle: small isolated blobs (ground clutter, wind farms, interference) are dropped by size; rain comes in
+      bigger pieces. Stricter when NOAA's cleaned copy is not there to help.
+   3. Edge of the radar mosaic: the data stops dead at the edge of its box, so it is faded out over the last
+      stretch (the ocean model fades in over the same band) rather than ending in a straight line. */
+const RBOX=[-126,23,-66,50],EDGE_DEG=.8;
+async function prevMask(pbuf,tol,w,h,r){try{const p=await pixels(pbuf);if(p.w!==w||p.h!==h)return null;const n=w*h,on=new Uint8Array(n);let any=0;
+    for(let i=0,k=0;k<n;i+=4,k++)if(p.a[i+3]>=128&&toDbz(p.a[i],p.a[i+1],p.a[i+2],tol)>=10){on[k]=1;any=1}
+    p.bmp.close&&p.bmp.close();return{raw:on,near:any?dilate(on,w,h,r):on}}catch(e){return null}}
+function despeckle(cov,val,w,h,minPx,prev,smallPx){const n=w*h,lab=new Int32Array(n),st=new Int32Array(n);let removed=0;
+  for(let s0=0;s0<n;s0++){if(!cov[s0]||lab[s0])continue;let sp=0,area=0,edge=false,mx=0;const mem=[];st[sp++]=s0;lab[s0]=1;
+    let hot=0,same=0;
+    while(sp){const k=st[--sp],x=k%w,y=(k-x)/w;area++;if(area<=400)mem.push(k);if(val[k]>mx)mx=val[k];if(val[k]>=30)hot++;if(prev&&prev[k])same++;if(x===0||y===0||x===w-1||y===h-1)edge=true;
+      for(let dy=-1;dy<=1;dy++){const yy=y+dy;if(yy<0||yy>=h)continue;for(let dx=-1;dx<=1;dx++){const xx=x+dx;if(xx<0||xx>=w)continue;const q=yy*w+xx;if(cov[q]&&!lab[q]){lab[q]=1;st[sp++]=q}}}}
+    // a blob running off the tile may be the corner of something big: only the tiniest of those go
+    // without NOAA's cleaned copy: a small, mostly-intense blob sitting on exactly the same spot as five minutes ago is
+    // ground clutter (a hill, a tower, a wind farm); a real small shower has a weak fringe and drifts
+    const clutter=prev&&!edge&&area<smallPx&&hot>area*.45&&same>area*.8;
+    if(clutter||area<(edge?Math.min(3,minPx):minPx)){for(const k of mem){cov[k]=0;val[k]=0}removed+=area}}
+  return removed}
+function edgeFade(g,w,h){if(!g)return null;const n=1<<g[0],lonW=g[1]/n*360-180,lonE=(g[1]+1)/n*360-180,lat=q=>Math.atan(Math.sinh(Math.PI*(1-2*q/n)))*180/Math.PI,latN=lat(g[2]),latS=lat(g[2]+1);
+  if(lonW>RBOX[0]+EDGE_DEG&&lonE<RBOX[2]-EDGE_DEG&&latS>RBOX[1]+EDGE_DEG&&latN<RBOX[3]-EDGE_DEG)return null;   // well inside: nothing to do
+  const fd=new Float32Array(w*h),ss=t=>{t=Math.max(0,Math.min(1,t));return t*t*(3-2*t)};
+  for(let y=0;y<h;y++){const la=lat(g[2]+(y+.5)/h),fy=Math.min(la-RBOX[1],RBOX[3]-la);for(let x=0;x<w;x++){const lo=lonW+(lonE-lonW)*(x+.5)/w;fd[y*w+x]=ss(Math.min(fy,lo-RBOX[0],RBOX[2]-lo)/EDGE_DEG)}}
+  return fd}
+async function radarField(buf,tol,qc,reach,o){o=o||{};const{bmp,w,h,a}=await pixels(buf),n=w*h;let cov=new Float32Array(n),val=new Float32Array(n),op=0,hit=0,echo=0;
   const mask=qc?await qcMask(qc,w,h,reach):null;
-  for(let i=0,k=0;k<n;i+=4,k++){if(a[i+3]<128)continue;op++;const v=toDbz(a[i],a[i+1],a[i+2],tol);if(v>-900)hit++;if(v>=10&&(!mask||mask[k])){cov[k]=1;val[k]=v}}
+  for(let i=0,k=0;k<n;i+=4,k++){if(a[i+3]<128)continue;op++;const v=toDbz(a[i],a[i+1],a[i+2],tol);if(v>-900)hit++;if(v>=10&&(!mask||mask[k])){cov[k]=1;val[k]=v;echo++}}
   if(op>150&&hit<op*.5)return{raw:bmp,w,h};
-  for(let k=0;k<n;k++)val[k]*=cov[k];for(let p=0;p<2;p++){cov=blur(cov,w,h);val=blur(val,w,h)}return{w,h,cov,val}}
+  bmp.close&&bmp.close();
+  if(echo&&o.clean){const pk=o.pk||2;
+    let pm=null;if(o.pbuf){pm=await prevMask(o.pbuf,tol,w,h,Math.max(2,10/pk));if(pm)for(let k=0;k<n;k++)if(cov[k]&&!pm.near[k]&&val[k]<35){cov[k]=0;val[k]=0}}
+    despeckle(cov,val,w,h,Math.max(2,Math.min(160,Math.round((mask?7:28)/(pk*pk)))),!mask&&pm?pm.raw:null,Math.min(400,Math.max(6,Math.round(260/(pk*pk)))))}
+  const fd=edgeFade(o.g,w,h);
+  for(let k=0;k<n;k++)val[k]*=cov[k];for(let p=0;p<2;p++){cov=blur(cov,w,h);val=blur(val,w,h)}return{w,h,cov,val,fd}}
 async function ptField(buf){const{w,h,a}=await pixels(buf),n=w*h;let cov=[0,1,2,3].map(()=>new Float32Array(n)),val=new Float32Array(n),any=false;
   for(let i=0,k=0;k<n;i+=4,k++){if(a[i+3]<128)continue;const e=PTM.get(a[i]<<16|a[i+1]<<8|a[i+2]);if(!e)continue;cov[e[0]][k]=1;val[k]=e[1];any=true}
   if(!any)return{empty:true};for(let p=0;p<2;p++){cov=cov.map(c=>blur(c,w,h));val=blur(val,w,h)}return{w,h,cov,val,pt:1}}
@@ -693,7 +728,8 @@ async function tile(F,d,ox,oy){const S=512,n=1<<d,sz=F.w/n,sx=ox*sz,sy=oy*sz,c=n
         o[i]=col[0];o[i+1]=col[1];o[i+2]=col[2];o[i+3]=Math.round(240*Math.min(1,(tot-.4)/.2));any=true;continue}
       const cv=F.cov[r0+x0]*w00+F.cov[r0+x1]*w10+F.cov[r1+x0]*w01+F.cov[r1+x1]*w11;if(cv<.4)continue;
       const v=(F.val[r0+x0]*w00+F.val[r0+x1]*w10+F.val[r1+x0]*w01+F.val[r1+x1]*w11)/cv,b=BAND[Math.max(0,Math.min(320,Math.round((v)*4)))];if(!b)continue;
-      o[i]=b[0];o[i+1]=b[1];o[i+2]=b[2];o[i+3]=Math.round(255*b[3]*Math.min(1,(cv-.4)/.2));any=true}}
+      const fa=F.fd?F.fd[r0+x0]*w00+F.fd[r0+x1]*w10+F.fd[r1+x0]*w01+F.fd[r1+x1]*w11:1;if(fa<.02)continue;
+      o[i]=b[0];o[i+1]=b[1];o[i+2]=b[2];o[i+3]=Math.round(255*b[3]*Math.min(1,(cv-.4)/.2)*fa);any=true}}
   if(!any)return null;g.putImageData(img,0,0);return(await c.convertToBlob({type:"image/png"})).arrayBuffer()}
 async function modelMsg(m){
   // two model hours and how far between them this frame is, so the ocean moves in 15-minute steps, not hourly jumps
@@ -709,10 +745,10 @@ async function modelMsg(m){
 onmessage=async e=>{const m=e.data;if(m.init){init(m.init);return}
   if(m.kind==="model2"){try{await modelMsg(m)}catch(err){postMessage({id:m.id,data:null,err:String(err)})}return}
   try{let F=fields.get(m.url);
-    if(!F&&m.buf){F=await (m.kind==="pt"?ptField(m.buf):m.kind==="model"?modelField(m.buf):radarField(m.buf,m.tol||1200,m.qc,m.reach));fields.set(m.url,F);if(fields.size>30)fields.delete(fields.keys().next().value)}
+    if(!F&&m.buf){F=await (m.kind==="pt"?ptField(m.buf):m.kind==="model"?modelField(m.buf):radarField(m.buf,m.tol||1200,m.qc,m.reach,m.o));fields.set(m.url,F);if(fields.size>72)fields.delete(fields.keys().next().value)}
     if(!F){postMessage({id:m.id,miss:true});return}
     // point reading (rain timing at your spot, tap-to-read): dBZ at one pixel of the cleaned radar field
-    if(m.smp){let v=-99;if(F.cov&&!F.pt){const x=Math.min(F.w-1,Math.max(0,m.smp[0]*F.w|0)),y=Math.min(F.h-1,Math.max(0,m.smp[1]*F.h|0)),c=F.cov[y*F.w+x];if(c>.35)v=F.val[y*F.w+x]/c}
+    if(m.smp){let v=-99;if(F.cov&&!F.pt){const x=Math.min(F.w-1,Math.max(0,m.smp[0]*F.w|0)),y=Math.min(F.h-1,Math.max(0,m.smp[1]*F.h|0)),c=F.cov[y*F.w+x];if(c>.35&&(!F.fd||F.fd[y*F.w+x]>.3))v=F.val[y*F.w+x]/c}
       postMessage({id:m.id,v});return}
     if(F.empty){postMessage({id:m.id,data:null});return}
     const data=F.model?await modelTile(F,m.d,m.ox,m.oy,m.f||"rc",m.g):await tile(F,m.d,m.ox,m.oy);postMessage({id:m.id,data},data?[data]:[])}
@@ -2043,13 +2079,17 @@ async function qcFetch(bbox,tq){
 async function wxTile(kind,url,tol,d,ox,oy,f,g,smp){
   let r=await wxCall({kind,url,tol,d,ox,oy,f,g,smp});
   if(r.miss){let p=wxFetch.get(url);if(!p){p=fetch(via(url)).then(x=>{if(!x.ok)throw new Error("HTTP "+x.status);return x.arrayBuffer()});wxFetch.set(url,p);p.then(()=>setTimeout(()=>wxFetch.delete(url),3e4),()=>wxFetch.delete(url))}
-    const mm=kind==="radar"&&S.qc!==false&&/nexrad-n0q-900913(?:-m(\d\d)m)?\/(\d+)\/(\d+)\/(\d+)\.png\?(\d+)/.exec(url);
-    let qc=null,reach=0;
-    const qp=mm?qcTile(+mm[2],+mm[3],+mm[4],+mm[5]-(+mm[1]||0)*6e4):null;
+    const mm=kind==="radar"&&/(nexrad-n0q-900913(?:-m(\d\d)m)?|hrrr::REFD-F\d+-0)\/(\d+)\/(\d+)\/(\d+)\.png\?(\d+)/.exec(url),isObs=mm&&mm[1][0]==="n";
+    let qc=null,reach=0,o=null,pp=null;
+    const qp=isObs&&S.qc!==false?qcTile(+mm[3],+mm[4],+mm[5],+mm[6]-(+mm[2]||0)*6e4):null;
+    if(mm){const z=+mm[3],lat=Math.atan(Math.sinh(Math.PI*(1-2*(+mm[5]+.5)/Math.pow(2,z))))*180/Math.PI;o={g:[z,+mm[4],+mm[5]],pk:40075*Math.cos(lat*Math.PI/180)/Math.pow(2,z)/256,clean:isObs&&S.qc!==false};
+      // the same tile five minutes earlier (the oldest frame looks five minutes later instead), for the flicker check
+      if(o.clean){const mA=+mm[2]||0,mB=mA>=55?mA-5:mA+5,pu=url.replace(mm[1],"nexrad-n0q-900913"+(mB?"-m"+String(mB).padStart(2,"0")+"m":""));
+        pp=wxFetch.get(pu);if(!pp){pp=fetch(via(pu)).then(x=>{if(!x.ok)throw new Error("HTTP "+x.status);return x.arrayBuffer()});wxFetch.set(pu,pp);pp.then(()=>setTimeout(()=>wxFetch.delete(pu),3e4),()=>wxFetch.delete(pu))}}}
     let buf;try{buf=await p}catch(e){return null}
-    if(qp){const q=await Promise.race([qp,new Promise(res=>setTimeout(()=>res(null),3500))]);if(q){qc=q.buf;const z=+mm[2],lat=Math.atan(Math.sinh(Math.PI*(1-2*(+mm[4]+.5)/Math.pow(2,z))))*180/Math.PI,pxKm=40075*Math.cos(lat*Math.PI/180)/Math.pow(2,z)/256;
-      reach=(4+Math.max(0,q.lag)/6e4*0.8)/pxKm}}  // ~4 km, plus how far a storm could move while NOAA's copy catches up
-    r=await wxCall({kind,url,tol,d,ox,oy,f,g,smp,buf:buf.slice(0),qc,reach},qc?[qc]:[])}
+    if(qp){const q=await Promise.race([qp,new Promise(res=>setTimeout(()=>res(null),3500))]);if(q){qc=q.buf;reach=(4+Math.max(0,q.lag)/6e4*0.8)/o.pk}}  // ~4 km, plus how far a storm could move while NOAA's copy catches up
+    if(pp){try{o.pbuf=(await Promise.race([pp,new Promise(res=>setTimeout(()=>res(null),4000))]))||null;if(o.pbuf)o.pbuf=o.pbuf.slice(0)}catch(e){o.pbuf=null}}
+    r=await wxCall({kind,url,tol,d,ox,oy,f,g,smp,buf:buf.slice(0),qc,reach,o},[qc,o&&o.pbuf].filter(Boolean))}
   return smp?(r.v==null?-99:r.v):r.data||null}
 /* Radar reading at one point for one frame (dBZ, or -99 for nothing). Uses the same cleaned-up field the map draws. */
 async function radarAt(f,lat,lon){if(!f||!f.url||!wxWorker())return -99;const z=8,n=1<<z,fx=(lon+180)/360*n,fy=(1-Math.asinh(Math.tan(lat*Math.PI/180))/Math.PI)/2*n;
@@ -2062,7 +2102,7 @@ async function rainTiming(gen){const el=$("#rainEta");if(!el)return;el.style.dis
   if(!isCONUS(place)||!frames.length)return;const pid=place.id,fs=frames;
   // "now" first, then the future, then the past, one at a time so it never competes with drawing the map
   const order=fs.map((f,k)=>k).sort((a,b)=>(a<NOWF)-(b<NOWF)||a-b);
-  for(const k of order){fs[k].dbz=await radarAt(fs[k],place.lat,place.lon);if(gen!==radarGen||place.id!==pid)return}
+  for(const k of order){fs[k].dbz=fs[k].fut?await frameAt(fs[k],place.lat,place.lon):await radarAt(fs[k],place.lat,place.lon);if(gen!==radarGen||place.id!==pid)return}
   const wet=k=>fs[k].dbz>=18,n=fs.length,tm=k=>fTime(fs[k].t+off*1000),mins=k=>Math.max(0,Math.round((fs[k].t-Date.now())/6e4)),rel=m=>m<60?`${Math.max(5,Math.round(m/5)*5)} min`:`${(m/60).toFixed(m%60<8?0:1)} h`;
   let msg,cls="";
   if(wet(NOWF)){let e=NOWF;while(e+1<n&&wet(e+1))e++;cls="on";
@@ -2234,11 +2274,15 @@ async function loadRadar(){
       { // HRRR forecast reflectivity: latest run is ~1 h behind; keep only frames valid after now, every 15 min for 3 h
         const run=Math.floor((Date.now()-55*6e4)/36e5)*36e5,first=Math.ceil((Date.now()-run)/9e5)*15;
         for(let fm=first;fm<=first+180&&fm<=1080;fm+=15)frames.push({id:"fut"+fm,t:run+fm*6e4,fut:1,url:`https://mesonet.agron.iastate.edu/cache/tile.py/1.0.0/hrrr::REFD-F${String(fm).padStart(4,"0")}-0/{z}/{x}/{y}.png?${run}`});
+        // the first half hour is the nowcast engine's alone, so it gets 5-minute steps in between the model's 15-minute ones
+        const fut=frames.filter(f=>f.fut);for(let m=5;m<=30;m+=5){const t=base+m*6e4;if(!fut.some(f=>Math.abs(f.t-t)<2.5*6e4))frames.push({id:"nc"+m,t,fut:1,nc:1})}
+        frames.sort((a,b)=>a.t-b.t);const hr=frames.filter(f=>f.fut&&f.url);
+        for(const f of frames)if(f.fut){f.lead=(f.t-base)/6e4;if(!f.url&&hr.length)f.alt=hr.reduce((a,b)=>Math.abs(b.t-f.t)<Math.abs(a.t-f.t)?b:a).url}
         $("#mapSrc").textContent="Past hour · next 3 h"}}
     else{const j=await getJSON("https://api.rainviewer.com/public/weather-maps.json");
       frames=j.radar.past.map((f,k)=>({id:"rad"+k,t:f.time*1000,url:`${j.host}${f.path}/256/{z}/{x}/{y}/2/1_1.png`,mz:7}));$("#mapSrc").textContent="Past 2 h"}
     // frames are added one at a time: "now" first, then the rest in the background as the map goes idle
-    for(const f of frames){f.src=us?smoothRadar(f.url,8):f.url;f.bounds=us?[-130,20,-60,53]:null;f.opts={opacity:0,maxzoom:us?13:7,attr:f.fut?"HRRR via IEM":us?"NEXRAD via IEM":"RainViewer"}}
+    for(const f of frames){f.src=!f.url?null:us?smoothRadar(f.url,8):f.url;if(f.alt)f.altSrc=smoothRadar(f.alt,8);f.bounds=us?[-130,20,-60,53]:null;f.opts={opacity:0,maxzoom:us?13:7,attr:f.fut?"HRRR via IEM":us?"NEXRAD via IEM":"RainViewer"}}
     NOWF=frames.filter(f=>!f.fut).length-1;
     $("#slider").max=frames.length-1;const sl=$("#slider"),pct=frames.length>1?NOWF/(frames.length-1)*100:100;
     const hasF=frames.length>NOWF+1;sl.style.background=hasF?`linear-gradient(90deg,transparent ${pct}%,rgba(199,146,234,.35) ${pct}%)`:"";
@@ -2249,7 +2293,7 @@ async function loadRadar(){
     // give the ocean model a moment to join, so each frame is put together once with both in it
     if(L.ocean||L.oclouds)await Promise.race([attachOcean(gen),new Promise(r=>setTimeout(r,1200))]);
     if(gen===radarGen)buildBlankets();
-    setTimeout(()=>{if(gen===radarGen)rainTiming(gen)},2500);
+    setTimeout(()=>{if(gen===radarGen&&NC.rtGen!==gen)rainTiming(gen)},7000);
   }catch(e){console.error(e);$("#ftime").textContent="n/a";rmLayer(RB)}
 }
 let NOWF=0,radarGen=0;
@@ -2298,8 +2342,10 @@ async function tileBitmap(t,z,x,y){
 async function blanketCompose(ts,v){
   const nx=v.x1-v.x0+1,ny=v.y1-v.y0+1,P=Math.max(96,Math.min(384,Math.floor(Math.sqrt(2e6/(nx*ny))))),c=document.createElement("canvas");c.width=nx*P;c.height=ny*P;
   const g=c.getContext("2d");g.imageSmoothingEnabled=true;g.imageSmoothingQuality="high";
-  const layers=await Promise.all(ts.map(t=>{const a=[];for(let y=v.y0;y<=v.y1;y++)for(let x=v.x0;x<=v.x1;x++)a.push(tileBitmap(t,v.z,x,y).catch(()=>null).then(b=>({b,x,y})));return Promise.all(a)}));
-  let any=false;for(const L_ of layers)for(const t of L_)if(t.b){g.drawImage(t.b,(t.x-v.x0)*P,(t.y-v.y0)*P,P,P);t.b.close&&t.b.close();any=true}
+  const layers=await Promise.all(ts.map(t=>{if(t.nc)return null;const a=[];for(let y=v.y0;y<=v.y1;y++)for(let x=v.x0;x<=v.x1;x++)a.push(tileBitmap(t,v.z,x,y).catch(()=>null).then(b=>({b,x,y})));return Promise.all(a)}));
+  let any=false;layers.forEach((L_,q)=>{g.globalAlpha=ts[q].al==null?1:ts[q].al;
+    if(ts[q].nc){if(ncDraw(g,v,P,ts[q].lead))any=true;return}
+    for(const t of L_)if(t.b){g.drawImage(t.b,(t.x-v.x0)*P,(t.y-v.y0)*P,P,P);t.b.close&&t.b.close();any=true}});g.globalAlpha=1;
   const bmp=any?await createImageBitmap(c):null;c.width=c.height=0;return{bmp,co:v.co}}
 // put a finished picture on the map: one canvas-backed layer per blanket, redrawn and re-placed in a single step
 const blCv={};
@@ -2310,18 +2356,101 @@ function blanketLayer(id,bmp,co,op,before){
     map.addLayer({id,type:"raster",source:id,paint:{"raster-opacity":op,"raster-opacity-transition":{duration:0,delay:0},"raster-fade-duration":0,"raster-resampling":"linear"}},before&&map.getLayer(before)?before:beforeLabels());s=map.getSource(id)}
   else{s.setCoordinates(co);map.setPaintProperty(id,"raster-opacity",op)}
   try{s.play();map.triggerRepaint();requestAnimationFrame(()=>requestAnimationFrame(()=>{try{s.pause()}catch(e){}}))}catch(e){}}
-const radarTiles=f=>{const a=[];if(f.ocn)a.push({u:f.ocn.src});if(f.src)a.push({u:f.src,b:f.bounds,mz:f.mz});return a};
+/* ---- Nowcast engine: where is the rain going in the next hour? ----
+   Weather models are poor at exactly where a shower is in the next 30 minutes; the radar itself is the best guide.
+   The engine measures how the rain moved over the last half hour (matching the radar picture now against the one
+   30 minutes ago, for the area as a whole and for each part of it, since storms on one side of a low move
+   differently from the other), then carries the current radar forward along that motion. The first 30 minutes
+   of the forecast are purely this; from 30 to 90 minutes it hands over smoothly to NOAA's HRRR model, which
+   knows about storms growing and dying. Satellite clouds are carried along with the same motion. */
+const NC={ok:false,key:"",V:null,bmp:null,dom:null};
+let NC_PAL=null;
+function ncScalar(bmp,w,h){const c=document.createElement("canvas");c.width=w;c.height=h;const g=c.getContext("2d",{willReadFrequently:true});g.drawImage(bmp,0,0,w,h);const a=g.getImageData(0,0,w,h).data,o=new Float32Array(w*h);
+  if(!NC_PAL){NC_PAL=[];for(let d=10;d<=75;d+=1.5){const b=BAND_LUT[Math.round(d*4)];if(b)NC_PAL.push([b[0],b[1],b[2],d])}}
+  let n=0;for(let i=0,k=0;k<o.length;i+=4,k++){if(a[i+3]<90)continue;let bd=1e9,bv=0;const r=a[i],gg=a[i+1],b=a[i+2];for(const q of NC_PAL){const d=(r-q[0])**2+(gg-q[1])**2+(b-q[2])**2;if(d<bd){bd=d;bv=q[3]}}o[k]=bv;n++}
+  c.width=c.height=0;return{o,frac:n/o.length}}
+// displacement (in grid pixels) that best lays the earlier picture A onto the later one B, inside a window
+function ncMatch(A,B,w,h,x0,y0,x1,y1,cx,cy,R,st){
+  const cost=(dx,dy)=>{let s=0,c=0;for(let y=y0;y<y1;y+=st){const ya=y-dy;if(ya<0||ya>=h)continue;const rb=y*w,ra=ya*w;for(let x=x0;x<x1;x+=st){const xa=x-dx;if(xa<0||xa>=w)continue;s+=Math.abs(B[rb+x]-A[ra+xa]);c++}}return c>30?s/c*(1+.004*Math.hypot(dx,dy)):1e9};
+  let best=1e9,bx=cx,by=cy;for(let dy=cy-R;dy<=cy+R;dy++)for(let dx=cx-R;dx<=cx+R;dx++){const c=cost(dx,dy);if(c<best){best=c;bx=dx;by=dy}}
+  // finer than a pixel: fit a parabola through the best match and its neighbours
+  const sub=(m,c0,p)=>{const d=m-2*c0+p;return d>1e-6?Math.max(-.5,Math.min(.5,.5*(m-p)/d)):0};
+  return{dx:bx+sub(cost(bx-1,by),best,cost(bx+1,by)),dy:by+sub(cost(bx,by-1),best,cost(bx,by+1)),best,zero:cost(0,0)}}
+async function ncBuild(v,rg){
+  try{
+    const nowF=frames[NOWF],k0=frames.findIndex(f=>!f.fut&&nowF.t-f.t>=29*6e4&&nowF.t-f.t<=31*6e4),old=frames[k0<0?Math.max(0,NOWF-3):k0];
+    if(!nowF||!nowF.src||!old||old===nowF||!isCONUS(place)||!frames.some(f=>f.fut)){NC.ok=false;return}
+    // the area worked on: the view plus a tile all round (rain arrives from outside the screen), no finer than ~1 km
+    let zd=Math.min(7,v.z),X0,X1,Y0,Y1;for(;;){const d=v.z-zd,n=1<<zd;X0=Math.max(0,(v.x0>>d)-1);X1=Math.min(n-1,(v.x1>>d)+1);Y0=Math.max(0,(v.y0>>d)-1);Y1=Math.min(n-1,(v.y1>>d)+1);if((X1-X0+1)*(Y1-Y0+1)<=42||zd<=2)break;zd--}
+    const key=`${zd}/${X0}-${X1}/${Y0}-${Y1}|${nowF.src}`;if(NC.key===key&&NC.ok)return;
+    const n=1<<zd,dom={z:zd,x0:X0,x1:X1,y0:Y0,y1:Y1,co:null},tl=f=>[{u:f.src,b:f.bounds}],t0=performance.now();
+    const [bn,bo]=await Promise.all([blanketCompose(tl(nowF),dom),blanketCompose(tl(old),dom)]);
+    if(rg!==radarGen){bn.bmp&&bn.bmp.close();bo.bmp&&bo.bmp.close();return}
+    if(NC.bmp)NC.bmp.close();
+    const G=4,V={G,vx:new Float32Array(G*G),vy:new Float32Array(G*G)},wx0=X0/n,wx1=(X1+1)/n,wy0=Y0/n,wy1=(Y1+1)/n;
+    Object.assign(NC,{ok:true,key,bmp:bn.bmp,dom:{wx0,wx1,wy0,wy1},V,spd:0,dir:0,gx:0,gy:0});
+    if(bn.bmp&&bo.bmp){
+      const asp=(wx1-wx0)/(wy1-wy0),w=asp>=1?320:Math.round(320*asp),h=asp>=1?Math.round(320/asp):320,A=ncScalar(bo.bmp,w,h),B=ncScalar(bn.bmp,w,h);
+      const latc=Math.atan(Math.sinh(Math.PI*(1-(wy0+wy1))))*180/Math.PI,pxKm=40075*Math.cos(latc*Math.PI/180)*(wx1-wx0)/w,dt=Math.max(5,(nowF.t-old.t)/6e4);
+      if(A.frac>.002&&B.frac>.002){
+        const R=Math.max(2,Math.min(24,Math.ceil(130*dt/60/pxKm))),g=ncMatch(A.o,B.o,w,h,0,0,w,h,0,0,R,3);
+        // only trust a motion that explains the change clearly better than "nothing moved"
+        if(g.best<g.zero*.97){const gx=g.dx,gy=g.dy,rw=w/G,rh=h/G,raw=[];
+          for(let j=0;j<G;j++)for(let i=0;i<G;i++){const x0=Math.round(i*rw),x1=Math.round((i+1)*rw),y0=Math.round(j*rh),y1=Math.round((j+1)*rh);let e=0,c=0;
+            for(let y=y0;y<y1;y+=2)for(let x=x0;x<x1;x+=2){c++;if(B.o[y*w+x]>0)e++}
+            let dx=gx,dy=gy;if(e>c*.02){const m=ncMatch(A.o,B.o,w,h,x0,y0,x1,y1,Math.round(gx),Math.round(gy),3,2);if(m.best<1e8){dx=(m.dx+gx)/2;dy=(m.dy+gy)/2}}raw.push([dx,dy])}
+          // neighbouring parts agree with each other: smooth the field
+          for(let j=0;j<G;j++)for(let i=0;i<G;i++){let sx=0,sy=0,c=0;for(let b=-1;b<=1;b++)for(let a=-1;a<=1;a++){const ii=i+a,jj=j+b;if(ii<0||jj<0||ii>=G||jj>=G)continue;const wt=a||b?1:2;sx+=raw[jj*G+ii][0]*wt;sy+=raw[jj*G+ii][1]*wt;c+=wt}
+            V.vx[j*G+i]=sx/c*(wx1-wx0)/w/dt;V.vy[j*G+i]=sy/c*(wy1-wy0)/h/dt}   // world fraction per minute
+          NC.gx=gx*(wx1-wx0)/w/dt;NC.gy=gy*(wy1-wy0)/h/dt;NC.spd=Math.hypot(gx,gy)*pxKm/dt*60;NC.dir=(Math.atan2(gx,-gy)*180/Math.PI+360)%360}}}
+    bo.bmp&&bo.bmp.close();
+    if(NC.rtGen!==rg){NC.rtGen=rg;rainTiming(rg)}   // rain timing for your spot, now that the motion is known
+    DIAG.mark(`nowcast: motion ${Math.round(NC.spd)} km/h toward ${Math.round(NC.dir)}° in ${Math.round(performance.now()-t0)} ms`);
+  }catch(e){NC.ok=false;console.error(e)}}
+// motion at a point (world fraction per minute)
+function ncVel(wx,wy){const V=NC.V,D=NC.dom,G=V.G,u=Math.max(0,Math.min(G-1,(wx-D.wx0)/(D.wx1-D.wx0)*G-.5)),t=Math.max(0,Math.min(G-1,(wy-D.wy0)/(D.wy1-D.wy0)*G-.5)),i=Math.min(G-2,u|0),j=Math.min(G-2,t|0),a=u-i,b=t-j,q=j*G+i;
+  const f=A=>A[q]*(1-a)*(1-b)+A[q+1]*a*(1-b)+A[q+G]*(1-a)*b+A[q+G+1]*a*b;return[f(V.vx),f(V.vy)]}
+// draw the current radar carried forward by `lead` minutes into a frame picture: the radar image is laid on a mesh
+// whose corners each move with the local motion, so the whole sheet flows and bends rather than sliding as a block
+function ncDraw(g,v,P,lead){
+  if(!NC.ok||!NC.bmp)return false;const D=NC.dom,bw=NC.bmp.width,bh=NC.bmp.height,M=10,n=1<<v.z,pts=[];
+  for(let j=0;j<=M;j++)for(let i=0;i<=M;i++){const wx=D.wx0+(D.wx1-D.wx0)*i/M,wy=D.wy0+(D.wy1-D.wy0)*j/M,[vx,vy]=ncVel(wx,wy);
+    pts.push([bw*i/M,bh*j/M,((wx+vx*lead)*n-v.x0)*P,((wy+vy*lead)*n-v.y0)*P])}
+  const W=g.canvas.width,H=g.canvas.height,tri=(a,b,c)=>{
+    if(Math.max(a[2],b[2],c[2])<0||Math.min(a[2],b[2],c[2])>W||Math.max(a[3],b[3],c[3])<0||Math.min(a[3],b[3],c[3])>H)return;
+    const d=(b[0]-a[0])*(c[1]-a[1])-(c[0]-a[0])*(b[1]-a[1]);if(!d)return;
+    const m11=((b[2]-a[2])*(c[1]-a[1])-(c[2]-a[2])*(b[1]-a[1]))/d,m12=((b[3]-a[3])*(c[1]-a[1])-(c[3]-a[3])*(b[1]-a[1]))/d,m21=((c[2]-a[2])*(b[0]-a[0])-(b[2]-a[2])*(c[0]-a[0]))/d,m22=((c[3]-a[3])*(b[0]-a[0])-(b[3]-a[3])*(c[0]-a[0]))/d;
+    // grow the triangle a touch so neighbours overlap instead of leaving hairline gaps
+    const cx=(a[2]+b[2]+c[2])/3,cy=(a[3]+b[3]+c[3])/3,ex=p=>{const dx=p[2]-cx,dy=p[3]-cy,l=Math.hypot(dx,dy)||1;return[p[2]+dx/l*.7,p[3]+dy/l*.7]},A=ex(a),B=ex(b),C=ex(c);
+    g.save();g.beginPath();g.moveTo(A[0],A[1]);g.lineTo(B[0],B[1]);g.lineTo(C[0],C[1]);g.closePath();g.clip();
+    g.transform(m11,m12,m21,m22,a[2]-m11*a[0]-m21*a[1],a[3]-m12*a[0]-m22*a[1]);g.drawImage(NC.bmp,0,0);g.restore()};
+  for(let j=0;j<M;j++)for(let i=0;i<M;i++){const q=j*(M+1)+i,a=pts[q],b=pts[q+1],c=pts[q+M+1],d=pts[q+M+2];tri(a,b,c);tri(b,d,c)}
+  return true}
+// the reading at one point of a forecast frame, consistent with the picture: nowcast, model, or the blend of both
+async function frameAt(f,lat,lon){const w=ncW(f);if(w<=0)return f.url||f.alt?radarAt(f.url?f:{url:f.alt},lat,lon):-99;
+  const wx=(lon+180)/360,wy=(1-Math.asinh(Math.tan(lat*Math.PI/180))/Math.PI)/2,[vx,vy]=ncVel(wx,wy),ux=wx-vx*f.lead,uy=wy-vy*f.lead;
+  const nc=await radarAt(frames[NOWF],Math.atan(Math.sinh(Math.PI*(1-2*uy)))*180/Math.PI,ux*360-180);if(w>=1||!f.url)return nc;
+  const h=await radarAt(f,lat,lon);return w*Math.max(0,nc)+(1-w)*Math.max(0,h)}
+// loading bar under the timeline while frame pictures are being put together
+function bufBar(){const el=$("#buf");if(!el)return;const n=frames.length,b=frames.filter(f=>f.bl).length;el.style.width=(n?b/n*100:0)+"%";el.classList.toggle("done",!n||b>=n)}
+// what a frame's picture is made of. Past and present: ocean model under radar. Future: ocean model, then the
+// nowcast (radar carried forward) handing over to the HRRR model between 30 and 90 minutes out.
+const ncW=f=>{if(!f.fut||!NC.ok||f.lead==null)return 0;return f.lead<=30?1:f.lead>=90?0:1-(f.lead-30)/60};
+const radarTiles=f=>{const a=[],w=ncW(f),src=f.src||(w<=0?f.altSrc:null);if(f.ocn)a.push({u:f.ocn.src});
+  // (square-root weights: where the two agree the rain stays solid through the hand-over instead of going faint)
+  if(src&&w<1)a.push({u:src,b:f.bounds,mz:f.mz,al:w>0?Math.sqrt(1-w):1});if(w>0)a.push({nc:1,lead:f.lead,al:Math.sqrt(w),u:`nc:${NC.key}:${f.lead}`});return a};
 function paintRadar(){const f=frames[fi];if(!f||!f.bl)return;   // not put together yet: leave what is showing
   if(!f.bl.bmp){if(map.getLayer(RB))map.setPaintProperty(RB,"raster-opacity",0);return}
   blanketLayer(RB,f.bl.bmp,f.bl.co,f.fut?.8:.88,radarAnchor())}
 // build (or rebuild after the map moves) every frame's picture: the one on screen first, then outwards from it
 async function buildBlankets(){
   if(!mapReady||!frames.length)return;const gen=++blGen,rg=radarGen,v=blanketView(),t0=performance.now();
-  const order=frames.map((f,k)=>k).sort((a,b)=>Math.abs(a-fi)-Math.abs(b-fi));let built=0;
-  for(const k of order){const f=frames[k];if(!f)return;const ts=radarTiles(f),key=v.key+"|"+ts.map(t=>t.u).join("|");if(f.bl&&f.bl.key===key)continue;
+  const order=frames.map((f,k)=>k).sort((a,b)=>Math.abs(a-fi)-Math.abs(b-fi));let built=0,ncTried=false;bufBar();
+  for(const k of order){const f=frames[k];if(!f)return;if(f.fut&&!ncTried){ncTried=true;await ncBuild(v,rg);if(gen!==blGen||rg!==radarGen)return}
+    const ts=radarTiles(f),key=v.key+"|"+ts.map(t=>t.u+(t.al==null?"":"@"+t.al.toFixed(2))).join("|");if(f.bl&&f.bl.key===key)continue;
     let r;try{r=await blanketCompose(ts,v)}catch(e){r={bmp:null,co:v.co}}
     if(gen!==blGen||rg!==radarGen){r.bmp&&r.bmp.close();return}
-    if(f.bl&&f.bl.bmp)f.bl.bmp.close();f.bl={...r,key};built++;if(k===fi)paintRadar()}
+    if(f.bl&&f.bl.bmp)f.bl.bmp.close();f.bl={...r,key};built++;bufBar();if(k===fi)paintRadar()}
   if(built)DIAG.mark(`radar: ${built} frame pictures in ${Math.round(performance.now()-t0)} ms`)}
 async function buildSat(){
   if(!mapReady)return;
@@ -2329,11 +2458,16 @@ async function buildSat(){
     let r=null;try{r=await blanketCompose([{u:st.tpl}],v)}catch(e){}
     if(satBl[k]!==st||st.key!==key){r&&r.bmp&&r.bmp.close();continue}
     // clouds always sit under rain: satellite goes below the radar picture
-    if(r&&r.bmp){blanketLayer(id,r.bmp,r.co,k==="ir"?.9:.95,map.getLayer(RB)?RB:radarAnchor());r.bmp.close()}else if(map.getLayer(id))map.setPaintProperty(id,"raster-opacity",0)}}
+    if(r&&r.bmp){st.co=r.co;blanketLayer(id,r.bmp,satDrift(r.co),k==="ir"?.9:.95,map.getLayer(RB)?RB:radarAnchor());r.bmp.close()}else if(map.getLayer(id))map.setPaintProperty(id,"raster-opacity",0)}}
+// in forecast frames the satellite clouds are carried along with the measured motion (they stay put otherwise)
+function satDrift(co){const f=frames[fi];if(!f||!f.fut||!NC.ok||!NC.gx&&!NC.gy||f.lead==null)return co;const dx=NC.gx*f.lead,dy=NC.gy*f.lead;
+  return co.map(([lo,la])=>{const y=(1-Math.asinh(Math.tan(Math.max(-85,Math.min(85,la))*Math.PI/180))/Math.PI)/2+dy;return[lo+dx*360,Math.atan(Math.sinh(Math.PI*(1-2*y)))*180/Math.PI]})}
+function driftSat(){for(const k of ["ir","vis"]){const st=satBl[k],s=map.getSource("sat-"+k);if(st&&st.co&&s)try{s.setCoordinates(satDrift(st.co))}catch(e){}}}
 // a frame is ready once its picture has been put together, so playback never steps onto an empty map
 const frameReady=k=>{const f=frames[k];return!!(f&&f.bl)};
 function showFrame(k){if(!frames.length)return;const f=frames[k];if(!f)return;
-  fi=k;paintRadar();$("#slider").value=k;
+  fi=k;paintRadar();driftSat();$("#slider").value=k;
+  $("#player").dataset.src=!f.fut?"":ncW(f)>=1?"NOWCAST · radar carried forward":ncW(f)>0?"FORECAST · radar + model":"FORECAST · HRRR model";
   const el=$("#ftime");el.textContent=(f.fut?"+":"")+fT(f.t+off*1000);el.classList.toggle("fut",!!f.fut);$("#player").classList.toggle("fut",!!f.fut)}
 function setPlay(){$("#play").innerHTML=playing?'<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>':'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 4l13 8-13 8z"/></svg>'}
 function tick(){clearTimeout(timer);setPlay();if(!playing||!frames.length)return;
@@ -2717,11 +2851,11 @@ async function updateGtg(){
    turbulence readout when there's no rain under the finger. */
 async function radarPopup(e){
   const f=frames[fi];if(!(L.radar&&f&&isCONUS(place))){gtgPopup(e);return}
-  const v=await radarAt(f,e.lngLat.lat,e.lngLat.lng);if(v<10||frames[fi]!==f){gtgPopup(e);return}
+  const v=f.fut?await frameAt(f,e.lngLat.lat,e.lngLat.lng):await radarAt(f,e.lngLat.lat,e.lngLat.lng);if(v<10||frames[fi]!==f){gtgPopup(e);return}
   const km=kmTo(place.lat,place.lon,e.lngLat.lat,e.lngLat.lng),dist=S.wind==="kmh"?`${Math.round(km)} km`:`${Math.round(km*.621)} mi`;
   if(popup)popup.remove();popup=new maplibregl.Popup({maxWidth:"250px"}).setLngLat(e.lngLat).setHTML(`<b>${rainWord(v)}</b> <span class="badge">${Math.round(v)} dBZ</span>
     <div style="color:#9fb2c8;margin-top:4px">${f.fut?"Forecast for":"Radar at"} ${fTime(f.t+off*1000)}${km>3?` · ${dist} ${dirName(bearTo(place.lat,place.lon,e.lngLat.lat,e.lngLat.lng))} of ${esc(place.name||"you")}`:""}</div>
-    <div style="color:#8597b3;margin-top:5px;font-size:11px">${f.fut?"HRRR model forecast":"NEXRAD radar"}</div>`).addTo(map)}
+    <div style="color:#8597b3;margin-top:5px;font-size:11px">${!f.fut?"NEXRAD radar":ncW(f)>=1?"Nowcast: radar carried forward on its measured motion":ncW(f)>0?"Nowcast blended with the HRRR model":"HRRR model forecast"}</div>`).addTo(map)}
 function gtgPopup(e){
   if(!(G.cur&&G.man&&L.turb&&isCONUS(place)))return;const[w,s,ea,n]=G.man.bounds,my=a=>Math.log(Math.tan(Math.PI/4+a*Math.PI/360));
   const x=Math.floor((e.lngLat.lng-w)/(ea-w)*G.cur.w),y=Math.floor((my(n)-my(e.lngLat.lat))/(my(n)-my(s))*G.cur.h);
