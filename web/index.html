@@ -694,7 +694,7 @@ function noiseGrid(g){const k=g.join("/");let N=noiseMemo.get(k);if(N)return N;
     // light from the upper left, from the broad billows only: soft rounded tops rather than a rough surface
     rel[q]=(fbm(wx,wy,3,3)-fbm(wx+EP,wy+EP,3,3))*22;rn[q]=fbm(wx,wy,7,oc)}}
   N={tex,rel,rn};noiseMemo.set(k,N);if(noiseMemo.size>16)noiseMemo.delete(noiseMemo.keys().next().value);return N}
-async function modelTile(F,d,ox,oy,f,g){const S=512,n=1<<d,sz=(F.w-2)/n,sx=1+ox*sz,sy=1+oy*sz,c=new OffscreenCanvas(S,S),cx=c.getContext("2d");
+async function modelTile(F,d,ox,oy,f,g,bm){const S=512,n=1<<d,sz=(F.w-2)/n,sx=1+ox*sz,sy=1+oy*sz,c=new OffscreenCanvas(S,S),cx=c.getContext("2d");
   const img=cx.createImageData(S,S),o=img.data,W0=F.w,H0=F.h,st=sz/S,rain=f.includes("r"),cloud=f.includes("c");let any=false;
   const N=g?noiseGrid(g):null,G=257;
   for(let yy=0;yy<S;yy++){const fy=Math.min(H0-1.001,Math.max(0,sy+(yy+.5)*st-.5)),y0=fy|0,ty=fy-y0,r0=y0*W0,r1=Math.min(H0-1,y0+1)*W0,
@@ -715,10 +715,10 @@ async function modelTile(F,d,ox,oy,f,g){const S=512,n=1<<d,sz=(F.w-2)/n,sx=1+ox*
         if(bb){const ra=bb[3]*Math.min(1,(vv-9)/2.5)*Math.min(1,wt*1.15),oa=ra+al*(1-ra);
           if(oa>0){r=(bb[0]*ra+r*al*(1-ra))/oa;gg=(bb[1]*ra+gg*al*(1-ra))/oa;b=(bb[2]*ra+b*al*(1-ra))/oa;al=oa}}}}
       if(al<.01)continue;const i=(yy*S+xx)*4;o[i]=r;o[i+1]=gg;o[i+2]=Math.min(255,b);o[i+3]=Math.round(255*al);any=true}}
-  if(!any)return null;cx.putImageData(img,0,0);return(await c.convertToBlob({type:"image/png"})).arrayBuffer()}
+  if(!any)return null;cx.putImageData(img,0,0);if(bm)return c.transferToImageBitmap();return(await c.convertToBlob({type:"image/png"})).arrayBuffer()}
 const ptColor=(t,v)=>{let c=null;for(const b of PTC[t])if(v>=b[0]-5)c=b[1];return c};
-async function tile(F,d,ox,oy){const S=512,n=1<<d,sz=F.w/n,sx=ox*sz,sy=oy*sz,c=new OffscreenCanvas(S,S),g=c.getContext("2d");
-  if(F.raw){g.imageSmoothingQuality="high";g.drawImage(F.raw,sx,sy,sz,sz,0,0,S,S);return(await c.convertToBlob({type:"image/png"})).arrayBuffer()}
+async function tile(F,d,ox,oy,bm){const S=512,n=1<<d,sz=F.w/n,sx=ox*sz,sy=oy*sz,c=new OffscreenCanvas(S,S),g=c.getContext("2d");
+  if(F.raw){g.imageSmoothingQuality="high";g.drawImage(F.raw,sx,sy,sz,sz,0,0,S,S);if(bm)return c.transferToImageBitmap();return(await c.convertToBlob({type:"image/png"})).arrayBuffer()}
   const img=g.createImageData(S,S),o=img.data,W0=F.w,H0=F.h,st=sz/S;let any=false;
   for(let yy=0;yy<S;yy++){const fy=Math.min(H0-1.001,Math.max(0,sy+(yy+.5)*st-.5)),y0=fy|0,ty=fy-y0,r0=y0*W0,r1=Math.min(H0-1,y0+1)*W0;
     for(let xx=0;xx<S;xx++){const fx=Math.min(W0-1.001,Math.max(0,sx+(xx+.5)*st-.5)),x0=fx|0,tx=fx-x0,x1=Math.min(W0-1,x0+1),w00=(1-tx)*(1-ty),w10=tx*(1-ty),w01=(1-tx)*ty,w11=tx*ty,i=(yy*S+xx)*4;
@@ -730,7 +730,7 @@ async function tile(F,d,ox,oy){const S=512,n=1<<d,sz=F.w/n,sx=ox*sz,sy=oy*sz,c=n
       const v=(F.val[r0+x0]*w00+F.val[r0+x1]*w10+F.val[r1+x0]*w01+F.val[r1+x1]*w11)/cv,b=BAND[Math.max(0,Math.min(320,Math.round((v)*4)))];if(!b)continue;
       const fa=F.fd?F.fd[r0+x0]*w00+F.fd[r0+x1]*w10+F.fd[r1+x0]*w01+F.fd[r1+x1]*w11:1;if(fa<.02)continue;
       o[i]=b[0];o[i+1]=b[1];o[i+2]=b[2];o[i+3]=Math.round(255*b[3]*Math.min(1,(cv-.4)/.2)*fa);any=true}}
-  if(!any)return null;g.putImageData(img,0,0);return(await c.convertToBlob({type:"image/png"})).arrayBuffer()}
+  if(!any)return null;g.putImageData(img,0,0);if(bm)return c.transferToImageBitmap();return(await c.convertToBlob({type:"image/png"})).arrayBuffer()}
 async function modelMsg(m){
   // two model hours and how far between them this frame is, so the ocean moves in 15-minute steps, not hourly jumps
   const keep=(u,F)=>{fields.set(u,F);if(fields.size>30)fields.delete(fields.keys().next().value)};
@@ -741,7 +741,7 @@ async function modelMsg(m){
   let F=A;const w=m.w||0;
   if(B&&w>0&&B.w===A.w&&B.h===A.h){const n=A.dbz.length,dbz=new Float32Array(n),cl=new Float32Array(n);
     for(let i=0;i<n;i++){dbz[i]=A.dbz[i]+(B.dbz[i]-A.dbz[i])*w;cl[i]=A.cl[i]+(B.cl[i]-A.cl[i])*w}F={w:A.w,h:A.h,dbz,cl,wt:A.wt,model:1}}
-  const data=await modelTile(F,m.d,m.ox,m.oy,m.f||"rc",m.g);postMessage({id:m.id,data},data?[data]:[])}
+  const data=await modelTile(F,m.d,m.ox,m.oy,m.f||"rc",m.g,m.bm);postMessage({id:m.id,data},data?[data]:[])}
 onmessage=async e=>{const m=e.data;if(m.init){init(m.init);return}
   if(m.kind==="model2"){try{await modelMsg(m)}catch(err){postMessage({id:m.id,data:null,err:String(err)})}return}
   try{let F=fields.get(m.url);
@@ -751,7 +751,7 @@ onmessage=async e=>{const m=e.data;if(m.init){init(m.init);return}
     if(m.smp){let v=-99;if(F.cov&&!F.pt){const x=Math.min(F.w-1,Math.max(0,m.smp[0]*F.w|0)),y=Math.min(F.h-1,Math.max(0,m.smp[1]*F.h|0)),c=F.cov[y*F.w+x];if(c>.35&&(!F.fd||F.fd[y*F.w+x]>.3))v=F.val[y*F.w+x]/c}
       postMessage({id:m.id,v});return}
     if(F.empty){postMessage({id:m.id,data:null});return}
-    const data=F.model?await modelTile(F,m.d,m.ox,m.oy,m.f||"rc",m.g):await tile(F,m.d,m.ox,m.oy);postMessage({id:m.id,data},data?[data]:[])}
+    const data=F.model?await modelTile(F,m.d,m.ox,m.oy,m.f||"rc",m.g,m.bm):await tile(F,m.d,m.ox,m.oy,m.bm);postMessage({id:m.id,data},data?[data]:[])}
   catch(err){postMessage({id:m.id,data:null,err:String(err)})}};
 </script>
 <script async onload="window.mlLoaded&&mlLoaded()" src="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.js" integrity="sha384-5+cfbwT0iiub6VsQAdn6yz16nr6sDiQoHx6tm4O8OVYXHYOxcffFmCJBL0dgdvGp" crossorigin="anonymous"></script>
@@ -2076,8 +2076,8 @@ async function qcTile(z,x,y,t){const te=await qcTimes();if(!te||t<te[0]-6e5)retu
 async function qcFetch(bbox,tq){
   try{const r=await tfetch(`${QC_SVC}/exportImage?bbox=${bbox}&bboxSR=3857&imageSR=3857&size=256,256&format=png32&time=${tq}&f=image`,5000);if(!r.ok)return null;
     const ct=r.headers.get("content-type")||"";if(!ct.startsWith("image/"))return null;return await r.arrayBuffer()}catch(e){return null}}
-async function wxTile(kind,url,tol,d,ox,oy,f,g,smp){
-  let r=await wxCall({kind,url,tol,d,ox,oy,f,g,smp});
+async function wxTile(kind,url,tol,d,ox,oy,f,g,smp,bm){
+  let r=await wxCall({kind,url,tol,d,ox,oy,f,g,smp,bm});
   if(r.miss){let p=wxFetch.get(url);if(!p){p=fetch(via(url)).then(x=>{if(!x.ok)throw new Error("HTTP "+x.status);return x.arrayBuffer()});wxFetch.set(url,p);p.then(()=>setTimeout(()=>wxFetch.delete(url),3e4),()=>wxFetch.delete(url))}
     const mm=kind==="radar"&&/(nexrad-n0q-900913(?:-m(\d\d)m)?|hrrr::REFD-F\d+-0)\/(\d+)\/(\d+)\/(\d+)\.png\?(\d+)/.exec(url),isObs=mm&&mm[1][0]==="n";
     let qc=null,reach=0,o=null,pp=null;
@@ -2089,7 +2089,7 @@ async function wxTile(kind,url,tol,d,ox,oy,f,g,smp){
     let buf;try{buf=await p}catch(e){return null}
     if(qp){const q=await Promise.race([qp,new Promise(res=>setTimeout(()=>res(null),3500))]);if(q){qc=q.buf;reach=(4+Math.max(0,q.lag)/6e4*0.8)/o.pk}}  // ~4 km, plus how far a storm could move while NOAA's copy catches up
     if(pp){try{o.pbuf=(await Promise.race([pp,new Promise(res=>setTimeout(()=>res(null),4000))]))||null;if(o.pbuf)o.pbuf=o.pbuf.slice(0)}catch(e){o.pbuf=null}}
-    r=await wxCall({kind,url,tol,d,ox,oy,f,g,smp,buf:buf.slice(0),qc,reach,o},[qc,o&&o.pbuf].filter(Boolean))}
+    r=await wxCall({kind,url,tol,d,ox,oy,f,g,smp,bm,buf:buf.slice(0),qc,reach,o},[qc,o&&o.pbuf].filter(Boolean))}
   return smp?(r.v==null?-99:r.v):r.data||null}
 /* Radar reading at one point for one frame (dBZ, or -99 for nothing). Uses the same cleaned-up field the map draws. */
 async function radarAt(f,lat,lon){if(!f||!f.url||!wxWorker())return -99;const z=8,n=1<<z,fx=(lon+180)/360*n,fy=(1-Math.asinh(Math.tan(lat*Math.PI/180))/Math.PI)/2*n;
@@ -2111,12 +2111,13 @@ async function rainTiming(gen){const el=$("#rainEta");if(!el)return;el.style.dis
     if(a<0)msg=`No rain here in the next ${Math.round((fs[n-1].t-fs[NOWF].t)/36e5)||3} h`;
     else{let e=a,pk=fs[a].dbz;while(e+1<n&&wet(e+1)){e++;pk=Math.max(pk,fs[e].dbz)}cls="soon";
       msg=`<b>Rain arrives around ${tm(a)}</b> (in about ${rel(mins(a))}) · ${rainWord(pk).toLowerCase().replace(" rain","")}${e+1<n?`, ending near ${tm(e+1)}`:""}`}}
+  if(NC.ok&&NC.spd>=8&&cls)msg+=` · rain moving ${dirName(NC.dir)} at ${S.wind==="kmh"?Math.round(NC.spd)+" km/h":S.wind==="kn"?Math.round(NC.spd/1.852)+" kn":Math.round(NC.spd/1.609)+" mph"}`;
   el.className="raineta "+cls;el.innerHTML=`<i></i><span>${msg}</span>`;el.style.display="";
   // blue marks under the timeline wherever it's raining at your spot
   const tl=$("#tls");for(let k=0;k<n;k++)if(wet(k)){const u=document.createElement("u");u.style.left=(n>1?k/(n-1)*100:100)+"%";u.style.opacity=fs[k].dbz>=35?1:.6;tl.appendChild(u)}}
 const wxGet=url=>{let p=wxFetch.get(url);if(!p){p=fetch(via(url)).then(x=>{if(!x.ok)throw new Error("HTTP "+x.status);return x.arrayBuffer()});wxFetch.set(url,p);p.then(()=>setTimeout(()=>wxFetch.delete(url),3e4),()=>wxFetch.delete(url))}return p};
-async function wxModel(url,url2,w,d,ox,oy,f,g){
-  const m={kind:"model2",url,url2,w,d,ox,oy,f,g,route:url};let r=await wxCall(m);
+async function wxModel(url,url2,w,d,ox,oy,f,g,bm){
+  const m={kind:"model2",url,url2,w,d,ox,oy,f,g,bm,route:url};let r=await wxCall(m);
   if(r.miss){let bufs;try{bufs=await Promise.all(r.need.map(wxGet))}catch(e){return null}
     const x={...m};r.need.forEach((u,i)=>{x[u===url?"buf":"buf2"]=bufs[i].slice(0)});r=await wxCall(x)}
   return r.data||null}
@@ -2139,7 +2140,7 @@ function registerRadar(){
   addProto("wxs",async params=>{
     const m=/^wxs:\/\/(\d+)\/(\d+)\/(\d+)\?(.*)$/.exec(params.url),z=+m[1],x=+m[2],y=+m[3],q=new URLSearchParams(m[4]);
     const nz=+q.get("nz"),d=Math.max(0,z-nz),px=x>>d,py=y>>d,url=q.get("u").replace("{z}",z-d).replace("{x}",px).replace("{y}",py);
-    let dd=null;try{dd=await satTile(url,q.get("m")||"",d,x-px*(1<<d),y-py*(1<<d))}catch(e){}return{data:dd||await emptyTile()}});
+    let dd=null;try{dd=await satTile(url,q.get("m")||"",d,x-px*(1<<d),y-py*(1<<d),params.bm)}catch(e){}return{data:dd||(params.bm?null:await emptyTile())}});
   maplibregl.addProtocol("gtg",async params=>{
     const m=/^gtg:\/\/(\d+)\/(\d+)\/(\d+)\?k=([^&]+)&ac=([LMH])$/.exec(params.url);
     let d=null;if(m){try{d=await gtgTile(+m[1],+m[2],+m[3],decodeURIComponent(m[4]),m[5])}catch(e){}}
@@ -2149,11 +2150,11 @@ function registerRadar(){
     const m=/^wxm:\/\/(\d+)\/(\d+)\/(\d+)\?(.*)$/.exec(params.url),z=+m[1],x=+m[2],y=+m[3],q=new URLSearchParams(m[4]);
     const nz=+q.get("nz"),d=Math.max(0,z-nz),px=x>>d,py=y>>d,url=q.get("u").replace("{z}",z-d).replace("{x}",px).replace("{y}",py);
     const u2=q.get("u2"),url2=u2?u2.replace("{z}",z-d).replace("{x}",px).replace("{y}",py):null;
-    let dd=null;if(wxWorker()){try{dd=await wxModel(url,url2,+q.get("w")||0,d,x-px*(1<<d),y-py*(1<<d),q.get("f")||"rc",[z,x,y])}catch(e){}}return{data:dd||await emptyTile()}});
+    let dd=null;if(wxWorker()){try{dd=await wxModel(url,url2,+q.get("w")||0,d,x-px*(1<<d),y-py*(1<<d),q.get("f")||"rc",[z,x,y],params.bm)}catch(e){}}return{data:dd||(params.bm?null:await emptyTile())}});
   addProto("wxr",async params=>{
     const m=/^wxr:\/\/(\d+)\/(\d+)\/(\d+)\?(.*)$/.exec(params.url),z=+m[1],x=+m[2],y=+m[3],q=new URLSearchParams(m[4]);
     const nz=+q.get("nz"),d=Math.max(0,z-nz),px=x>>d,py=y>>d,url=q.get("u").replace("{z}",z-d).replace("{x}",px).replace("{y}",py);
-    if(wxWorker()){const dd=await wxTile("radar",url,+q.get("tol")||1200,d,x-px*(1<<d),y-py*(1<<d));return{data:dd||await emptyTile()}}
+    if(wxWorker()){const dd=await wxTile("radar",url,+q.get("tol")||1200,d,x-px*(1<<d),y-py*(1<<d),null,null,null,params.bm);return{data:dd||(params.bm?null:await emptyTile())}}
     let F;try{F=await radarField(url,+q.get("tol")||1200)}catch(e){return{data:await emptyTile()}}
     if(F.raw){const n=1<<d,sz=F.w/n,c=document.createElement("canvas");c.width=c.height=512;const g=c.getContext("2d");g.imageSmoothingQuality="high";
       g.drawImage(F.raw,(x-px*n)*sz,(y-py*n)*sz,sz,sz,0,0,512,512);const blob=await new Promise(r=>c.toBlob(r,"image/png"));return{data:await blob.arrayBuffer()}}
@@ -2334,7 +2335,9 @@ function blanketView(){
 async function tileBitmap(t,z,x,y){
   if(t.b){const n=1<<z,w=x/n*360-180,e=(x+1)/n*360-180,la=q=>Math.atan(Math.sinh(Math.PI*(1-2*q/n)))*180/Math.PI;if(e<t.b[0]||w>t.b[2]||la(y)<t.b[1]||la(y+1)>t.b[3])return null}
   const m=/^(wx[rsm]):/.exec(t.u);
-  if(m){const r=await PROTO[m[1]]({url:t.u.replace("{z}",z).replace("{x}",x).replace("{y}",y)});if(!r||!r.data||r.data.byteLength<200)return null;return createImageBitmap(new Blob([r.data],{type:"image/png"}))}
+  if(m){const r=await PROTO[m[1]]({url:t.u.replace("{z}",z).replace("{x}",x).replace("{y}",y),bm:true}),dd=r&&r.data;if(!dd)return null;
+    // the tile engines hand back a ready picture here (no PNG round trip); the plain fallback still sends PNG bytes
+    if(dd instanceof ArrayBuffer){if(dd.byteLength<200)return null;return createImageBitmap(new Blob([dd],{type:"image/png"}))}return dd}
   // plain picture tiles (worldwide radar): past the source's deepest zoom, cut the piece out of its parent
   const d=Math.max(0,z-(t.mz||z)),u=t.u.replace("{z}",z-d).replace("{x}",x>>d).replace("{y}",y>>d);
   const r=await fetch(NATIVE&&/mesonet\.agron\.iastate\.edu|rainviewer\.com/.test(u)?via(u):u);if(!r.ok)return null;const b=await createImageBitmap(await r.blob());
@@ -2412,8 +2415,12 @@ function ncVel(wx,wy){const V=NC.V,D=NC.dom,G=V.G,u=Math.max(0,Math.min(G-1,(wx-
   const f=A=>A[q]*(1-a)*(1-b)+A[q+1]*a*(1-b)+A[q+G]*(1-a)*b+A[q+G+1]*a*b;return[f(V.vx),f(V.vy)]}
 // draw the current radar carried forward by `lead` minutes into a frame picture: the radar image is laid on a mesh
 // whose corners each move with the local motion, so the whole sheet flows and bends rather than sliding as a block
-function ncDraw(g,v,P,lead){
-  if(!NC.ok||!NC.bmp)return false;const D=NC.dom,bw=NC.bmp.width,bh=NC.bmp.height,M=10,n=1<<v.z,pts=[];
+let ncCv=null;
+function ncDraw(g0,v,P,lead){
+  if(!NC.ok||!NC.bmp)return false;
+  // drawn on a sheet of its own first, each mesh piece replacing (not adding to) what is under it, so the pieces'
+  // overlaps never show as lines; the finished sheet then goes onto the frame in one go
+  const cv=ncCv||(ncCv=document.createElement("canvas"));cv.width=g0.canvas.width;cv.height=g0.canvas.height;const g=cv.getContext("2d");g.imageSmoothingQuality="high";g.globalCompositeOperation="copy";const D=NC.dom,bw=NC.bmp.width,bh=NC.bmp.height,M=10,n=1<<v.z,pts=[];
   for(let j=0;j<=M;j++)for(let i=0;i<=M;i++){const wx=D.wx0+(D.wx1-D.wx0)*i/M,wy=D.wy0+(D.wy1-D.wy0)*j/M,[vx,vy]=ncVel(wx,wy);
     pts.push([bw*i/M,bh*j/M,((wx+vx*lead)*n-v.x0)*P,((wy+vy*lead)*n-v.y0)*P])}
   const W=g.canvas.width,H=g.canvas.height,tri=(a,b,c)=>{
@@ -2425,7 +2432,7 @@ function ncDraw(g,v,P,lead){
     g.save();g.beginPath();g.moveTo(A[0],A[1]);g.lineTo(B[0],B[1]);g.lineTo(C[0],C[1]);g.closePath();g.clip();
     g.transform(m11,m12,m21,m22,a[2]-m11*a[0]-m21*a[1],a[3]-m12*a[0]-m22*a[1]);g.drawImage(NC.bmp,0,0);g.restore()};
   for(let j=0;j<M;j++)for(let i=0;i<M;i++){const q=j*(M+1)+i,a=pts[q],b=pts[q+1],c=pts[q+M+1],d=pts[q+M+2];tri(a,b,c);tri(b,d,c)}
-  return true}
+  g0.drawImage(cv,0,0);cv.width=cv.height=0;return true}
 // the reading at one point of a forecast frame, consistent with the picture: nowcast, model, or the blend of both
 async function frameAt(f,lat,lon){const w=ncW(f);if(w<=0)return f.url||f.alt?radarAt(f.url?f:{url:f.alt},lat,lon):-99;
   const wx=(lon+180)/360,wy=(1-Math.asinh(Math.tan(lat*Math.PI/180))/Math.PI)/2,[vx,vy]=ncVel(wx,wy),ux=wx-vx*f.lead,uy=wy-vy*f.lead;
@@ -2712,9 +2719,9 @@ async function bandTile(url,d,qx,qy,mode){const B=await bandBase(url,mode);if(!B
   // a hair of blur takes the pixel stair off the new curved edges
   const o2=document.createElement("canvas");o2.width=o2.height=S;const g2=o2.getContext("2d");g2.filter="blur(0.7px)";g2.drawImage(c,0,0);
   const b=await new Promise(res=>o2.toBlob(res,"image/png"));return b.arrayBuffer()}
-async function satTile(url,mode,d,qx,qy){
+async function satTile(url,mode,d,qx,qy,bm){
   const c=await satBase(url,mode);if(!c)return null;const n=1<<d,sz=c.width/n,o=document.createElement("canvas");o.width=o.height=512;
-  const g=o.getContext("2d");g.imageSmoothingEnabled=true;g.imageSmoothingQuality="high";g.drawImage(c,qx*sz,qy*sz,sz,sz,0,0,512,512);
+  const g=o.getContext("2d");g.imageSmoothingEnabled=true;g.imageSmoothingQuality="high";g.drawImage(c,qx*sz,qy*sz,sz,sz,0,0,512,512);if(bm)return o;
   const b=await new Promise(res=>o.toBlob(res,"image/png"));return b.arrayBuffer()}
 // water vapor: brightness = moisture; dry air brown, moist air blue to white
 function wvColour(a){const st=[[0,138,90,46,.55],[.32,58,63,90,.32],[.5,47,111,214,.55],[.72,124,196,255,.75],[1,242,248,255,.92]];

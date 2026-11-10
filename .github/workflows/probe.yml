@@ -1,5 +1,5 @@
 name: Radar probe
-on: { push: { branches: [engine], paths: ["gfs/**", ".github/workflows/probe.yml"] } }
+on: { push: { branches: [engine], paths: ["probe/**", ".github/workflows/probe.yml"] } }
 permissions: { contents: write }
 jobs:
   p:
@@ -9,11 +9,8 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with: { python-version: "3.12" }
-      - run: pip install --quiet pygrib==2.1.6 numpy scipy pillow requests
-      - run: |
-          set -o pipefail
-          FORCE=1 python -u gfs/build_gfs.py dist 2>&1 | grep -v "^HTTP 206" | tee build.log
+      - run: pip install --quiet requests
+      - run: python -u probe/p.py
       - if: always()
         run: |
-          mkdir out; cp build.log out/ || true; cp -r dist/gfs out/ || true
           cd out && git init -q && git checkout -q -b gtg-debug && git add -A && git -c user.name=ci -c user.email=ci@x commit -qm p && git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}" gtg-debug
