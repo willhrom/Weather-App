@@ -2425,21 +2425,26 @@ async function ncBuild(v,rg){
     if(!nowF||!nowF.src||!isCONUS(place)||!frames.some(f=>f.fut)||!ago(30)){NC.ok=false;return}
     // the area worked on: the view plus a tile all round (rain arrives from outside the screen), no finer than ~1 km
     let zd=Math.min(7,v.z),X0,X1,Y0,Y1;for(;;){const d=v.z-zd,n=1<<zd;X0=Math.max(0,(v.x0>>d)-1);X1=Math.min(n-1,(v.x1>>d)+1);Y0=Math.max(0,(v.y0>>d)-1);Y1=Math.min(n-1,(v.y1>>d)+1);if((X1-X0+1)*(Y1-Y0+1)<=42||zd<=2)break;zd--}
+    {const n=1<<zd,tx=lo=>Math.floor((lo+180)/360*n),ty=la=>Math.floor((1-Math.asinh(Math.tan(la*Math.PI/180))/Math.PI)/2*n),B=nowF.bounds;
+      if(B){const a=Math.max(X0,tx(B[0])),b=Math.min(X1,tx(B[2])),c=Math.max(Y0,ty(B[3])),e=Math.min(Y1,ty(B[1]));if(a<=b&&c<=e){X0=a;X1=b;Y0=c;Y1=e}}}
     const key=`${zd}/${X0}-${X1}/${Y0}-${Y1}|${nowF.src}`;if(NC.key===key&&NC.ok)return;
     const n=1<<zd,dom={z:zd,x0:X0,x1:X1,y0:Y0,y1:Y1,co:null},tl=f=>[{u:f.src,b:f.bounds}],t0=performance.now();
     // four radar pictures 15 minutes apart: now and 30 minutes ago, and the same pair a quarter of an hour earlier
     // (the motion is measured on small, coarse copies: one zoom level out, a quarter of the downloads)
-    const zl=Math.max(2,zd-1),dl=zd-zl,domL={z:zl,x0:X0>>dl,x1:X1>>dl,y0:Y0>>dl,y1:Y1>>dl,co:null},nxL=domL.x1-domL.x0+1,nyL=domL.y1-domL.y0+1,
-      crop=[(X0/(1<<dl)-domL.x0)/nxL,(Y0/(1<<dl)-domL.y0)/nyL,(X1+1-X0)/(1<<dl)/nxL,(Y1+1-Y0)/(1<<dl)/nyL];
+    // as fine as the tile budget allows, whatever the view's zoom: a zoomed-out map still measures on real detail
+    const rx0=X0/n,rx1=(X1+1)/n,ry0=Y0/n,ry1=(Y1+1)/n;let zl=6,domL,nxL,nyL;
+    for(;;){const nl=1<<zl;domL={z:zl,x0:Math.floor(rx0*nl+1e-9),x1:Math.ceil(rx1*nl-1e-9)-1,y0:Math.floor(ry0*nl+1e-9),y1:Math.ceil(ry1*nl-1e-9)-1,co:null};nxL=domL.x1-domL.x0+1;nyL=domL.y1-domL.y0+1;if(nxL*nyL<=20||zl<=2)break;zl--}
+    const nl=1<<zl,crop=[(rx0*nl-domL.x0)/nxL,(ry0*nl-domL.y0)/nyL,(rx1-rx0)*nl/nxL,(ry1-ry0)*nl/nyL];
     const fs=[nowF,ago(30),ago(15),ago(45)],bs=await Promise.all(fs.map(f=>f?blanketCompose([{u:f.src+"&lite=1",b:f.bounds,sz:256}],domL).catch(()=>({bmp:null})):{bmp:null}));
     const shut=()=>bs.forEach(b=>b.bmp&&b.bmp.close());
     if(rg!==radarGen){shut();return}
     const G=4,V={G,vx:new Float32Array(G*G),vy:new Float32Array(G*G)},wx0=X0/n,wx1=(X1+1)/n,wy0=Y0/n,wy1=(Y1+1)/n;
-    const M={moving:false,spd:0,dir:0,gx:0,gy:0},D0={wx0,wx1,wy0,wy1};
+    const M={moving:false,empty:true,spd:0,dir:0,gx:0,gy:0},D0={wx0,wx1,wy0,wy1};
     if(bs[0].bmp&&bs[1].bmp){
-      const asp=(wx1-wx0)/(wy1-wy0),NN=448,w=(asp>=1?NN:Math.round(NN*asp))&~1,h=(asp>=1?Math.round(NN/asp):NN)&~1,sc=bs.map(b=>b.bmp?ncScalar(b.bmp,w,h,crop):null);
+      const asp=(wx1-wx0)/(wy1-wy0),NN=Math.max(448,Math.min(896,Math.round(Math.max(wx1-wx0,wy1-wy0)*40075*.75/3.2))),   // about 3 km per point, within limits
+        w=(asp>=1?NN:Math.round(NN*asp))&~1,h=(asp>=1?Math.round(NN/asp):NN)&~1,sc=bs.map(b=>b.bmp?ncScalar(b.bmp,w,h,crop):null);
       const latc=Math.atan(Math.sinh(Math.PI*(1-(wy0+wy1))))*180/Math.PI,pxKm=40075*Math.cos(latc*Math.PI/180)*(wx1-wx0)/w,dt=30;
-      if(sc[0].frac>.002&&sc[1].frac>.002){
+      if(sc[0].frac*w*h>250&&sc[1].frac*w*h>250){M.empty=false;   // enough rain on the radar to follow
         const pairs=[[sc[1].o,sc[0].o]];if(sc[2]&&sc[3])pairs.push([sc[3].o,sc[2].o]);
         // try every shift up to ~110 km/h (on a thinned-out set of points), then pin the best one down more finely
         const R=Math.max(2,Math.min(24,Math.ceil(110*dt/60/pxKm))),c0=ncMatch(pairs,w,h,0,0,w,h,0,0,R,5),g=ncMatch(pairs,w,h,0,0,w,h,Math.round(c0.dx),Math.round(c0.dy),1,2);
@@ -2490,8 +2495,9 @@ async function frameAt(f,lat,lon){const w=ncW(f);if(w<=0)return f.url||f.alt?rad
 function bufBar(){const el=$("#buf");if(!el)return;const n=frames.length,b=frames.filter(f=>f.bl).length;el.style.width=(n?b/n*100:0)+"%";el.classList.toggle("done",!n||b>=n)}
 // what a frame's picture is made of. Past and present: ocean model under radar. Future: ocean model, then the
 // nowcast (radar carried forward) handing over to the HRRR model between 30 and 90 minutes out.
-const ncW=f=>{if(!f.fut||!NC.ok||f.lead==null)return 0;if(NC.moving)return 1;   // motion measured: the whole 3 hours is the radar carried forward
-  return f.lead<=30?1:f.lead>=90?0:1-(f.lead-30)/60};   // no clear motion: hold the radar still for a while, then hand over to the HRRR model
+// the whole 3 hours is the radar carried forward (held in place if no clear motion could be measured); the HRRR
+// model is only the stand-in when the nowcast engine cannot run at all
+const ncW=f=>!f.fut||!NC.ok||f.lead==null?0:1;
 const radarTiles=f=>{const a=[],w=ncW(f),src=f.src||(w<=0?f.altSrc:null);if(f.ocn)a.push({u:f.ocn.src});
   // (square-root weights: where the two agree the rain stays solid through the hand-over instead of going faint)
   if(src&&w<1)a.push({u:src,b:f.bounds,mz:f.mz,al:w>0?Math.sqrt(1-w):1});if(w>0)a.push({nc:1,lead:f.lead,al:Math.sqrt(w),u:`nc:${NC.key}:${f.lead}`});return a};
@@ -2546,7 +2552,7 @@ function driftSat(){for(const k of ["ir","vis"]){const st=satBl[k],s=map.getSour
 const frameReady=k=>{const f=frames[k];return!!(f&&f.bl)};
 function showFrame(k){if(!frames.length)return;const f=frames[k];if(!f)return;
   fi=k;paintRadar();driftSat();$("#slider").value=k;
-  $("#player").dataset.src=!f.fut?"":ncW(f)>=1?"NOWCAST · radar carried forward":ncW(f)>0?"FORECAST · radar + model":"FORECAST · HRRR model";
+  $("#player").dataset.src=!f.fut?"":ncW(f)>=1?(NC.moving?"NOWCAST · radar carried forward":NC.empty?"NOWCAST · no rain on radar":"NOWCAST · no clear motion, radar held in place"):"FORECAST · HRRR model";
   const el=$("#ftime");el.textContent=(f.fut?"+":"")+fT(f.t+off*1000);el.classList.toggle("fut",!!f.fut);$("#player").classList.toggle("fut",!!f.fut)}
 function setPlay(){$("#play").innerHTML=playing?'<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>':'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 4l13 8-13 8z"/></svg>'}
 function tick(){clearTimeout(timer);setPlay();if(!playing||!frames.length)return;
