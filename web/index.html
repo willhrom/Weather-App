@@ -624,10 +624,14 @@ function blur(src,w,h){const n=w*h,t=new Float32Array(n),o=new Float32Array(n);
 async function pixels(buf){const bmp=await createImageBitmap(new Blob([buf])),w=bmp.width,h=bmp.height,c=new OffscreenCanvas(w,h),g=c.getContext("2d",{willReadFrequently:true});g.drawImage(bmp,0,0);return{bmp,w,h,a:g.getImageData(0,0,w,h).data}}
 /* ground clutter: NOAA's quality-controlled radar (MRMS) has clutter, beams bent into hills, birds and bugs
    removed. Echoes in our radar image only count where NOAA's cleaned radar also sees something nearby. */
-async function qcMask(qc,w,h,reach){try{const p=await pixels(qc);if(p.w!==w||p.h!==h)return null;const n=w*h,on=new Uint8Array(n);
-    for(let k=0,i=3;k<n;k++,i+=4)if(p.a[i]>0)on[k]=1;
-    // reach out a few km: NOAA's copy runs several minutes behind, and storms move
-    return dilate(on,w,h,reach)}catch(e){return null}}
+async function qcMask(qc,w,h,reach,qs){try{
+    // cut this tile's part out of NOAA's (coarser, wider) picture, with a margin all round so weather just over the
+    // tile's edge still counts as "near"
+    const bmp=await createImageBitmap(new Blob([qc])),nn=1<<(qs?qs.d:0),sw=bmp.width/nn,sh=bmp.height/nn,m=Math.min(w,Math.ceil(reach)+1),W=w+2*m,H=h+2*m;
+    const c=new OffscreenCanvas(W,H),g=c.getContext("2d",{willReadFrequently:true});g.imageSmoothingEnabled=false;
+    g.drawImage(bmp,(qs?qs.ox:0)*sw-m*sw/w,(qs?qs.oy:0)*sh-m*sh/h,sw*W/w,sh*H/h,0,0,W,H);bmp.close&&bmp.close();
+    const a=g.getImageData(0,0,W,H).data,on=new Uint8Array(W*H);for(let k=0,i=3;k<W*H;k++,i+=4)if(a[i]>0)on[k]=1;
+    const big=dilate(on,W,H,reach),o=new Uint8Array(w*h);for(let y=0;y<h;y++)for(let x=0;x<w;x++)o[y*w+x]=big[(y+m)*W+x+m];return o}catch(e){return null}}
 // grow a yes/no mask outwards by r pixels
 function dilate(on,w,h,reach){const n=w*h,r=Math.max(1,Math.round(reach)),t=new Uint8Array(n),o=new Uint8Array(n);
   for(let y=0;y<h;y++){let last=-1e9;for(let x=0;x<w;x++){if(on[y*w+x])last=x;if(x-last<=r)t[y*w+x]=1}last=1e9;for(let x=w-1;x>=0;x--){if(on[y*w+x])last=x;if(last-x<=r)t[y*w+x]=1}}
@@ -661,7 +665,7 @@ function edgeFade(g,w,h){if(!g)return null;const n=1<<g[0],lonW=g[1]/n*360-180,l
   for(let y=0;y<h;y++){const la=lat(g[2]+(y+.5)/h),fy=Math.min(la-RBOX[1],RBOX[3]-la);for(let x=0;x<w;x++){const lo=lonW+(lonE-lonW)*(x+.5)/w;fd[y*w+x]=ss(Math.min(fy,lo-RBOX[0],RBOX[2]-lo)/EDGE_DEG)}}
   return fd}
 async function radarField(buf,tol,qc,reach,o){o=o||{};const{bmp,w,h,a}=await pixels(buf),n=w*h;let cov=new Float32Array(n),val=new Float32Array(n),op=0,hit=0,echo=0;
-  const mask=qc?await qcMask(qc,w,h,reach):null;
+  const mask=qc?await qcMask(qc,w,h,reach,o.qs):null;
   for(let i=0,k=0;k<n;i+=4,k++){if(a[i+3]<128)continue;op++;const v=toDbz(a[i],a[i+1],a[i+2],tol);if(v>-900)hit++;if(v>=10&&(!mask||mask[k])){cov[k]=1;val[k]=v;echo++}}
   if(op>150&&hit<op*.5)return{raw:bmp,w,h};
   bmp.close&&bmp.close();
@@ -717,7 +721,8 @@ async function modelTile(F,d,ox,oy,f,g,bm){const S=512,n=1<<d,sz=(F.w-2)/n,sx=1+
       if(al<.01)continue;const i=(yy*S+xx)*4;o[i]=r;o[i+1]=gg;o[i+2]=Math.min(255,b);o[i+3]=Math.round(255*al);any=true}}
   if(!any)return null;cx.putImageData(img,0,0);if(bm)return c.transferToImageBitmap();return(await c.convertToBlob({type:"image/png"})).arrayBuffer()}
 const ptColor=(t,v)=>{let c=null;for(const b of PTC[t])if(v>=b[0]-5)c=b[1];return c};
-async function tile(F,d,ox,oy,bm){const S=512,n=1<<d,sz=F.w/n,sx=ox*sz,sy=oy*sz,c=new OffscreenCanvas(S,S),g=c.getContext("2d");
+async function tile(F,d,ox,oy,bm){const S=typeof bm==="number"?bm:512,   // a frame picture asks for exactly the size it will be drawn at
+  n=1<<d,sz=F.w/n,sx=ox*sz,sy=oy*sz,c=new OffscreenCanvas(S,S),g=c.getContext("2d");
   if(F.raw){g.imageSmoothingQuality="high";g.drawImage(F.raw,sx,sy,sz,sz,0,0,S,S);if(bm)return c.transferToImageBitmap();return(await c.convertToBlob({type:"image/png"})).arrayBuffer()}
   const img=g.createImageData(S,S),o=img.data,W0=F.w,H0=F.h,st=sz/S;let any=false;
   for(let yy=0;yy<S;yy++){const fy=Math.min(H0-1.001,Math.max(0,sy+(yy+.5)*st-.5)),y0=fy|0,ty=fy-y0,r0=y0*W0,r1=Math.min(H0-1,y0+1)*W0;
@@ -748,12 +753,12 @@ let warpSrc=null;
 async function warpMsg(m){
   if(m.bmp){const w=m.bmp.width,h=m.bmp.height,c=new OffscreenCanvas(w,h),g=c.getContext("2d",{willReadFrequently:true});g.drawImage(m.bmp,0,0);m.bmp.close&&m.bmp.close();warpSrc={key:m.key,w,h,a:g.getImageData(0,0,w,h).data}}
   if(!warpSrc||warpSrc.key!==m.key){postMessage({id:m.id,miss:true});return}
-  const S=warpSrc,W=m.W,H=m.H,D=m.dom,V=m.V,G=V.G,out=new Uint8ClampedArray(W*H*4),a=S.a,sw=S.w,sh=S.h,n=1<<m.z,lead=m.lead,ST=16;let any=false;
+  const S=warpSrc,W=m.W,H=m.H,D=m.dom,Q=m.sdom,V=m.V,G=V.G,out=new Uint8ClampedArray(W*H*4),a=S.a,sw=S.w,sh=S.h,n=1<<m.z,lead=m.lead,ST=16;let any=false;
   const vel=(wx,wy)=>{const u=Math.max(0,Math.min(G-1,(wx-D.wx0)/(D.wx1-D.wx0)*G-.5)),t=Math.max(0,Math.min(G-1,(wy-D.wy0)/(D.wy1-D.wy0)*G-.5)),i=Math.min(G-2,u|0),j=Math.min(G-2,t|0),p=u-i,q=t-j,k=j*G+i;
     return[V.vx[k]*(1-p)*(1-q)+V.vx[k+1]*p*(1-q)+V.vx[k+G]*(1-p)*q+V.vx[k+G+1]*p*q,V.vy[k]*(1-p)*(1-q)+V.vy[k+1]*p*(1-q)+V.vy[k+G]*(1-p)*q+V.vy[k+G+1]*p*q]};
   // where each pixel's rain comes from, worked out on a coarse grid and filled in between
   const gw=Math.ceil(W/ST)+1,gh=Math.ceil(H/ST)+1,SX=new Float32Array(gw*gh),SY=new Float32Array(gw*gh);
-  for(let j=0;j<gh;j++)for(let i=0;i<gw;i++){const wx=(m.x0+i*ST/m.P)/n,wy=(m.y0+j*ST/m.P)/n,v=vel(wx,wy);SX[j*gw+i]=(wx-v[0]*lead-D.wx0)/(D.wx1-D.wx0)*sw-.5;SY[j*gw+i]=(wy-v[1]*lead-D.wy0)/(D.wy1-D.wy0)*sh-.5}
+  for(let j=0;j<gh;j++)for(let i=0;i<gw;i++){const wx=(m.x0+i*ST/m.P)/n,wy=(m.y0+j*ST/m.P)/n,v=vel(wx,wy);SX[j*gw+i]=(wx-v[0]*lead-Q.wx0)/(Q.wx1-Q.wx0)*sw-.5;SY[j*gw+i]=(wy-v[1]*lead-Q.wy0)/(Q.wy1-Q.wy0)*sh-.5}
   for(let Y=0;Y<H;Y++){const j=Y/ST|0,fy=Y/ST-j,r0=j*gw,r1=r0+gw;
     for(let X=0;X<W;X++){const i=X/ST|0,fx=X/ST-i,w00=(1-fx)*(1-fy),w10=fx*(1-fy),w01=(1-fx)*fy,w11=fx*fy;
       const sx=SX[r0+i]*w00+SX[r0+i+1]*w10+SX[r1+i]*w01+SX[r1+i+1]*w11,sy=SY[r0+i]*w00+SY[r0+i+1]*w10+SY[r1+i]*w01+SY[r1+i+1]*w11;
@@ -2088,34 +2093,39 @@ let qcInfo=null;
 const tfetch=(u,ms)=>{const c=new AbortController(),t=setTimeout(()=>c.abort(),ms);return fetch(u,{signal:c.signal}).finally(()=>clearTimeout(t))};
 let qcDownUntil=0;
 function qcTimes(){if(Date.now()<qcDownUntil)return Promise.resolve(null);
-  if(!qcInfo||Date.now()-qcInfo.at>4*6e4)qcInfo={at:Date.now(),p:tfetch(QC_SVC+"?f=pjson",4000).then(r=>r.json()).then(j=>j.timeInfo.timeExtent).catch(()=>{qcDownUntil=Date.now()+5*6e4;qcInfo=null;return null})};return qcInfo?qcInfo.p:Promise.resolve(null)}
+  if(!qcInfo||Date.now()-qcInfo.at>4*6e4)qcInfo={at:Date.now(),p:tfetch(QC_SVC+"?f=pjson",4000).then(r=>r.json()).then(j=>j.timeInfo.timeExtent).catch(()=>{qcDownUntil=Date.now()+6e4;qcInfo=null;return null})};return qcInfo?qcInfo.p:Promise.resolve(null)}
 const qcMemo=new Map();
-async function qcTile(z,x,y,t){const te=await qcTimes();if(!te||t<te[0]-6e5)return null;
-  const R=20037508.342789244,s=2*R/Math.pow(2,z),tq=Math.min(t,te[1]),bbox=`${-R+x*s},${R-(y+1)*s},${-R+(x+1)*s},${R-y*s}`,k=`${z}/${x}/${y}@${tq}`;
+/* One picture of NOAA's cleaned radar, at its newest time and two zoom levels coarser, serves a whole block of 16
+   radar tiles and every frame of the hour (it is only used as "is there real weather near here?", with more
+   room allowed the older or newer the frame is). That is a handful of requests instead of hundreds, so the
+   check actually arrives in time on a slow connection instead of being skipped. */
+async function qcTile(z,x,y,t){const te=await qcTimes();if(!te)return null;
+  const zp=Math.max(3,z-2),d=z-zp,px=x>>d,py=y>>d,R=20037508.342789244,s=2*R/Math.pow(2,zp),tq=te[1],bbox=`${-R+px*s},${R-(py+1)*s},${-R+(px+1)*s},${R-py*s}`,k=`${zp}/${px}/${py}@${tq}`;
   if(!qcMemo.has(k)){qcMemo.set(k,qcFetch(bbox,tq));if(qcMemo.size>120)qcMemo.delete(qcMemo.keys().next().value)}
-  const q=await qcMemo.get(k);return q&&{buf:q.slice(0),lag:t-tq}}
+  const q=await qcMemo.get(k);return q&&{buf:q.slice(0),lag:Math.abs(t-tq),d,ox:x-(px<<d),oy:y-(py<<d)}}
 async function qcFetch(bbox,tq){
-  try{const r=await tfetch(`${QC_SVC}/exportImage?bbox=${bbox}&bboxSR=3857&imageSR=3857&size=256,256&format=png32&time=${tq}&f=image`,5000);if(!r.ok)return null;
+  try{const r=await tfetch(`${QC_SVC}/exportImage?bbox=${bbox}&bboxSR=3857&imageSR=3857&size=256,256&format=png32&time=${tq}&f=image`,7000);if(!r.ok)return null;
     const ct=r.headers.get("content-type")||"";if(!ct.startsWith("image/"))return null;return await r.arrayBuffer()}catch(e){return null}}
 /* Radar frames are NOAA/IEM's national mosaics by their exact time stamp (one every 5 minutes), not the "latest"
    and "5 minutes ago" layers: those change in place and are cached tile by tile, so for a few minutes after each
    update neighbouring tiles could come from different scans and show as square-edged seams. */
 const MOS="ridge::USCOMP-N0Q-",mosStamp=t=>{const d=new Date(t),p=n=>String(n).padStart(2,"0");return""+d.getUTCFullYear()+p(d.getUTCMonth()+1)+p(d.getUTCDate())+p(d.getUTCHours())+p(d.getUTCMinutes())},
   mosT=s=>Date.UTC(+s.slice(0,4),+s.slice(4,6)-1,+s.slice(6,8),+s.slice(8,10),+s.slice(10,12)),mosUrl=t=>`https://mesonet.agron.iastate.edu/cache/tile.py/1.0.0/${MOS}${mosStamp(t)}/{z}/{x}/{y}.png`;
-async function wxTile(kind,url,tol,d,ox,oy,f,g,smp,bm){
-  let r=await wxCall({kind,url,tol,d,ox,oy,f,g,smp,bm});
+async function wxTile(kind,url,tol,d,ox,oy,f,g,smp,bm,lite){
+  const ck=lite?url+"#lite":url;   // "lite" (motion measurement only) skips the five-minutes-earlier fetch, and is remembered separately
+  let r=await wxCall({kind,url:ck,tol,d,ox,oy,f,g,smp,bm});
   if(r.miss){let p=wxFetch.get(url);if(!p){p=fetch(via(url)).then(x=>{if(!x.ok)throw new Error("HTTP "+x.status);return x.arrayBuffer()});wxFetch.set(url,p);p.then(()=>setTimeout(()=>wxFetch.delete(url),3e4),()=>wxFetch.delete(url))}
     const mm=kind==="radar"&&/(ridge::USCOMP-N0Q-(\d{12})|hrrr::REFD-F\d+-0)\/(\d+)\/(\d+)\/(\d+)\.png/.exec(url),isObs=mm&&mm[1][0]==="r",tObs=isObs?mosT(mm[2]):0;
     let qc=null,reach=0,o=null,pp=null;
     const qp=isObs&&S.qc!==false?qcTile(+mm[3],+mm[4],+mm[5],tObs):null;
     if(mm){const z=+mm[3],lat=Math.atan(Math.sinh(Math.PI*(1-2*(+mm[5]+.5)/Math.pow(2,z))))*180/Math.PI;o={g:[z,+mm[4],+mm[5]],pk:40075*Math.cos(lat*Math.PI/180)/Math.pow(2,z)/256,clean:isObs&&S.qc!==false};
       // the same tile five minutes earlier, for the flicker check
-      if(o.clean){const pu=url.replace(mm[1],MOS+mosStamp(tObs-3e5));
+      if(o.clean&&!lite){const pu=url.replace(mm[1],MOS+mosStamp(tObs-3e5));
         pp=wxFetch.get(pu);if(!pp){pp=fetch(via(pu)).then(x=>{if(!x.ok)throw new Error("HTTP "+x.status);return x.arrayBuffer()});wxFetch.set(pu,pp);pp.then(()=>setTimeout(()=>wxFetch.delete(pu),3e4),()=>wxFetch.delete(pu))}}}
     let buf;try{buf=await p}catch(e){return null}
-    if(qp){const q=await Promise.race([qp,new Promise(res=>setTimeout(()=>res(null),3500))]);if(q){qc=q.buf;reach=(4+Math.max(0,q.lag)/6e4*0.8)/o.pk}}  // ~4 km, plus how far a storm could move while NOAA's copy catches up
+    if(qp){const q=await Promise.race([qp,new Promise(res=>setTimeout(()=>res(null),4500))]);if(q){qc=q.buf;o.qs={d:q.d,ox:q.ox,oy:q.oy};reach=(6+q.lag/6e4*0.9)/o.pk+(1<<q.d)}}  // ~6 km, plus how far a storm could move between this frame and NOAA's copy
     if(pp){try{o.pbuf=(await Promise.race([pp,new Promise(res=>setTimeout(()=>res(null),4000))]))||null;if(o.pbuf)o.pbuf=o.pbuf.slice(0)}catch(e){o.pbuf=null}}
-    r=await wxCall({kind,url,tol,d,ox,oy,f,g,smp,bm,buf:buf.slice(0),qc,reach,o},[qc,o&&o.pbuf].filter(Boolean))}
+    r=await wxCall({kind,url:ck,tol,d,ox,oy,f,g,smp,bm,buf:buf.slice(0),qc,reach,o},[qc,o&&o.pbuf].filter(Boolean))}
   return smp?(r.v==null?-99:r.v):r.data||null}
 /* Radar reading at one point for one frame (dBZ, or -99 for nothing). Uses the same cleaned-up field the map draws. */
 async function radarAt(f,lat,lon){if(!f||!f.url||!wxWorker())return -99;const z=8,n=1<<z,fx=(lon+180)/360*n,fy=(1-Math.asinh(Math.tan(lat*Math.PI/180))/Math.PI)/2*n;
@@ -2180,7 +2190,7 @@ function registerRadar(){
   addProto("wxr",async params=>{
     const m=/^wxr:\/\/(\d+)\/(\d+)\/(\d+)\?(.*)$/.exec(params.url),z=+m[1],x=+m[2],y=+m[3],q=new URLSearchParams(m[4]);
     const nz=+q.get("nz"),d=Math.max(0,z-nz),px=x>>d,py=y>>d,url=q.get("u").replace("{z}",z-d).replace("{x}",px).replace("{y}",py);
-    if(wxWorker()){const dd=await wxTile("radar",url,+q.get("tol")||1200,d,x-px*(1<<d),y-py*(1<<d),null,null,null,params.bm);return{data:dd||(params.bm?null:await emptyTile())}}
+    if(wxWorker()){const dd=await wxTile("radar",url,+q.get("tol")||1200,d,x-px*(1<<d),y-py*(1<<d),null,null,null,params.bm,q.get("lite"));return{data:dd||(params.bm?null:await emptyTile())}}
     let F;try{F=await radarField(url,+q.get("tol")||1200)}catch(e){return{data:await emptyTile()}}
     if(F.raw){const n=1<<d,sz=F.w/n,c=document.createElement("canvas");c.width=c.height=512;const g=c.getContext("2d");g.imageSmoothingQuality="high";
       g.drawImage(F.raw,(x-px*n)*sz,(y-py*n)*sz,sz,sz,0,0,512,512);const blob=await new Promise(r=>c.toBlob(r,"image/png"));return{data:await blob.arrayBuffer()}}
@@ -2291,20 +2301,21 @@ async function applyLayers(force){
   {const an=radarAnchor();if(map.getLayer(RB)&&an!==RB)map.moveLayer(RB,an)}
   updateAlertLayer();updateFirePerims();updateNationalAviation();loadBboxAviation();updateGtg();updateLegend();
 }
-function clearRadar(keep){clearTimeout(timer);radarGen++;{const e=$("#rainEta");if(e)e.style.display="none"}blGen++;frames.forEach(f=>{f.bl&&f.bl.bmp&&f.bl.bmp.close()});if(!keep)rmLayer(RB);frames=[];$("#player").style.display="none";$("#mapSrc").textContent=""}
+function clearRadar(keep){clearTimeout(timer);radarGen++;{const e=$("#rainEta");if(e)e.style.display="none"}blGen++;hdGen++;hdF=null;frames.forEach(f=>{f.bl&&f.bl.bmp&&f.bl.bmp.close();f.hd&&f.hd.bmp&&f.hd.bmp.close()});if(!keep)rmLayer(RB);frames=[];$("#player").style.display="none";$("#mapSrc").textContent=""}
 async function loadRadar(){
-  clearRadar(true);radarStamp=Date.now();const us=isCONUS(place);   // the picture on screen stays until the fresh one is ready
+  clearRadar(true);radarStamp=Date.now();radarT0=performance.now();const us=isCONUS(place);   // the picture on screen stays until the fresh one is ready
   try{
-    if(us){let base=Math.floor((Date.now()-9e4)/3e5)*3e5;
-      // the newest mosaic appears about when its time stamp comes round; if it isn't there yet, start one earlier
-      const ready=await tfetch(via(mosUrl(base).replace("{z}",4).replace("{x}",3).replace("{y}",5)),3500).then(r=>r.ok).catch(()=>true);if(!ready)base-=3e5;
+    if(us){let base=Math.floor((Date.now()-6e4)/3e5)*3e5;
+      // the newest mosaic appears about when its time stamp comes round. Only a very fresh one needs checking
+      // (a quick look, no waiting around); if it isn't there yet, start one earlier
+      if(Date.now()-base<18e4){const ready=await tfetch(via(mosUrl(base).replace("{z}",4).replace("{x}",3).replace("{y}",5)),1500).then(r=>r.ok).catch(()=>false);if(!ready)base-=3e5}
       frames=[55,50,45,40,35,30,25,20,15,10,5,0].map(m=>({id:"rad"+m,t:base-m*6e4,url:mosUrl(base-m*6e4)}));
       $("#mapSrc").textContent="Past hour";
       { // HRRR forecast reflectivity: latest run is ~1 h behind; keep only frames valid after now, every 15 min for 3 h
         const run=Math.floor((Date.now()-55*6e4)/36e5)*36e5,first=Math.ceil((Date.now()-run)/9e5)*15;
         for(let fm=first;fm<=first+180&&fm<=1080;fm+=15)frames.push({id:"fut"+fm,t:run+fm*6e4,fut:1,url:`https://mesonet.agron.iastate.edu/cache/tile.py/1.0.0/hrrr::REFD-F${String(fm).padStart(4,"0")}-0/{z}/{x}/{y}.png?${run}`});
-        // the first half hour is the nowcast engine's alone, so it gets 5-minute steps in between the model's 15-minute ones
-        const fut=frames.filter(f=>f.fut);for(let m=5;m<=30;m+=5){const t=base+m*6e4;if(!fut.some(f=>Math.abs(f.t-t)<2.5*6e4))frames.push({id:"nc"+m,t,fut:1,nc:1})}
+        // the forecast is the nowcast engine's, so the first hour gets 5-minute steps in between the 15-minute ones
+        const fut=frames.filter(f=>f.fut);for(let m=5;m<=60;m+=5){const t=base+m*6e4;if(!fut.some(f=>Math.abs(f.t-t)<2.5*6e4))frames.push({id:"nc"+m,t,fut:1,nc:1})}
         frames.sort((a,b)=>a.t-b.t);const hr=frames.filter(f=>f.fut&&f.url);
         for(const f of frames)if(f.fut){f.lead=(f.t-base)/6e4;if(!f.url&&hr.length)f.alt=hr.reduce((a,b)=>Math.abs(b.t-f.t)<Math.abs(a.t-f.t)?b:a).url}
         $("#mapSrc").textContent="Past hour · next 3 h"}}
@@ -2320,7 +2331,7 @@ async function loadRadar(){
     $("#player").style.display="";showFrame(NOWF);tick();
     const gen=++radarGen;
     // give the ocean model a moment to join, so each frame is put together once with both in it
-    if(L.ocean||L.oclouds)await Promise.race([attachOcean(gen),new Promise(r=>setTimeout(r,1200))]);
+    if(L.ocean||L.oclouds)await Promise.race([attachOcean(gen),new Promise(r=>setTimeout(r,600))]);
     if(gen===radarGen)buildBlankets();
     setTimeout(()=>{if(gen===radarGen&&NC.rtGen!==gen)rainTiming(gen)},7000);
   }catch(e){console.error(e);$("#ftime").textContent="n/a";rmLayer(RB)}
@@ -2352,28 +2363,28 @@ function radarAnchor(){const L2=map.getStyle().layers;for(const l of L2)if(/^(gt
    Every radar frame is one stitched picture (ocean model underneath, radar on top), so playback just swaps
    pictures on a single map layer. ---- */
 const RB="radar-b",satBl={};let blGen=0,blTimer=0;
-function blanketView(){
+function blanketView(up){
   const Z=map.getZoom(),c=map.getCenter(),el=map.getContainer(),w=el.clientWidth||393,h=el.clientHeight||600,world=512*2**Z,pad=1.35;
   const cx=(c.lng+180)/360,cy=(1-Math.asinh(Math.tan(Math.max(-85,Math.min(85,c.lat))*Math.PI/180))/Math.PI)/2,full=Z<3.3,hw=full?1:w*pad/2/world,hh=full?1:h*pad/2/world;
-  let z=Math.max(1,Math.min(13,Math.floor(Z+1.35))),r;
+  let z=Math.max(1,Math.min(13,Math.floor(Z+1.35)+(up?1:0))),r;
   const rng=z=>{const n=1<<z,cl=v=>Math.max(0,Math.min(n-1,Math.floor(v*n)));return{z,n,x0:cl(cx-hw),x1:cl(cx+hw),y0:cl(cy-hh),y1:cl(cy+hh)}};
-  for(;;){r=rng(z);if((r.x1-r.x0+1)*(r.y1-r.y0+1)<=40||z<=1)break;z--}
+  for(;;){r=rng(z);if((r.x1-r.x0+1)*(r.y1-r.y0+1)<=(up?150:40)||z<=1)break;z--}
   const lon=x=>x/r.n*360-180,lat=y=>Math.atan(Math.sinh(Math.PI*(1-2*y/r.n)))*180/Math.PI,W_=lon(r.x0),E_=lon(r.x1+1),N_=lat(r.y0),S_=lat(r.y1+1);
   return{...r,co:[[W_,N_],[E_,N_],[E_,S_],[W_,S_]],key:`${r.z}/${r.x0}-${r.x1}/${r.y0}-${r.y1}`}}
-async function tileBitmap(t,z,x,y){
+async function tileBitmap(t,z,x,y,P){
   if(t.b){const n=1<<z,w=x/n*360-180,e=(x+1)/n*360-180,la=q=>Math.atan(Math.sinh(Math.PI*(1-2*q/n)))*180/Math.PI;if(e<t.b[0]||w>t.b[2]||la(y)<t.b[1]||la(y+1)>t.b[3])return null}
   const m=/^(wx[rsm]):/.exec(t.u);
-  if(m){const r=await PROTO[m[1]]({url:t.u.replace("{z}",z).replace("{x}",x).replace("{y}",y),bm:true}),dd=r&&r.data;if(!dd)return null;
+  if(m){const r=await PROTO[m[1]]({url:t.u.replace("{z}",z).replace("{x}",x).replace("{y}",y),bm:t.sz||P||true}),dd=r&&r.data;if(!dd)return null;
     // the tile engines hand back a ready picture here (no PNG round trip); the plain fallback still sends PNG bytes
     if(dd instanceof ArrayBuffer){if(dd.byteLength<200)return null;return createImageBitmap(new Blob([dd],{type:"image/png"}))}return dd}
   // plain picture tiles (worldwide radar): past the source's deepest zoom, cut the piece out of its parent
   const d=Math.max(0,z-(t.mz||z)),u=t.u.replace("{z}",z-d).replace("{x}",x>>d).replace("{y}",y>>d);
   const r=await fetch(NATIVE&&/mesonet\.agron\.iastate\.edu|rainviewer\.com/.test(u)?via(u):u);if(!r.ok)return null;const b=await createImageBitmap(await r.blob());
   if(!d)return b;const n=1<<d,sz=b.width/n,o=await createImageBitmap(b,(x-(x>>d)*n)*sz,(y-(y>>d)*n)*sz,sz,sz);b.close();return o}
-async function blanketCompose(ts,v){
-  const nx=v.x1-v.x0+1,ny=v.y1-v.y0+1,P=Math.max(96,Math.min(384,Math.floor(Math.sqrt(2e6/(nx*ny))))),c=document.createElement("canvas");c.width=nx*P;c.height=ny*P;
+async function blanketCompose(ts,v,maxPx,maxP){
+  const nx=v.x1-v.x0+1,ny=v.y1-v.y0+1,P=Math.max(96,Math.min(maxP||384,Math.floor(Math.sqrt((maxPx||2e6)/(nx*ny))))),c=document.createElement("canvas");c.width=nx*P;c.height=ny*P;
   const g=c.getContext("2d");g.imageSmoothingEnabled=true;g.imageSmoothingQuality="high";
-  const layers=await Promise.all(ts.map(t=>{if(t.nc)return ncFrame(v,P,c.width,c.height,t.lead).catch(()=>null);const a=[];for(let y=v.y0;y<=v.y1;y++)for(let x=v.x0;x<=v.x1;x++)a.push(tileBitmap(t,v.z,x,y).catch(()=>null).then(b=>({b,x,y})));return Promise.all(a)}));
+  const layers=await Promise.all(ts.map(t=>{if(t.nc)return ncFrame(v,P,c.width,c.height,t.lead).catch(()=>null);const a=[];for(let y=v.y0;y<=v.y1;y++)for(let x=v.x0;x<=v.x1;x++)a.push(tileBitmap(t,v.z,x,y,P).catch(()=>null).then(b=>({b,x,y})));return Promise.all(a)}));
   let any=false;layers.forEach((L_,q)=>{g.globalAlpha=ts[q].al==null?1:ts[q].al;
     if(ts[q].nc){if(L_){g.drawImage(L_,0,0);L_.close&&L_.close();any=true}return}
     for(const t of L_)if(t.b){g.drawImage(t.b,(t.x-v.x0)*P,(t.y-v.y0)*P,P,P);t.b.close&&t.b.close();any=true}});g.globalAlpha=1;
@@ -2396,7 +2407,7 @@ function blanketLayer(id,bmp,co,op,before){
    knows about storms growing and dying. Satellite clouds are carried along with the same motion. */
 const NC={ok:false,key:"",V:null,bmp:null,dom:null};
 let NC_PAL=null;
-function ncScalar(bmp,w,h){const c=document.createElement("canvas");c.width=w;c.height=h;const g=c.getContext("2d",{willReadFrequently:true});g.drawImage(bmp,0,0,w,h);const a=g.getImageData(0,0,w,h).data,o=new Float32Array(w*h);
+function ncScalar(bmp,w,h,cr){const c=document.createElement("canvas");c.width=w;c.height=h;const g=c.getContext("2d",{willReadFrequently:true});g.drawImage(bmp,cr[0]*bmp.width,cr[1]*bmp.height,cr[2]*bmp.width,cr[3]*bmp.height,0,0,w,h);const a=g.getImageData(0,0,w,h).data,o=new Float32Array(w*h);
   if(!NC_PAL){NC_PAL=[];for(let d=10;d<=75;d+=1.5){const b=BAND_LUT[Math.round(d*4)];if(b)NC_PAL.push([b[0],b[1],b[2],d])}}
   let n=0;for(let i=0,k=0;k<o.length;i+=4,k++){if(a[i+3]<90)continue;let bd=1e9,bv=0;const r=a[i],gg=a[i+1],b=a[i+2];for(const q of NC_PAL){const d=(r-q[0])**2+(gg-q[1])**2+(b-q[2])**2;if(d<bd){bd=d;bv=q[3]}}o[k]=bv;n++}
   c.width=c.height=0;return{o,frac:n/o.length}}
@@ -2417,14 +2428,16 @@ async function ncBuild(v,rg){
     const key=`${zd}/${X0}-${X1}/${Y0}-${Y1}|${nowF.src}`;if(NC.key===key&&NC.ok)return;
     const n=1<<zd,dom={z:zd,x0:X0,x1:X1,y0:Y0,y1:Y1,co:null},tl=f=>[{u:f.src,b:f.bounds}],t0=performance.now();
     // four radar pictures 15 minutes apart: now and 30 minutes ago, and the same pair a quarter of an hour earlier
-    const fs=[nowF,ago(30),ago(15),ago(45)],bs=await Promise.all(fs.map(f=>f?blanketCompose(tl(f),dom).catch(()=>({bmp:null})):{bmp:null})),bn=bs[0];
-    const shut=()=>bs.slice(1).forEach(b=>b.bmp&&b.bmp.close());
-    if(rg!==radarGen){bn.bmp&&bn.bmp.close();shut();return}
-    if(NC.bmp)NC.bmp.close();
+    // (the motion is measured on small, coarse copies: one zoom level out, a quarter of the downloads)
+    const zl=Math.max(2,zd-1),dl=zd-zl,domL={z:zl,x0:X0>>dl,x1:X1>>dl,y0:Y0>>dl,y1:Y1>>dl,co:null},nxL=domL.x1-domL.x0+1,nyL=domL.y1-domL.y0+1,
+      crop=[(X0/(1<<dl)-domL.x0)/nxL,(Y0/(1<<dl)-domL.y0)/nyL,(X1+1-X0)/(1<<dl)/nxL,(Y1+1-Y0)/(1<<dl)/nyL];
+    const fs=[nowF,ago(30),ago(15),ago(45)],bs=await Promise.all(fs.map(f=>f?blanketCompose([{u:f.src+"&lite=1",b:f.bounds,sz:256}],domL).catch(()=>({bmp:null})):{bmp:null}));
+    const shut=()=>bs.forEach(b=>b.bmp&&b.bmp.close());
+    if(rg!==radarGen){shut();return}
     const G=4,V={G,vx:new Float32Array(G*G),vy:new Float32Array(G*G)},wx0=X0/n,wx1=(X1+1)/n,wy0=Y0/n,wy1=(Y1+1)/n;
-    Object.assign(NC,{ok:true,key,bmp:bn.bmp,dom:{wx0,wx1,wy0,wy1},V,spd:0,dir:0,gx:0,gy:0});
-    if(bn.bmp&&bs[1].bmp){
-      const asp=(wx1-wx0)/(wy1-wy0),NN=448,w=(asp>=1?NN:Math.round(NN*asp))&~1,h=(asp>=1?Math.round(NN/asp):NN)&~1,sc=bs.map(b=>b.bmp?ncScalar(b.bmp,w,h):null);
+    const M={moving:false,spd:0,dir:0,gx:0,gy:0},D0={wx0,wx1,wy0,wy1};
+    if(bs[0].bmp&&bs[1].bmp){
+      const asp=(wx1-wx0)/(wy1-wy0),NN=448,w=(asp>=1?NN:Math.round(NN*asp))&~1,h=(asp>=1?Math.round(NN/asp):NN)&~1,sc=bs.map(b=>b.bmp?ncScalar(b.bmp,w,h,crop):null);
       const latc=Math.atan(Math.sinh(Math.PI*(1-(wy0+wy1))))*180/Math.PI,pxKm=40075*Math.cos(latc*Math.PI/180)*(wx1-wx0)/w,dt=30;
       if(sc[0].frac>.002&&sc[1].frac>.002){
         const pairs=[[sc[1].o,sc[0].o]];if(sc[2]&&sc[3])pairs.push([sc[3].o,sc[2].o]);
@@ -2440,23 +2453,33 @@ async function ncBuild(v,rg){
           for(let j=0;j<G;j++)for(let i=0;i<G;i++){let sx=0,sy=0,c=0;for(let b=-1;b<=1;b++)for(let a=-1;a<=1;a++){const ii=i+a,jj=j+b;if(ii<0||jj<0||ii>=G||jj>=G)continue;const wt=a||b?1:2;sx+=raw[jj*G+ii][0]*wt;sy+=raw[jj*G+ii][1]*wt;c+=wt}
             V.vx[j*G+i]=sx/c*(wx1-wx0)/w/dt;V.vy[j*G+i]=sy/c*(wy1-wy0)/h/dt}   // world fraction per minute
           // the headline motion is the one over the middle of the area (where you are looking)
-          const[cvx,cvy]=ncVel((wx0+wx1)/2,(wy0+wy1)/2),kx=40075*Math.cos(latc*Math.PI/180)*60,ky=kx;
-          NC.gx=cvx;NC.gy=cvy;NC.spd=Math.hypot(cvx*kx,cvy*ky);NC.dir=(Math.atan2(cvx,-cvy)*180/Math.PI+360)%360}}}
+          const[cvx,cvy]=ncVel((wx0+wx1)/2,(wy0+wy1)/2,V,D0),kx=40075*Math.cos(latc*Math.PI/180)*60,ky=kx;
+          Object.assign(M,{moving:true,gx:cvx,gy:cvy,spd:Math.hypot(cvx*kx,cvy*ky),dir:(Math.atan2(cvx,-cvy)*180/Math.PI+360)%360})}}}
+    // the radar picture that gets carried forward: the view, plus room on the side the rain is coming FROM for three
+    // hours of travel (up to two tiles), and nothing extra on the other sides
+    const d=v.z-zd,ext=a=>Math.max(0,Math.min(2,Math.ceil(a*190*n-.15))),mxv=A=>Math.max(...A),mnv=A=>Math.min(...A);
+    const sub={z:zd,x0:Math.max(0,(v.x0>>d)-ext(mxv(V.vx))),x1:Math.min(n-1,(v.x1>>d)+ext(-mnv(V.vx))),y0:Math.max(0,(v.y0>>d)-ext(mxv(V.vy))),y1:Math.min(n-1,(v.y1>>d)+ext(-mnv(V.vy))),co:null};
+    const bn=await blanketCompose(tl(nowF),sub).catch(()=>({bmp:null}));
+    if(rg!==radarGen){bn.bmp&&bn.bmp.close();shut();return}
+    if(NC.bmp)NC.bmp.close();
+    Object.assign(NC,M,{ok:true,key,bmp:bn.bmp,dom:D0,sdom:{wx0:sub.x0/n,wx1:(sub.x1+1)/n,wy0:sub.y0/n,wy1:(sub.y1+1)/n},V});
+
     shut();
     if(NC.rtGen!==rg){NC.rtGen=rg;rainTiming(rg)}   // rain timing for your spot, now that the motion is known
     DIAG.mark(`nowcast: motion ${Math.round(NC.spd)} km/h toward ${Math.round(NC.dir)}° in ${Math.round(performance.now()-t0)} ms`);
   }catch(e){NC.ok=false;console.error(e)}}
 // motion at a point (world fraction per minute)
-function ncVel(wx,wy){const V=NC.V,D=NC.dom,G=V.G,u=Math.max(0,Math.min(G-1,(wx-D.wx0)/(D.wx1-D.wx0)*G-.5)),t=Math.max(0,Math.min(G-1,(wy-D.wy0)/(D.wy1-D.wy0)*G-.5)),i=Math.min(G-2,u|0),j=Math.min(G-2,t|0),a=u-i,b=t-j,q=j*G+i;
+function ncVel(wx,wy,V,D){V=V||NC.V;D=D||NC.dom;const G=V.G,u=Math.max(0,Math.min(G-1,(wx-D.wx0)/(D.wx1-D.wx0)*G-.5)),t=Math.max(0,Math.min(G-1,(wy-D.wy0)/(D.wy1-D.wy0)*G-.5)),i=Math.min(G-2,u|0),j=Math.min(G-2,t|0),a=u-i,b=t-j,q=j*G+i;
   const f=A=>A[q]*(1-a)*(1-b)+A[q+1]*a*(1-b)+A[q+G]*(1-a)*b+A[q+G+1]*a*b;return[f(V.vx),f(V.vy)]}
 // the current radar carried forward by `lead` minutes, as a picture the size of the frame being made. The warp
 // itself runs in a worker (one worker keeps the radar picture; later frames only send the numbers)
-let ncSent="";
+const ncSent=new Map();let ncRR=0;
 async function ncFrame(v,P,W,H,lead){
-  if(!NC.ok||!NC.bmp||!wxWorker())return null;const wk=WXW[0],call=x=>new Promise(res=>{const id=++wxSeq;wxPend.set(id,res);wk.postMessage({...x,id},x.bmp?[x.bmp]:[])});
-  const m={kind:"warp",key:NC.key,dom:NC.dom,V:{G:NC.V.G,vx:NC.V.vx,vy:NC.V.vy},lead,z:v.z,x0:v.x0,y0:v.y0,P,W,H};
-  let r=await call(ncSent===NC.key?m:{...m,bmp:await createImageBitmap(NC.bmp)});ncSent=NC.key;
-  if(r.miss){r=await call({...m,bmp:await createImageBitmap(NC.bmp)})}
+  if(!NC.ok||!NC.bmp||!wxWorker())return null;const wk=WXW[ncRR++%WXW.length],call=x=>new Promise(res=>{const id=++wxSeq;wxPend.set(id,res);wk.postMessage({...x,id},x.bmp?[x.bmp]:[])});
+  const key=NC.key,m={kind:"warp",key,dom:NC.dom,sdom:NC.sdom,V:{G:NC.V.G,vx:NC.V.vx,vy:NC.V.vy},lead,z:v.z,x0:v.x0,y0:v.y0,P,W,H};
+  // each worker keeps its own copy of the radar picture; it is sent the first time that worker is used
+  let r;if(ncSent.get(wk)===key)r=await call(m);else{ncSent.set(wk,key);r=await call({...m,bmp:await createImageBitmap(NC.bmp)})}
+  if(r.miss&&NC.key===key&&NC.bmp)r=await call({...m,bmp:await createImageBitmap(NC.bmp)});
   return r.data||null}
 // the reading at one point of a forecast frame, consistent with the picture: nowcast, model, or the blend of both
 async function frameAt(f,lat,lon){const w=ncW(f);if(w<=0)return f.url||f.alt?radarAt(f.url?f:{url:f.alt},lat,lon):-99;
@@ -2467,27 +2490,48 @@ async function frameAt(f,lat,lon){const w=ncW(f);if(w<=0)return f.url||f.alt?rad
 function bufBar(){const el=$("#buf");if(!el)return;const n=frames.length,b=frames.filter(f=>f.bl).length;el.style.width=(n?b/n*100:0)+"%";el.classList.toggle("done",!n||b>=n)}
 // what a frame's picture is made of. Past and present: ocean model under radar. Future: ocean model, then the
 // nowcast (radar carried forward) handing over to the HRRR model between 30 and 90 minutes out.
-const ncW=f=>{if(!f.fut||!NC.ok||f.lead==null)return 0;return f.lead<=30?1:f.lead>=90?0:1-(f.lead-30)/60};
+const ncW=f=>{if(!f.fut||!NC.ok||f.lead==null)return 0;if(NC.moving)return 1;   // motion measured: the whole 3 hours is the radar carried forward
+  return f.lead<=30?1:f.lead>=90?0:1-(f.lead-30)/60};   // no clear motion: hold the radar still for a while, then hand over to the HRRR model
 const radarTiles=f=>{const a=[],w=ncW(f),src=f.src||(w<=0?f.altSrc:null);if(f.ocn)a.push({u:f.ocn.src});
   // (square-root weights: where the two agree the rain stays solid through the hand-over instead of going faint)
   if(src&&w<1)a.push({u:src,b:f.bounds,mz:f.mz,al:w>0?Math.sqrt(1-w):1});if(w>0)a.push({nc:1,lead:f.lead,al:Math.sqrt(w),u:`nc:${NC.key}:${f.lead}`});return a};
 function paintRadar(){const f=frames[fi];if(!f||!f.bl)return;   // not put together yet: leave what is showing
   if(!f.bl.bmp){if(map.getLayer(RB))map.setPaintProperty(RB,"raster-opacity",0);return}
-  blanketLayer(RB,f.bl.bmp,f.bl.co,f.fut?.8:.88,radarAnchor())}
+  const hd=f.hd&&f.hd.base===f.bl.key&&f.hd.bmp?f.hd:null,b=hd||f.bl;
+  blanketLayer(RB,b.bmp,b.co,f.fut?.8:.88,radarAnchor());if(!hd)wantSharp()}
+/* The frame you are looking at is redone at full sharpness once you stop on it: one zoom level deeper (four times
+   the radar detail) and twice the pixels. Only that one frame is kept this way; playback uses the lighter set. */
+let hdT=0,hdGen=0,hdF=null;
+function wantSharp(){clearTimeout(hdT);hdT=setTimeout(buildSharp,500)}
+async function buildSharp(){
+  const f=frames[fi];if(!f||!f.bl||!f.bl.bmp||playing||blBusy||!mapReady||(f.hd&&f.hd.base===f.bl.key))return;   // never while the frame set is still loading
+  const ts=radarTiles(f);if(ts.some(t=>t.nc))return;   // carried-forward frames are as sharp as their source already
+  const g=++hdGen,rg=radarGen,base=f.bl.key,v=blanketView(1);let r;try{r=await blanketCompose(ts,v,7e6,512)}catch(e){return}
+  if(g!==hdGen||rg!==radarGen||frames[fi]!==f||!f.bl||f.bl.key!==base||!r.bmp){r&&r.bmp&&r.bmp.close();return}
+  if(hdF&&hdF.hd){hdF.hd.bmp&&hdF.hd.bmp.close();hdF.hd=null}
+  f.hd={...r,base};hdF=f;paintRadar()}
 // build (or rebuild after the map moves) every frame's picture: the one on screen first, then outwards from it
+let blBusy=0,radarT0=0;
 async function buildBlankets(){
-  if(!mapReady||!frames.length)return;const gen=++blGen,rg=radarGen,v=blanketView(),t0=performance.now();
-  const order=frames.map((f,k)=>k).sort((a,b)=>Math.abs(a-fi)-Math.abs(b-fi));let built=0,ncTried=false;bufBar();
-  for(const k of order){const f=frames[k];if(!f)return;if(f.fut&&!ncTried){ncTried=true;await ncBuild(v,rg);if(gen!==blGen||rg!==radarGen)return}
-    const ts=radarTiles(f),key=v.key+"|"+ts.map(t=>t.u+(t.al==null?"":"@"+t.al.toFixed(2))).join("|");if(f.bl&&f.bl.key===key)continue;
+  if(!mapReady||!frames.length)return;const gen=++blGen,rg=radarGen,v=blanketView(),t0=performance.now(),live=()=>gen===blGen&&rg===radarGen;
+  const order=frames.map((f,k)=>k).sort((a,b)=>Math.abs(a-fi)-Math.abs(b-fi));let built=0;bufBar();blBusy++;
+  const one=async k=>{const f=frames[k];if(!f||!live())return;
+    const ts=radarTiles(f),key=v.key+"|"+ts.map(t=>t.u+(t.al==null?"":"@"+t.al.toFixed(2))).join("|");if(f.bl&&f.bl.key===key)return;
     let r;try{r=await blanketCompose(ts,v)}catch(e){r={bmp:null,co:v.co}}
-    if(gen!==blGen||rg!==radarGen){r.bmp&&r.bmp.close();return}
-    if(f.bl&&f.bl.bmp)f.bl.bmp.close();f.bl={...r,key};built++;bufBar();if(k===fi)paintRadar()}
-  if(built)DIAG.mark(`radar: ${built} frame pictures in ${Math.round(performance.now()-t0)} ms`)}
+    if(!live()||frames[k]!==f){r.bmp&&r.bmp.close();return}
+    if(f.bl&&f.bl.bmp)f.bl.bmp.close();f.bl={...r,key};built++;bufBar();if(k===fi)paintRadar()};
+  try{
+    await one(order[0]);if(built)DIAG.mark(`radar: frame on screen after ${Math.round(performance.now()-t0)} ms (${Math.round(performance.now()-radarT0)} ms since radar load began)`);   // the frame on screen, on its own, as fast as it will come
+    if(live()&&frames.some(f=>f.fut))await ncBuild(v,rg);  // then the motion, which every forecast frame needs
+    // then the rest, three at a time, working outwards from the frame on screen
+    let next=1;const lane=async()=>{while(live()&&next<order.length)await one(order[next++])};
+    if(live())await Promise.all([lane(),lane(),lane()]);
+  }finally{blBusy--}
+  if(live()){if(built)DIAG.mark(`radar: ${built} frame pictures in ${Math.round(performance.now()-t0)} ms`);wantSharp()}}
 async function buildSat(){
   if(!mapReady)return;
-  for(const k of ["ir","vis"]){const st=satBl[k],id="sat-"+k;if(!st)continue;const v=blanketView(),key=v.key+st.tpl;if(st.key===key)continue;st.key=key;
-    let r=null;try{r=await blanketCompose([{u:st.tpl}],v)}catch(e){}
+  for(const k of ["ir","vis"]){const st=satBl[k],id="sat-"+k;if(!st)continue;const v=blanketView(1),key=v.key+st.tpl;if(st.key===key)continue;st.key=key;
+    let r=null;try{r=await blanketCompose([{u:st.tpl}],v,6e6,512)}catch(e){}
     if(satBl[k]!==st||st.key!==key){r&&r.bmp&&r.bmp.close();continue}
     // clouds always sit under rain: satellite goes below the radar picture
     if(r&&r.bmp){st.co=r.co;blanketLayer(id,r.bmp,satDrift(r.co),k==="ir"?.9:.95,map.getLayer(RB)?RB:radarAnchor());r.bmp.close()}else if(map.getLayer(id))map.setPaintProperty(id,"raster-opacity",0)}}
