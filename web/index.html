@@ -2373,11 +2373,10 @@ async function loadRadar(){
       $("#mapSrc").textContent="Past hour";
       { // HRRR forecast reflectivity: latest run is ~1 h behind; keep only frames valid after now, every 15 min for 3 h
         const run=Math.floor((Date.now()-55*6e4)/36e5)*36e5,first=Math.ceil((Date.now()-run)/9e5)*15;
-        for(let fm=first;fm<=first+180&&fm<=1080;fm+=15)frames.push({id:"fut"+fm,t:run+fm*6e4,fut:1,url:`https://mesonet.agron.iastate.edu/cache/tile.py/1.0.0/hrrr::REFD-F${String(fm).padStart(4,"0")}-0/{z}/{x}/{y}.png?${run}`});
-        // the forecast is the nowcast engine's, so the first hour gets 5-minute steps in between the 15-minute ones
-        const fut=frames.filter(f=>f.fut);for(let m=5;m<=60;m+=5){const t=base+m*6e4;if(!fut.some(f=>Math.abs(f.t-t)<2.5*6e4))frames.push({id:"nc"+m,t,fut:1,nc:1})}
-        frames.sort((a,b)=>a.t-b.t);const hr=frames.filter(f=>f.fut&&f.url);
-        for(const f of frames)if(f.fut){f.lead=(f.t-base)/6e4;if(!f.url&&hr.length)f.alt=hr.reduce((a,b)=>Math.abs(b.t-f.t)<Math.abs(a.t-f.t)?b:a).url}
+        const hr=[];for(let fm=first;fm<=first+195&&fm<=1080;fm+=15)hr.push({t:run+fm*6e4,url:`https://mesonet.agron.iastate.edu/cache/tile.py/1.0.0/hrrr::REFD-F${String(fm).padStart(4,"0")}-0/{z}/{x}/{y}.png?${run}`});
+        // the forecast is one even run of nowcast frames, every 10 minutes for 3 hours; each knows the HRRR picture
+        // nearest its time (used as guidance, and as the stand-in if the nowcast engine cannot run)
+        for(let m=10;m<=180;m+=10){const t=base+m*6e4;frames.push({id:"nc"+m,t,fut:1,nc:1,lead:m,alt:hr.length?hr.reduce((a,b)=>Math.abs(b.t-t)<Math.abs(a.t-t)?b:a).url:null})}
         $("#mapSrc").textContent="Past hour · next 3 h"}}
     else{const j=await getJSON("https://api.rainviewer.com/public/weather-maps.json");
       frames=j.radar.past.map((f,k)=>({id:"rad"+k,t:f.time*1000,url:`${j.host}${f.path}/256/{z}/{x}/{y}/2/1_1.png`,mz:7}));$("#mapSrc").textContent="Past 2 h"}
@@ -2649,7 +2648,9 @@ function tick(){clearTimeout(timer);setPlay();if(!playing||!frames.length)return
   // don't step onto a frame that hasn't loaded yet (no blank flashes); wait up to ~2 s for it
   const nx=(fi+1)%frames.length;let waited=0;
   const go=()=>{if(!playing)return;if(!frameReady(nx)&&waited<8000){waited+=150;timer=setTimeout(go,150);return}showFrame(nx);tick()};
-  timer=setTimeout(go,(fi===frames.length-1||fi===NOWF?1500:450)/SPDS[spd])}
+  // the clock runs at one steady rate through past and future: 5 minutes of weather per 300 ms, whatever the step
+  const step=frames[nx]&&frames[fi]?Math.max(5,Math.min(20,Math.abs(frames[nx].t-frames[fi].t)/6e4)):5;
+  timer=setTimeout(go,(fi===frames.length-1||fi===NOWF?1500:60*step)/SPDS[spd])}
 // playback speed: tap to cycle 1× → 2× → ½×
 const SPDS=[1,2,.5],SPDL=["1×","2×","½×"];let spd=0;try{spd=+localStorage.getItem("wx.spd")||0;if(!(spd in SPDS))spd=0}catch(e){}
 $("#spd").textContent=SPDL[spd];$("#spd").onclick=e=>{e.stopPropagation();spd=(spd+1)%SPDS.length;$("#spd").textContent=SPDL[spd];try{localStorage.setItem("wx.spd",spd)}catch(e){}if(playing)tick()};
