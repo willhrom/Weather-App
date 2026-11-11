@@ -681,6 +681,21 @@ async function ptField(buf){const{w,h,a}=await pixels(buf),n=w*h;let cov=[0,1,2,
    B = how much model rain to show (0 where US radar reaches, so radar and model join into one picture) */
 async function modelField(buf){const{w,h,a}=await pixels(buf),n=w*h,dbz=new Float32Array(n),cl=new Float32Array(n),wt=new Float32Array(n);
   for(let i=0,k=0;k<n;i+=4,k++){dbz[k]=a[i]/3-20;cl[k]=a[i+1]/255;wt[k]=a[i+2]/255}return{w,h,dbz,cl,wt,model:1}}
+/* Satellite detail for the ocean rain. The model knows roughly where it is raining but only on a 28 km grid; the
+   infrared satellite picture sees the actual clouds at about 2-4 km. From it comes "how cold (high, thick) is the
+   cloud top here", 0 for clear sky to 1 for the coldest tops, and the same thing smoothed out to the model's scale.
+   The difference between the two is real fine detail the model cannot have. */
+async function satField(buf,pk){const{w,h,a,bmp}=await pixels(buf),n=w*h;bmp.close&&bmp.close();let c=new Float32Array(n),k=new Float32Array(n),any=0;
+  for(let i=0,q=0;q<n;i+=4,q++){if(a[i+3]<128)continue;const R=a[i],G=a[i+1],B=a[i+2],mx=Math.max(R,G,B),mn=Math.min(R,G,B),st=mx-mn,v=(R+G+B)/3,t=Math.max(0,Math.min(1,(v-104)/136));let cc=.6*t;
+    if(st>40){let hh=mx===R?((G-B)/st+6)%6:mx===G?(B-R)/st+2:(R-G)/st+4;hh*=60;if(hh>330)hh-=360;const cr=Math.max(0,Math.min(1,(300-hh)/300)),kk=Math.min(1,(st-40)/50);cc=cc*(1-kk)+(.6+.4*cr)*kk}
+    c[q]=cc;k[q]=1;any=1}
+  if(!any)return{none:1};
+  // the same field at the model's scale (~40 km), ignoring pixels the satellite does not cover
+  const r=Math.max(2,Math.min(40,Math.round(40/pk))),box=(A)=>{const o=new Float32Array(n),t=new Float32Array(n);
+    for(let y=0;y<h;y++){let sm=0;const row=y*w;for(let x=-r;x<w+r;x++){const xa=x+r,xr=x-r-1;if(xa<w)sm+=A[row+xa];if(xr>=0&&xr<w)sm-=A[row+xr];if(x>=0&&x<w)t[row+x]=sm}}
+    for(let x=0;x<w;x++){let sm=0;for(let y=-r;y<h+r;y++){const ya=y+r,yr=y-r-1;if(ya<h)sm+=t[ya*w+x];if(yr>=0&&yr<h)sm-=t[yr*w+x];if(y>=0&&y<h)o[y*w+x]=sm}}return o};
+  const ck=new Float32Array(n);for(let q=0;q<n;q++)ck[q]=c[q]*k[q];const bc=box(ck),bk=box(k),cb=new Float32Array(n);for(let q=0;q<n;q++)cb[q]=bk[q]>0?bc[q]/bk[q]:c[q];
+  const u8=A=>{const o=new Uint8Array(n);for(let q=0;q<n;q++)o[q]=Math.round(A[q]*255);return o};return{w,h,r,c:u8(c),cb:u8(cb),k:u8(k)}}   // kept as bytes: there are many of these
 /* fractal value noise tied to map position (not to the tile), so texture lines up across tiles and zooms.
    The model is smooth on a 28 km grid; this adds the ragged, wispy detail real clouds and showers have. */
 const hsh=(x,y)=>{let h=Math.imul(x,374761393)+Math.imul(y,668265263)|0;h=Math.imul(h^h>>>13,1274126177);return((h^h>>>16)>>>0)/4294967296};
@@ -698,14 +713,24 @@ function noiseGrid(g){const k=g.join("/");let N=noiseMemo.get(k);if(N)return N;
     // light from the upper left, from the broad billows only: soft rounded tops rather than a rough surface
     rel[q]=(fbm(wx,wy,3,3)-fbm(wx+EP,wy+EP,3,3))*22;rn[q]=fbm(wx,wy,7,oc)}}
   N={tex,rel,rn};noiseMemo.set(k,N);if(noiseMemo.size>16)noiseMemo.delete(noiseMemo.keys().next().value);return N}
-async function modelTile(F,d,ox,oy,f,g,bm){const S=512,n=1<<d,sz=(F.w-2)/n,sx=1+ox*sz,sy=1+oy*sz,c=new OffscreenCanvas(S,S),cx=c.getContext("2d");
+async function modelTile(F,d,ox,oy,f,g,bm,ST){const S=512,n=1<<d,sz=(F.w-2)/n,sx=1+ox*sz,sy=1+oy*sz,c=new OffscreenCanvas(S,S),cx=c.getContext("2d");
   const img=cx.createImageData(S,S),o=img.data,W0=F.w,H0=F.h,st=sz/S,rain=f.includes("r"),cloud=f.includes("c");let any=false;
   const N=g?noiseGrid(g):null,G=257;
   for(let yy=0;yy<S;yy++){const fy=Math.min(H0-1.001,Math.max(0,sy+(yy+.5)*st-.5)),y0=fy|0,ty=fy-y0,r0=y0*W0,r1=Math.min(H0-1,y0+1)*W0,
       gy=Math.min(255.999,yy/2),gj=gy|0,gt=gy-gj;
     for(let xx=0;xx<S;xx++){const fx=Math.min(W0-1.001,Math.max(0,sx+(xx+.5)*st-.5)),x0=fx|0,tx=fx-x0,x1=Math.min(W0-1,x0+1),w00=(1-tx)*(1-ty),w10=tx*(1-ty),w01=(1-tx)*ty,w11=tx*ty;
       const at=A=>A[r0+x0]*w00+A[r0+x1]*w10+A[r1+x0]*w01+A[r1+x1]*w11,wt=at(F.wt);
-      const cv=cloud?at(F.cl):0,v=rain&&wt>=.01?at(F.dbz):-99;if(cv<.08&&v<4)continue;  // clouds arrive already faded near the coast; B only gates rain
+      const cv=cloud?at(F.cl):0;let v=rain&&wt>=.01?at(F.dbz):-99,seen=0;
+      // what the satellite actually sees here: rain is sharpened where the cloud tops are colder than their
+      // surroundings, thinned where they are warmer, and removed where the sky is clear
+      if(ST&&v>-2){const ux=Math.min(ST.F.w-1.001,Math.max(0,(ST.ox+(xx+.5)/S)*ST.sc-.5)),uy=Math.min(ST.F.h-1.001,Math.max(0,(ST.oy+(yy+.5)/S)*ST.sc-.5)),a0=ux|0,b0=uy|0,p=ux-a0,q2=uy-b0,i0=b0*ST.F.w+a0,i1=i0+ST.F.w,
+          sb=A=>A[i0]*(1-p)*(1-q2)+A[i0+1]*p*(1-q2)+A[i1]*(1-p)*q2+A[i1+1]*p*q2,kn=sb(ST.F.k);
+        if(kn>230){const c=sb(ST.F.c)/255,cb=sb(ST.F.cb)/255;seen=ST.w;const gt=Math.max(0,Math.min(1,(c-.2)/.14));   // darker than this on the infrared picture is open sea or thin low cloud: no rain
+          // (the smoothed copy is one-sided right at the edge of a satellite tile, so the fine detail eases off there
+          // instead of leaving a line where two tiles meet)
+          const ed=Math.max(0,Math.min(1,Math.min(ux,ST.F.w-1-ux,uy,ST.F.h-1-uy)/(ST.F.r*.8)));
+          v+=ST.w*(Math.max(-15,Math.min(15,70*(c-cb)))*ed*ed*(3-2*ed)-30*(1-gt*gt*(3-2*gt)))}}
+      if(cv<.08&&v<4)continue;  // clouds arrive already faded near the coast; B only gates rain
       let nzv=.5,rl=0,rnv=.5;
       if(N){const gx=Math.min(255.999,xx/2),gi=gx|0,gs=gx-gi,q=gj*G+gi,a=(1-gs)*(1-gt),b=gs*(1-gt),cc=(1-gs)*gt,dd=gs*gt,nb=A=>A[q]*a+A[q+1]*b+A[q+G]*cc+A[q+G+1]*dd;
         nzv=nb(N.tex);rl=nb(N.rel);rnv=nb(N.rn)}
@@ -715,7 +740,8 @@ async function modelTile(F,d,ox,oy,f,g,bm){const S=512,n=1<<d,sz=(F.w-2)/n,sx=1+
         if(dens>0){const e=dens*dens*(3-2*dens),lit=Math.max(0,Math.min(1,.32+.5*e+rl+(nzv-.5)*.25));
           r=118+130*lit;gg=128+121*lit;b=146+107*lit;al=(.06+.6*Math.pow(e,1.3))*Math.min(1,dens*3)}}
       // rain on top in the radar colours, with ragged shower edges instead of smooth blobs
-      if(rain&&v>=4){const vv=v+(rnv-.5)*8;if(vv>=9){const bb=BAND[Math.max(0,Math.min(320,Math.round((Math.max(vv,10))*4)))];
+      if(rain&&v>=4){const vv=v+(rnv-.5)*8*(1-.7*seen);   // less invented texture where there is real detail
+        if(vv>=9){const bb=BAND[Math.max(0,Math.min(320,Math.round((Math.max(vv,10))*4)))];
         if(bb){const ra=bb[3]*Math.min(1,(vv-9)/2.5)*Math.min(1,wt*1.15),oa=ra+al*(1-ra);
           if(oa>0){r=(bb[0]*ra+r*al*(1-ra))/oa;gg=(bb[1]*ra+gg*al*(1-ra))/oa;b=(bb[2]*ra+b*al*(1-ra))/oa;al=oa}}}}
       if(al<.01)continue;const i=(yy*S+xx)*4;o[i]=r;o[i+1]=gg;o[i+2]=Math.min(255,b);o[i+3]=Math.round(255*al);any=true}}
@@ -738,15 +764,18 @@ async function tile(F,d,ox,oy,bm){const S=typeof bm==="number"?bm:512,   // a fr
   if(!any)return null;g.putImageData(img,0,0);if(bm)return c.transferToImageBitmap();return(await c.convertToBlob({type:"image/png"})).arrayBuffer()}
 async function modelMsg(m){
   // two model hours and how far between them this frame is, so the ocean moves in 15-minute steps, not hourly jumps
-  const keep=(u,F)=>{fields.set(u,F);if(fields.size>30)fields.delete(fields.keys().next().value)};
-  let A=fields.get(m.url),B=m.url2?fields.get(m.url2):null;
+  const keep=(u,F)=>{fields.set(u,F);if(fields.size>96)fields.delete(fields.keys().next().value)};
+  let A=fields.get(m.url),B=m.url2?fields.get(m.url2):null,SF=m.sat?fields.get(m.sat.url):null;
+  if(m.sat&&!SF&&m.bufS){try{SF=await satField(m.bufS,m.sat.pk)}catch(e){SF={none:1}}keep(m.sat.url,SF)}
+  if(m.sat&&!SF&&m.noSat)SF={none:1};
   if(!A&&m.buf){A=await modelField(m.buf);keep(m.url,A)}
   if(m.url2&&!B&&m.buf2){B=await modelField(m.buf2);keep(m.url2,B)}
-  if(!A||m.url2&&!B){postMessage({id:m.id,miss:true,need:[!A&&m.url,m.url2&&!B&&m.url2].filter(Boolean)});return}
+  if(!A||m.url2&&!B||m.sat&&!SF){postMessage({id:m.id,miss:true,need:[!A&&m.url,m.url2&&!B&&m.url2].filter(Boolean),needSat:!!(m.sat&&!SF)});return}
   let F=A;const w=m.w||0;
   if(B&&w>0&&B.w===A.w&&B.h===A.h){const n=A.dbz.length,dbz=new Float32Array(n),cl=new Float32Array(n);
     for(let i=0;i<n;i++){dbz[i]=A.dbz[i]+(B.dbz[i]-A.dbz[i])*w;cl[i]=A.cl[i]+(B.cl[i]-A.cl[i])*w}F={w:A.w,h:A.h,dbz,cl,wt:A.wt,model:1}}
-  const data=await modelTile(F,m.d,m.ox,m.oy,m.f||"rc",m.g,m.bm);postMessage({id:m.id,data},data?[data]:[])}
+  const ST=SF&&!SF.none?{F:SF,ox:m.sat.ox,oy:m.sat.oy,sc:SF.w/(1<<m.sat.d),w:m.sat.w}:null;
+  const data=await modelTile(F,m.d,m.ox,m.oy,m.f||"rc",m.g,m.bm,ST);postMessage({id:m.id,data},data?[data]:[])}
 /* nowcast warp: the current radar picture carried forward along the measured motion. For every pixel of the frame
    being made, look back along the local motion to where that rain is now and take the colour from there. */
 let warpSrc=null;
@@ -2152,10 +2181,12 @@ async function rainTiming(gen){const el=$("#rainEta");if(!el)return;el.style.dis
   // blue marks under the timeline wherever it's raining at your spot
   const tl=$("#tls");for(let k=0;k<n;k++)if(wet(k)){const u=document.createElement("u");u.style.left=(n>1?k/(n-1)*100:100)+"%";u.style.opacity=fs[k].dbz>=35?1:.6;tl.appendChild(u)}}
 const wxGet=url=>{let p=wxFetch.get(url);if(!p){p=fetch(via(url)).then(x=>{if(!x.ok)throw new Error("HTTP "+x.status);return x.arrayBuffer()});wxFetch.set(url,p);p.then(()=>setTimeout(()=>wxFetch.delete(url),3e4),()=>wxFetch.delete(url))}return p};
-async function wxModel(url,url2,w,d,ox,oy,f,g,bm){
-  const m={kind:"model2",url,url2,w,d,ox,oy,f,g,bm,route:url};let r=await wxCall(m);
-  if(r.miss){let bufs;try{bufs=await Promise.all(r.need.map(wxGet))}catch(e){return null}
-    const x={...m};r.need.forEach((u,i)=>{x[u===url?"buf":"buf2"]=bufs[i].slice(0)});r=await wxCall(x)}
+async function wxModel(url,url2,w,d,ox,oy,f,g,bm,sat){
+  const m={kind:"model2",url,url2,w,d,ox,oy,f,g,bm,sat,route:url};let r=await wxCall(m);
+  if(r.miss){let bufs,sb=null;try{[bufs,sb]=await Promise.all([Promise.all(r.need.map(wxGet)),r.needSat?wxGet(sat.url).catch(()=>null):null])}catch(e){return null}
+    const x={...m};r.need.forEach((u,i)=>{x[u===url?"buf":"buf2"]=bufs[i].slice(0)});
+    if(r.needSat){if(sb)x.bufS=sb.slice(0);else x.noSat=true}   // no satellite picture for this spot: the model is drawn as it is
+    r=await wxCall(x)}
   return r.data||null}
 let EMPTY_TILE=null;
 const PROTO={},addProto=(n,f)=>{PROTO[n]=f;maplibregl.addProtocol(n,f)};
@@ -2186,7 +2217,10 @@ function registerRadar(){
     const m=/^wxm:\/\/(\d+)\/(\d+)\/(\d+)\?(.*)$/.exec(params.url),z=+m[1],x=+m[2],y=+m[3],q=new URLSearchParams(m[4]);
     const nz=+q.get("nz"),d=Math.max(0,z-nz),px=x>>d,py=y>>d,url=q.get("u").replace("{z}",z-d).replace("{x}",px).replace("{y}",py);
     const u2=q.get("u2"),url2=u2?u2.replace("{z}",z-d).replace("{x}",px).replace("{y}",py):null;
-    let dd=null;if(wxWorker()){try{dd=await wxModel(url,url2,+q.get("w")||0,d,x-px*(1<<d),y-py*(1<<d),q.get("f")||"rc",[z,x,y],params.bm)}catch(e){}}return{data:dd||(params.bm?null:await emptyTile())}});
+    // the infrared satellite tile over the same ground (GOES-West for the Pacific side, GOES-East otherwise)
+    let sat=null;const sw=+q.get("sw")||0;if(sw>0&&z>=3&&(q.get("f")||"rc").includes("r")){const zs=Math.min(z,6),ds=z-zs,sx=x>>ds,sy=y>>ds,n=1<<z,lon=(x+.5)/n*360-180,lat=Math.atan(Math.sinh(Math.PI*(1-2*(y+.5)/n)))*180/Math.PI;
+      if(Math.abs(lat)<62&&lon<-20){sat={url:`https://mesonet.agron.iastate.edu/cache/tile.py/1.0.0/${lon<-104?"goes_west_fulldisk_ch13":"goes_east_conus_ch13"}/${zs}/${sx}/${sy}.png?${q.get("sb")||0}`,d:ds,ox:x-(sx<<ds),oy:y-(sy<<ds),w:sw,pk:40075*Math.cos(lat*Math.PI/180)/(1<<zs)/256}}}
+    let dd=null;if(wxWorker()){try{dd=await wxModel(url,url2,+q.get("w")||0,d,x-px*(1<<d),y-py*(1<<d),q.get("f")||"rc",[z,x,y],params.bm,sat)}catch(e){}}return{data:dd||(params.bm?null:await emptyTile())}});
   addProto("wxr",async params=>{
     const m=/^wxr:\/\/(\d+)\/(\d+)\/(\d+)\?(.*)$/.exec(params.url),z=+m[1],x=+m[2],y=+m[3],q=new URLSearchParams(m[4]);
     const nz=+q.get("nz"),d=Math.max(0,z-nz),px=x>>d,py=y>>d,url=q.get("u").replace("{z}",z-d).replace("{x}",px).replace("{y}",py);
@@ -2344,6 +2378,9 @@ const GFS_HOST="https://willhrom-weather-gfs.pages.dev/gfs";let gfsMan={t:0,v:nu
 async function gfsManifest(){if(gfsMan.v&&Date.now()-gfsMan.t<20*6e4)return gfsMan.v;
   const ac=new AbortController(),to=setTimeout(()=>ac.abort(),5000);
   try{const r=await fetch(GFS_HOST+"/manifest.json",{signal:ac.signal,cache:"no-cache"});const j=await r.json();gfsMan={t:Date.now(),v:j};return j}finally{clearTimeout(to)}}
+// how much the current satellite picture shapes a frame's ocean rain: fully within half an hour of now, easing off
+// to 40% three hours away (the clouds will have moved by then, so the model carries more of the picture)
+const satW=t=>{const dm=Math.abs(t-Date.now())/6e4,w=Math.max(.4,Math.min(1,1-(dm-30)/160*.6));return`&sw=${w.toFixed(2)}&sb=${Math.floor(Date.now()/6e5)}`};
 async function attachOcean(gen){
   let m;try{m=await gfsManifest()}catch(e){return}if(gen!==radarGen||!m||!m.hours||m.v!==4)return;
   const run=Date.parse(m.run.replace(/Z$/,":00Z"));
@@ -2353,7 +2390,7 @@ async function attachOcean(gen){
     const t=Math.round(f.t/9e5)*9e5,fh=(t-run)/36e5;if(fh<hs[0]-1.5||fh>hs[hs.length-1]+1.5)continue;
     let h0=hs[0],h1=null;for(const h of hs){if(h<=fh)h0=h;else{h1=h;break}}
     const w=h1==null||fh<=h0?0:Math.round((fh-h0)/(h1-h0)*100)/100;
-    f.ocn={id:`ocn-${m.cycle}-${h0}-${w}-${fl}`,src:`wxm://{z}/{x}/{y}?nz=${m.maxzoom||4}&f=${fl}&u=${tu(h0)}`+(w>0?`&u2=${tu(h1)}&w=${w}`:""),opts:{opacity:0,maxzoom:13,bounds:m.bounds,attr:"GFS model (NOAA)"}}}
+    f.ocn={id:`ocn-${m.cycle}-${h0}-${w}-${fl}`,src:`wxm://{z}/{x}/{y}?nz=${m.maxzoom||4}&f=${fl}&u=${tu(h0)}`+(w>0?`&u2=${tu(h1)}&w=${w}`:"")+satW(f.t),opts:{opacity:0,maxzoom:13,bounds:m.bounds,attr:"GFS model (NOAA)"}}}
   $("#mapSrc").textContent+=" · ocean: model";showFrame(fi);updateLegend();buildBlankets()}
 // keep radar frames just under the other overlays (alerts, aviation, turbulence, lightning…)
 function radarAnchor(){const L2=map.getStyle().layers;for(const l of L2)if(/^(gtg|lightning|fires|fireout|smoke-|ptype|alerts-|sigmet|gairmet|cwa|turb-|metar|pirep)/.test(l.id))return l.id;return beforeLabels()}
@@ -2966,7 +3003,7 @@ function onMapClick(e){
 function updateLegend(){
   const us=isCONUS(place),rows=[];
   if(L.radar)rows.push(`<div class="lg">Light <i style="background:linear-gradient(90deg,${BANDS.map((b,k)=>`${b[1]} ${k/BANDS.length*100}% ${(k+1)/BANDS.length*100}%`).join(",")})"></i>Heavy</div>`);
-  if(L.radar&&(L.ocean||L.oclouds)&&frames.some(f=>f.ocn))rows.push(`<div class="lgn">Beyond radar: ${L.ocean&&L.oclouds&&!(L.ir||L.vis)?"rain & clouds":L.ocean?"rain":"clouds"} from the GFS model</div>`);
+  if(L.radar&&(L.ocean||L.oclouds)&&frames.some(f=>f.ocn))rows.push(`<div class="lgn">Beyond radar: ${L.ocean&&L.oclouds&&!(L.ir||L.vis)?"rain & clouds":L.ocean?"rain":"clouds"} from the GFS model${L.ocean?", detail from satellite":""}</div>`);
   extraLegend(us,rows);
   if(us&&L.mrms)rows.push(`<div class="lg">Rain <i style="background:linear-gradient(90deg,#00d0a0,#00a000,#ffff00,#ff9000,#ff0000,#c000c0)"></i>${S.rain==="in"?"→ 4+ in":"→ 100+ mm"}</div>`);
   if(us&&L.turb&&G.man){const t=G.man.times,ti=G.ti,v=Date.parse(t[ti].valid),[l,m,sv,x]=EDR_T[G.ac];
