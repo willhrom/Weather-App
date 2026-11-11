@@ -163,6 +163,34 @@ body.mapopen .tabbar{display:none}
 .bgrid{display:grid;grid-template-columns:38px minmax(0,1fr);gap:5px 8px;align-items:center;margin-top:10px;padding-top:10px;border-top:1px solid var(--line);font-size:11px;color:var(--faint)}
 .bstrip{display:grid;grid-template-columns:repeat(24,1fr);gap:2px;height:8px}.bstrip i{border-radius:2px;background:rgba(255,255,255,.05)}
 .bticks{display:flex;justify-content:space-between;font:500 10px 'JetBrains Mono',monospace;color:var(--faint);grid-column:2;margin-top:1px}
+/* sky tab */
+.sunhero{display:flex;align-items:flex-end;justify-content:space-between;gap:12px}
+.sunhero .big{font:500 30px/1 'JetBrains Mono',monospace;letter-spacing:-.03em;color:var(--text)}
+.sunhero .k{font-size:12px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--faint);margin-bottom:6px}
+.sunhero .in{font-size:13px;color:var(--muted);margin-top:5px}
+.sunhero .side{text-align:right;font-size:13px;color:var(--muted);line-height:1.5}.sunhero .side b{color:var(--text);font-weight:600}
+.lband{position:relative;height:30px;margin:16px 0 4px;border-radius:9px;overflow:hidden;background:#07101e}
+.lband i{position:absolute;top:0;bottom:0}
+.lband .lnow{position:absolute;top:-3px;bottom:-3px;width:2px;margin-left:-1px;background:#fff;border-radius:1px;box-shadow:0 0 6px rgba(255,255,255,.7)}
+.lticks{position:relative;height:14px;font:500 10.5px 'JetBrains Mono',monospace;color:var(--faint)}.lticks span{position:absolute;transform:translateX(-50%)}
+.lticks span:first-child{transform:none}.lticks span:last-child{transform:translateX(-100%)}
+.lkey{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:11px;color:var(--muted);margin:8px 0 4px}.lkey i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+.srows{margin-top:8px}.srow{display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-top:1px solid var(--line);font-size:13.5px;color:var(--muted)}.srow b{color:var(--text);font-weight:600;font-variant-numeric:tabular-nums}
+.ssq{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.ssc{border:1px solid var(--line);border-radius:14px;padding:12px 12px 11px;background:rgba(255,255,255,.02)}
+.ssc .k{font-size:11.5px;color:var(--muted)}.ssc .tm{font:500 13px 'JetBrains Mono',monospace;color:var(--text);margin-top:2px}
+.ssc .sc{display:flex;align-items:baseline;gap:6px;margin-top:6px}.ssc .sc b{font:600 28px/1 'JetBrains Mono',monospace}.ssc .sc span{font-size:13px;font-weight:600}
+.ssc p{margin:6px 0 0;font-size:12px;line-height:1.4;color:var(--muted)}
+.cbars{display:grid;grid-template-columns:auto 1fr;gap:3px 6px;align-items:center;margin-top:9px;font-size:10px;color:var(--faint)}
+.cbars i{display:block;height:4px;border-radius:2px;background:rgba(140,190,255,.12);position:relative;overflow:hidden}.cbars i u{position:absolute;left:0;top:0;bottom:0;border-radius:2px;background:#9fb2c8}
+.sthero{display:flex;align-items:center;gap:14px}
+.sthero svg{width:58px;height:58px;flex:none}
+.sthero .lab{font-size:17px;font-weight:600;color:var(--text)}.sthero small{display:block;font-size:13px;color:var(--muted);margin-top:3px;line-height:1.4}
+.nstrip{display:grid;gap:2px;margin:16px 0 4px}
+.nstrip div{display:flex;flex-direction:column;align-items:center;gap:4px}
+.nstrip i{display:block;width:100%;height:26px;border-radius:4px;position:relative}
+.nstrip i em{position:absolute;left:50%;top:50%;width:7px;height:7px;margin:-3.5px 0 0 -3.5px;border-radius:50%;background:#e8ecf2;box-shadow:0 0 4px rgba(255,255,255,.6);opacity:.9}
+.nstrip span{font:500 9.5px 'JetBrains Mono',monospace;color:var(--faint);white-space:nowrap}
 .sshero{display:flex;align-items:center;gap:14px;margin-bottom:6px}.ssscore{font:700 30px/1 'JetBrains Mono',monospace;color:var(--text)}
 .sshero .lab{font-size:15px;font-weight:700;color:var(--text)}.sshero small{display:block;color:var(--faint);font-size:12.5px;margin-top:3px;line-height:1.35}
 .trow{display:grid;grid-template-columns:50px minmax(0,1fr);gap:8px;padding:6px 0;border-top:1px solid var(--line);font-size:13px;line-height:1.4;color:var(--muted)}
@@ -560,8 +588,10 @@ details.afd[open]>summary::after{content:"–"}
   <div class="panel"><div class="ph">10-day<span class="r">tap a day for details</span></div><div class="pb"><div id="daily"></div></div></div>
   </section>
   <section class="tab" data-tab="sky">
-  <div class="panel"><div class="ph">Sunset &amp; night sky<span class="r" id="ssNote"></span></div><div class="pb" id="sunsetq"><div class="err">Loading…</div></div></div>
-  <div class="panel"><div class="ph">Sky now<span class="r" id="skyNote">right now · heights AGL</span></div>
+  <div class="panel"><div class="ph">Sun<span class="r" id="sunNote"></span></div><div class="pb" id="sunp"><div class="err">Loading…</div></div></div>
+  <div class="panel"><div class="ph">Sunset &amp; sunrise<span class="r">color forecast</span></div><div class="pb" id="sunsetq"><div class="err">Loading…</div></div></div>
+  <div class="panel"><div class="ph">Stargazing<span class="r" id="starNote"></span></div><div class="pb" id="stars"><div class="err">Loading…</div></div></div>
+  <div class="panel"><div class="ph">Clouds overhead<span class="r" id="skyNote">now · height above ground</span></div>
     <div class="pb"><div class="skywrap"><canvas id="skyCv"></canvas></div><div id="skyInfo"><div class="err">Loading the sky…</div></div></div></div>
   <div class="panel" id="aptPanel" style="display:none"><div class="ph">Nearest airport<span class="r" id="aptDist"></span></div><div class="pb" id="apt"></div></div>
   <div class="panel afdx" id="afdAvn" style="display:none"></div>
@@ -1771,33 +1801,94 @@ function fogSentence(){try{const i0=hourIndex(),n=Math.min(W.hourly.time.length,
     const s0=start(1);if(s0<0||s0>18)return "";const e=end(s0),w=name(g.slice(s0,e>0?e:g.length));
     return `${w==="Fog"?"Fog":"The marine layer"} moves in around ${at(s0)}${e>0?` and clears around ${at(e)}`:""}.`}catch(e){return ""}}
 
-/* ---------- sunset quality and night sky ---------- */
-function renderSunsetQ(){const el=$("#sunsetq");if(!el||!W)return;try{
-  const h=W.hourly,now=nowWall(),lat=place.lat,lon=place.lon,nowU=now-off*1000;
-  let ssU=sunCross(lat,lon,nowU-30*6e4,-.833,-1,30);if(!ssU){el.innerHTML='<div class="err">No sunset today at this latitude.</div>';return}
-  const ss=ssU+off*1000,iAt=t=>{let k=0;while(k+1<h.time.length&&wall(h.time[k+1])<=t)k++;return k},k=iAt(ss);
-  const hi=h.cloud_cover_high[k]||0,mid=h.cloud_cover_mid[k]||0,lo=h.cloud_cover_low[k]||0,pp=h.precipitation_probability[k]||0;
-  // clouds high up catch the color; low clouds block the sun at the horizon
-  // thin high cloud lights up even when it covers most of the sky; thick mid cloud less so
-  const canvas=Math.min(1,(.6*hi+.8*mid)/100),shape=1-Math.min(1,Math.abs(canvas-.55)*1.6),block=1-.9*Math.max(0,(lo-20)/80);
-  let sc=(.25+.75*shape)*block;if(hi+mid<10&&lo<20)sc=.42;if(pp>=60)sc*=.5;
-  // rain clearing out just before sunset often lights up
-  const was=(h.precipitation[Math.max(0,k-3)]||0)+(h.precipitation[Math.max(0,k-2)]||0);if(was>0&&lo<50&&pp<40)sc=Math.min(1,sc+.2);
-  const score=Math.max(1,Math.round(sc*10)),lab=score>=8?"Spectacular":score>=6?"Good":score>=4?"Fair":"Poor",col=score>=8?"#ff9f43":score>=6?"#ffd54a":score>=4?"#9fb2c8":"#7d8ea3";
-  const why=hi+mid<10&&lo<20?"Clear skies: a clean glow, but no clouds to light up":lo>=70?"Low clouds are likely to block the sun near the horizon":
-    canvas>=.25&&lo<40?"High and mid clouds to catch the color, with a clear view under them":canvas>.85?"A thick cloud deck may mute the color":"Some clouds to catch the color";
-  const gU=sunCross(lat,lon,ssU-3*36e5,6,-1,4),bU=sunCross(lat,lon,ssU,-6,-1,3),ft=u=>u?fTime(u+off*1000):"—";
-  // night sky: cloud cover from 9 PM to 3 AM, and how much the moon lights things up
-  const n0=iAt(dayStart(ss)+21*36e5);let cc=0,nn=0;for(let i=n0;i<Math.min(h.time.length,n0+7);i++){cc+=h.cloud_cover[i]||0;nn++}cc=nn?cc/nn:100;
-  const M=moonIllum(ssU+4*36e5),ill=M.fraction,st=(1-cc/100)*(1-.6*ill),
-    stLab=cc>=75?"Poor":st>=.65?"Excellent":st>=.45?"Good":st>=.25?"Fair":"Poor",stWhy=cc>=75?"mostly cloudy":`${cc<20?"clear":cc<50?"partly cloudy":"mostly cloudy"}, ${ill>.75?"bright moon":ill>.35?"some moonlight":"dark sky"}`;
-  $("#ssNote").textContent=dayLbl(ss)==="Today"?"tonight":dayLbl(ss).toLowerCase();
-  const row=(k,v)=>`<div class="trow"><small>${k}</small><span>${v}</span></div>`;
-  el.innerHTML=`<div class="sshero"><div class="ssscore" style="color:${col}">${score}<span style="font-size:15px;color:var(--faint)">/10</span></div><div><div class="lab">${lab} sunset at ${fTime(ss)}</div><small>${why}.</small></div></div>`+
-    row("Gold",`Golden hour <b>${ft(gU)} – ${fTime(ss)}</b>`)+row("Blue",`Blue hour <b>${fTime(ss)} – ${ft(bU)}</b>`)+
-    row("Stars",`<b>${stLab}</b> for stargazing tonight · ${stWhy}`)+
-    `<div class="tfoot" style="margin-top:6px;font-size:11px;color:var(--faint)">Clouds at sunset: high ${Math.round(hi)}% · mid ${Math.round(mid)}% · low ${Math.round(lo)}%</div>`}
-  catch(e){el.innerHTML='<div class="err">Sunset outlook unavailable.</div>';console.error(e)}}
+/* ---------- sky tab: sun, sunset/sunrise color, stargazing ----------
+   Sun heights decide every boundary: golden hour is the sun between 6° up and 4° down, blue hour 4° to 6° down,
+   civil / nautical / astronomical twilight end at 6°, 12° and 18° down. */
+const SKYC={night:"#060d1a",astro:"#0d1b38",naut:"#182c58",civil:"#2b4a86",gold:"#f2a849",day:"#4f8fd6"};
+function lightKind(alt){return alt>=6?"day":alt>=-4?"gold":alt>=-6?"civil":alt>=-12?"naut":alt>=-18?"astro":"night"}
+// interpolate an hourly value to an exact (wall-clock) time
+function hAt(arr,t){const h=W.hourly;let k=0;while(k+1<h.time.length&&wall(h.time[k+1])<=t)k++;const t0=wall(h.time[k]),f=Math.max(0,Math.min(1,(t-t0)/36e5)),a=arr[k],b=arr[Math.min(k+1,arr.length-1)];return a==null?b:b==null?a:a+(b-a)*f}
+const dur=ms=>{const m=Math.round(ms/6e4);return m<60?`${m} min`:`${Math.floor(m/60)} h ${m%60} min`};
+function renderSunsetQ(){try{renderSunPanel()}catch(e){console.error(e);$("#sunp").innerHTML='<div class="err">Sun times unavailable.</div>'}
+  try{renderColor()}catch(e){console.error(e);$("#sunsetq").innerHTML='<div class="err">Color forecast unavailable.</div>'}
+  try{renderStars()}catch(e){console.error(e);$("#stars").innerHTML='<div class="err">Stargazing outlook unavailable.</div>'}}
+function renderSunPanel(){const el=$("#sunp");if(!el||!W)return;
+  const lat=place.lat,lon=place.lon,now=nowWall(),d0=dayStart(now),U0=d0-off*1000,ft=u=>u?fTime(u+off*1000):"—",
+    rise=sunCross(lat,lon,U0,-.833,1,24),set=sunCross(lat,lon,U0,-.833,-1,24),nowU=now-off*1000;
+  // the next sunrise or sunset, whichever comes first
+  const nR=sunCross(lat,lon,nowU,-.833,1,30),nS=sunCross(lat,lon,nowU,-.833,-1,30),nextIsSet=nS&&(!nR||nS<nR),nx=nextIsSet?nS:nR,other=nextIsSet?nR:nS;
+  const up=sunAlt(lat,lon,nowU)>-.833;
+  // the light through today, minute by minute, merged into bands
+  const segs=[];let cur=null;for(let m=0;m<=1440;m+=4){const k=lightKind(sunAlt(lat,lon,U0+m*6e4));if(!cur||cur.k!==k){cur&&(cur.b=m);cur={k,a:m,b:1440};segs.push(cur)}}
+  const pc=m=>(m/1440*100).toFixed(2)+"%",nowM=(now-d0)/6e4;
+  const band=segs.map(g=>`<i style="left:${pc(g.a)};width:calc(${pc(g.b-g.a)} + 1px);background:${SKYC[g.k]}"></i>`).join("");
+  // morning and evening golden / blue hours, and true darkness
+  const g1=sunCross(lat,lon,U0,-4,1,14),g2=sunCross(lat,lon,U0,6,1,14),e1=sunCross(lat,lon,U0+12*36e5,6,-1,12),e2=sunCross(lat,lon,U0+12*36e5,-4,-1,12),b2=sunCross(lat,lon,U0+12*36e5,-6,-1,12),
+    dk=sunCross(lat,lon,U0+12*36e5,-18,-1,12),dkE=sunCross(lat,lon,(dk||U0+20*36e5),-18,1,14);
+  const len=rise&&set?set-rise:0,yR=sunCross(lat,lon,U0-864e5,-.833,1,24),yS=sunCross(lat,lon,U0-864e5,-.833,-1,24),dd=yR&&yS&&len?Math.round((len-(yS-yR))/6e4):null;
+  $("#sunNote").textContent=len?`${Math.floor(len/36e5)} h ${Math.round(len%36e5/6e4)} min of daylight`+(dd!=null?` · ${dd>=0?"+":"−"}${Math.abs(dd)} min`:""):"";
+  const row=(k,v)=>`<div class="srow"><span>${k}</span><b>${v}</b></div>`;
+  el.innerHTML=`<div class="sunhero"><div><div class="k">${nextIsSet?"Sunset":"Sunrise"}${dayLbl(nx+off*1000)==="Today"?"":" "+dayLbl(nx+off*1000).toLowerCase()}</div><div class="big">${ft(nx)}</div><div class="in">in ${dur(nx-nowU)}</div></div>
+    <div class="side">${nextIsSet?"Sunrise":"Sunset"} <b>${ft(other)}</b><br>${up?"Sun is up":"Sun is down"} · ${Math.round(sunAlt(lat,lon,nowU))}°</div></div>
+    <div class="lband">${band}<span class="lnow" style="left:${pc(nowM)}"></span></div>
+    <div class="lticks">${[[0,"12a"],[360,"6a"],[720,"noon"],[1080,"6p"],[1440,"12a"]].map(([m,t])=>`<span style="left:${pc(m)}">${t}</span>`).join("")}</div>
+    <div class="lkey"><span><i style="background:${SKYC.day}"></i>Day</span><span><i style="background:${SKYC.gold}"></i>Golden hour</span><span><i style="background:${SKYC.civil}"></i>Blue hour</span><span><i style="background:${SKYC.naut}"></i>Twilight</span><span><i style="background:${SKYC.night};border:1px solid #23324a"></i>Dark</span></div>
+    <div class="srows">${row("Morning golden hour",g1&&g2?`${ft(g1)} – ${ft(g2)}`:"—")}${row("Evening golden hour",e1&&e2?`${ft(e1)} – ${ft(e2)}`:"—")}${row("Blue hour",e2&&b2?`${ft(e2)} – ${ft(b2)}`:"—")}${row("Fully dark",dk?`${ft(dk)} – ${ft(dkE)}`:"no full darkness")}</div>`}
+/* Sunset / sunrise color: what makes a good one is cloud HIGH up to catch the light (cirrus, altocumulus) with a
+   clear gap at the horizon for the sun to shine through. A blanket of low cloud blocks it; a perfectly clear sky
+   gives a clean glow but nothing to light up; rain clearing out just before often gives the best shows. */
+function colorScore(tU){const t=tU+off*1000,h=W.hourly,hi=hAt(h.cloud_cover_high,t)||0,mid=hAt(h.cloud_cover_mid,t)||0,lo=hAt(h.cloud_cover_low,t)||0,pp=hAt(h.precipitation_probability,t)||0,
+    rh=h.relative_humidity_2m?hAt(h.relative_humidity_2m,t)||0:60,vis=h.visibility?hAt(h.visibility,t):null,pr=hAt(h.precipitation,t)||0;
+  const canvas=Math.min(1,(.65*hi+.8*mid)/100),shape=1-Math.min(1,Math.abs(canvas-.5)*1.7),block=1-.92*Math.max(0,(lo-15)/85);
+  let sc=(.22+.78*shape)*block;
+  if(hi+mid<10&&lo<20)sc=.4;                                   // clear: a clean glow, no more
+  if(pr>.2||pp>=70)sc*=.35;else if(pp>=45)sc*=.7;               // raining at the time
+  if(rh>=92||(vis!=null&&vis<5000))sc*=.75;                    // murky, hazy air mutes it
+  const before=hAt(h.precipitation,t-2*36e5)+hAt(h.precipitation,t-36e5);if(before>.1&&pr<.05&&lo<55&&pp<40)sc=Math.min(1,sc+.2);  // rain clearing out
+  const score=Math.max(1,Math.min(10,Math.round(sc*10))),lab=score>=8?"Vivid":score>=6?"Good":score>=4?"Fair":"Poor",col=score>=8?"#ff9f43":score>=6?"#ffd54a":score>=4?"#b4c3d4":"#7d8ea3";
+  const why=pr>.2||pp>=70?"Rain likely, little or no color":lo>=70?"Low clouds will likely hide the sun at the horizon":hi+mid<10&&lo<20?"Clear sky: a clean glow, nothing to light up":
+    before>.1&&pr<.05&&lo<55?"Clearing after rain, often the best shows":canvas>=.25&&lo<40?"High clouds to catch the color, a clear view under them":canvas>.85?"Thick cloud may mute the color":"A few clouds to catch the color";
+  return{score,lab,col,why,hi,mid,lo}}
+function renderColor(){const el=$("#sunsetq");if(!el||!W)return;const lat=place.lat,lon=place.lon,nowU=nowWall()-off*1000;
+  const nS=sunCross(lat,lon,nowU-20*6e4,-.833,-1,30),nR=sunCross(lat,lon,nowU-20*6e4,-.833,1,30),ev=[[nS,"Sunset"],[nR,"Sunrise"]].filter(x=>x[0]).sort((a,b)=>a[0]-b[0]);
+  if(!ev.length){el.innerHTML='<div class="err">The sun doesn\'t rise or set here today.</div>';return}
+  el.innerHTML=`<div class="ssq">${ev.map(([u,n])=>{const c=colorScore(u),t=u+off*1000,d=dayLbl(t);
+    const bar=(k,v)=>`<span>${k}</span><i><u style="width:${Math.round(v)}%"></u></i>`;
+    return `<div class="ssc"><div class="k">${n} ${d==="Today"?(n==="Sunset"?"tonight":"today"):d.toLowerCase()}</div><div class="tm">${fTime(t)}</div>
+      <div class="sc"><b style="color:${c.col}">${c.score}</b><span style="color:${c.col}">${c.lab}</span></div><p>${c.why}.</p>
+      <div class="cbars">${bar("High",c.hi)}${bar("Mid",c.mid)}${bar("Low",c.lo)}</div></div>`}).join("")}</div>`}
+/* Stargazing: hour by hour from dusk to dawn. What spoils it, in order: cloud, the moon when it is up (by how full
+   it is and how high), and twilight before the sky is fully dark. */
+function renderStars(){const el=$("#stars");if(!el||!W)return;const lat=place.lat,lon=place.lon,h=W.hourly,now=nowWall(),nowU=now-off*1000;
+  // tonight runs from this evening's sunset (or now, after dark) to tomorrow's sunrise
+  const upNow=sunAlt(lat,lon,nowU)>-.833,ssU=upNow?sunCross(lat,lon,nowU,-.833,-1,24):nowU,srU=ssU?sunCross(lat,lon,ssU+6e4,-.833,1,24):null;
+  if(!ssU||!srU){el.innerHTML='<div class="err">No night here today.</div>';return}
+  const t0=Math.ceil((ssU+off*1000)/36e5)*36e5,t1=srU+off*1000,hrs=[];
+  for(let t=t0;t<t1;t+=36e5){const u=t-off*1000,sa=sunAlt(lat,lon,u),ma=moonAlt(u,lat,lon)*180/Math.PI,ill=moonIllum(u).fraction,cc=hAt(h.cloud_cover,t)||0;
+    const dark=sa<=-18?1:sa>=-12?.15:.15+.85*(-12-sa)/6,moon=ma>0?1-.75*ill*Math.min(1,(ma+3)/25):1,clear=Math.pow(1-cc/100,1.3);
+    hrs.push({t,cc,sa,ma,ill,dark,moon,v:clear*moon*dark})}
+  if(!hrs.length){el.innerHTML='<div class="err">No dark hours tonight.</div>';return}
+  const col=v=>v>=.7?"#3ddc97":v>=.5?"#8be0a6":v>=.3?"#ffd54a":"#2a3446";
+  // the best stretch: consecutive hours within reach of the best hour
+  const best=Math.max(...hrs.map(x=>x.v));let a=-1,b=-1;
+  if(best>=.3){const k=hrs.findIndex(x=>x.v===best);a=k;b=k;while(a>0&&hrs[a-1].v>=Math.max(.3,best-.15))a--;while(b<hrs.length-1&&hrs[b+1].v>=Math.max(.3,best-.15))b++}
+  const lab=best>=.7?"Excellent":best>=.5?"Good":best>=.3?"Fair":"Poor",lc=col(best);
+  const cAvg=hrs.reduce((s,x)=>s+x.cc,0)/hrs.length,M=moonIllum(nowU+6*36e5),mUp=hrs.filter(x=>x.ma>0).length;
+  const T=moonTimes(dayStart(now)-off*1000,lat,lon),T2=moonTimes(dayStart(now)+864e5-off*1000,lat,lon),mt=(Tq,base)=>Tq==null?null:base+Tq*36e5;
+  const T0=moonTimes(dayStart(now)-864e5-off*1000,lat,lon),evs=[[T0,-864e5],[T,0],[T2,864e5]].flatMap(([q,o])=>[["r",mt(q.rise,dayStart(now)+o)],["s",mt(q.set,dayStart(now)+o)]]).filter(x=>x[1]).sort((x,y)=>x[1]-y[1]);
+  const mUpNow=moonAlt(nowU,lat,lon)>0,nextSet=evs.find(x=>x[0]==="s"&&x[1]>now),nextRise=evs.find(x=>x[0]==="r"&&x[1]>now),setAfter=nextRise&&evs.find(x=>x[0]==="s"&&x[1]>nextRise[1]);
+  const dl=t=>{const d=dayLbl(t);return fTime(t)+(d==="Today"?"":d==="Tomorrow"?" tomorrow":" "+d)};
+  const moonRow=mUpNow?["Moon is up now",nextSet?"sets "+dl(nextSet[1]):"—"]:["Moon next up",nextRise?`${dl(nextRise[1])} – ${setAfter?fTime(setAfter[1]):"—"}`:"—"];
+  const why=best<.3?(cAvg>=70?"Cloudy most of the night":M.fraction>.6&&mUp>hrs.length*.6?"A bright moon washes out the stars":"Clouds and moonlight get in the way"):
+    [b>=0?`Best <b>${fClock(hrs[a].t)} – ${fClock(hrs[b].t+36e5)}</b>`:"",hrs.slice(a,b+1).every(x=>x.ma<=0)?"moon down":M.fraction<.25?"faint moon":"moon up",
+     cAvg<20?"clear":cAvg<50?"some cloud":"cloudy at times"].filter(Boolean).join(" · ");
+  $("#starNote").textContent=fDay(t0)==fDay(now)?"tonight":fDay(t0).toLowerCase();
+  const strip=`<div class="nstrip" style="grid-template-columns:repeat(${hrs.length},minmax(0,1fr))">${hrs.map((x,k)=>`<div><i style="background:${col(x.v)}${k>=a&&k<=b&&a>=0?";outline:1.5px solid #fff;outline-offset:-1.5px":""}" title="${Math.round(x.cc)}% cloud">${x.ma>0?`<em style="opacity:${(.35+.65*x.ill).toFixed(2)}"></em>`:""}</i>${k%2===0?`<span>${fClock(x.t).replace(" AM","a").replace(" PM","p").replace("midnight","12a")}</span>`:"<span>&nbsp;</span>"}</div>`).join("")}</div>`;
+  el.innerHTML=`<div class="sthero">${moonSVG(M.phase,M.fraction,lat<0)}<div><div class="lab" style="color:${lc}">${lab}</div><small>${why}.</small></div></div>${strip}
+    <div class="lkey"><span><i style="background:#3ddc97"></i>Great</span><span><i style="background:#ffd54a"></i>Fair</span><span><i style="background:#2a3446"></i>Poor</span><span><i style="background:#e8ecf2;border-radius:50%"></i>Moon up</span></div>
+    <div class="srows"><div class="srow"><span>${phaseName(M.phase)}</span><b>${Math.round(M.fraction*100)}% lit</b></div>
+    <div class="srow"><span>${moonRow[0]}</span><b>${moonRow[1]}</b></div>
+    <div class="srow"><span>Next full · new moon</span><b>${fMD((nextPhase(.5)||0)+off*1000)} · ${fMD((nextPhase(0)||0)+off*1000)}</b></div></div>`}
 
 /* ---------- best time finder ---------- */
 // each activity: the conditions that matter, as [what, value this hour, fine up to, unusable at, how it reads, what's ideal]
@@ -3275,7 +3366,7 @@ function drawSky(){
   const ticks=(S.temp==="F"?[1000,3000,5000,10000,20000,30000].map(f=>[f/3.281,(f/1000)+"k"]):[[500,".5"],[1000,"1km"],[2000,"2"],[4000,"4"],[6000,"6"],[9000,"9"]]).map(([m,t])=>[m+EL,t]);
   g.font="500 11px 'JetBrains Mono',monospace";g.textBaseline="middle";
   ticks.forEach(([m,t])=>{const y=Y(m);g.strokeStyle="rgba(140,190,255,.07)";g.beginPath();g.moveTo(L0,y);g.lineTo(Wc-R0,y);g.stroke();g.fillStyle="#8597b3";g.textAlign="right";g.fillText(t,L0-6,y)});
-  g.save();g.translate(10,T0+ph/2);g.rotate(-Math.PI/2);g.textAlign="center";g.fillStyle="#8597b3";g.font="600 10px 'Inter Tight',sans-serif";g.fillText(S.temp==="F"?"FEET AGL":"KM AGL",0,0);g.restore();
+  g.save();g.translate(10,T0+ph/2);g.rotate(-Math.PI/2);g.textAlign="center";g.fillStyle="#8597b3";g.font="600 10px 'Inter Tight',sans-serif";g.fillText(S.temp==="F"?"FEET ABOVE GROUND":"KM ABOVE GROUND",0,0);g.restore();
   // current layers; precipitation over the next hour decides the rain source
   const lay=nowLayers(),gy0=Y(EL),used=new Set(),later=[],precip=[];SKY.used=used;
   const pr=(SKY.pr[0]||0),wc=Math.max(SKY.wc[0]||0,SKY.wc[1]||0),src=pr>=.05&&lay.length?(lay.find(l=>l.c>=50)||lay[0]):null,storm=wc>=95,snow=isSnowCode(wc)||(SKY.fz[0]!=null&&SKY.fz[0]-EL<250);
@@ -3333,15 +3424,14 @@ function skyInfo(){
   const k=0,col=SKY.lv[0],lay=nowLayers(),t=SKY.t[0],spread=SKY.tmp[k]-SKY.dew[k],base=Number.isFinite(spread)?Math.max(0,spread*125):null;
   const wc=SKY.wc[k]||0,wet=SKY.pr[k]>=.05,src=wet&&lay.length?(lay.find(l=>l.c>=50)||lay[0]):null;
   const what=wc>=95?"Thunderstorms":isSnowCode(wc)?"Snow":"Rain";
-  let h=`<div class="skyhead"><b>${k===0?"Now":fDay(t)+" "+fTime(t)}</b><span>${lay.length?`${lay.length} layer${lay.length>1?"s":""}`:"No significant clouds"}</span></div>`;
+  let h=lay.length?"":`<div class="skyhead"><b>Clear above</b><span>no significant clouds</span></div>`;
   h+=lay.slice().reverse().map(l=>{const cat=coverCat(l.c),type=cloudType(l.base-SKY.elev,cat,l===src,wc>=95);
     return `<div class="lyr"><span class="ci"><img src="${cloudIcon(type,l===src)}" alt=""></span><span class="rg"><b>${{FEW:"Few",SCT:"Scattered",BKN:"Broken",OVC:"Overcast"}[cat]}</b> ${CTYPE[type].toLowerCase()} at ${fmtAltM(l.base-SKY.elev)}${l.rep?` <small style="color:#ffc94d">· reported</small>`:""}</span><span class="pc">${l===src?`<em>${what} from here</em>`:""}</span></div>`}).join("");
   if(wet&&!src)h+=`<div class="lyr"><span class="ci"></span><span class="rg">${what} expected</span><span class="pc"></span></div>`;
-  h+=`<div class="tbl" style="margin-top:6px">`+
-    `<div class="tr"><span>Freezing level</span><b>${fmtAltM(SKY.fz[k])} MSL</b></div>`+
-    (skyMetar()?"":`<div class="tr"><span>Est. cumulus base</span><b>${base==null?"--":fmtAGL(base)}</b></div>`)+
-    (k===0&&METAR&&METAR.clouds&&METAR.clouds.length?`<div class="tr"><span>Reported at ${esc(METAR.icaoId)}</span><b>${METAR.clouds.map(c=>esc(c.cover)+(c.base!=null?" "+(S.temp==="F"?(c.base/1000).toFixed(1).replace(".0","")+"k":Math.round(c.base*.3048)+"m"):"")).join(" · ")}</b></div>`:"")+`</div>`+
-    `<div class="skykey">${[...(SKY.used||[])].sort().map(u=>{const t=u.replace("*","");return `<span class="ki"><img src="${cloudIcon(t,u.endsWith("*"))}" alt="">${CTYPE[t]}${u.endsWith("*")?" (rain)":""}</span>`}).join("")}<span><i></i>Freezing level</span>${METAR?'<span style="color:#ffc94d">▸ airport-reported</span>':""}</div>`;
+  const fzAGL=SKY.fz[k]!=null?SKY.fz[k]-SKY.elev:null;
+  h+=`<div class="srows">`+
+    `<div class="srow"><span>Freezing level <small style="color:var(--faint)">(dashed line)</small></span><b>${fzAGL==null?"--":fzAGL<150?"at the ground":fmtAltM(fzAGL)}</b></div>`+
+    (skyMetar()?`<div class="srow"><span>Low clouds <small style="color:#ffc94d">▸</small> reported by</span><b>${esc(METAR.icaoId)}, ${Math.round(METAR.km*.621)} mi</b></div>`:`<div class="srow"><span>Puffy cloud bases form near</span><b>${base==null?"--":fmtAltM(base)}</b></div>`)+`</div>`;
   $("#skyInfo").innerHTML=h;
 }
 addEventListener("resize",()=>{if(TAB==="sky")drawSky()});
