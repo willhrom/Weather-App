@@ -176,6 +176,7 @@ body.mapopen .tabbar{display:none}
 .lticks span:first-child{transform:none}.lticks span:last-child{transform:translateX(-100%)}
 .lkey{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:11px;color:var(--muted);margin:8px 0 4px}.lkey i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}
 .srows{margin-top:8px}.srow{display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-top:1px solid var(--line);font-size:13.5px;color:var(--muted)}.srow b{color:var(--text);font-weight:600;font-variant-numeric:tabular-nums}
+.suntalk{margin:12px 0 0;font-size:14px;line-height:1.5;color:#b4c3d4}
 .ssq{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .ssc{border:1px solid var(--line);border-radius:14px;padding:12px 12px 11px;background:rgba(255,255,255,.02)}
 .ssc .k{font-size:11.5px;color:var(--muted)}.ssc .tm{font:500 13px 'JetBrains Mono',monospace;color:var(--text);margin-top:2px}
@@ -589,7 +590,6 @@ details.afd[open]>summary::after{content:"–"}
   </section>
   <section class="tab" data-tab="sky">
   <div class="panel"><div class="ph">Sun<span class="r" id="sunNote"></span></div><div class="pb" id="sunp"><div class="err">Loading…</div></div></div>
-  <div class="panel"><div class="ph">Sunset &amp; sunrise<span class="r">color forecast</span></div><div class="pb" id="sunsetq"><div class="err">Loading…</div></div></div>
   <div class="panel"><div class="ph">Stargazing<span class="r" id="starNote"></span></div><div class="pb" id="stars"><div class="err">Loading…</div></div></div>
   <div class="panel"><div class="ph">Clouds overhead<span class="r" id="skyNote">now · height above ground</span></div>
     <div class="pb"><div class="skywrap"><canvas id="skyCv"></canvas></div><div id="skyInfo"><div class="err">Loading the sky…</div></div></div></div>
@@ -1810,7 +1810,6 @@ function lightKind(alt){return alt>=6?"day":alt>=-4?"gold":alt>=-6?"civil":alt>=
 function hAt(arr,t){const h=W.hourly;let k=0;while(k+1<h.time.length&&wall(h.time[k+1])<=t)k++;const t0=wall(h.time[k]),f=Math.max(0,Math.min(1,(t-t0)/36e5)),a=arr[k],b=arr[Math.min(k+1,arr.length-1)];return a==null?b:b==null?a:a+(b-a)*f}
 const dur=ms=>{const m=Math.round(ms/6e4);return m<60?`${m} min`:`${Math.floor(m/60)} h ${m%60} min`};
 function renderSunsetQ(){try{renderSunPanel()}catch(e){console.error(e);$("#sunp").innerHTML='<div class="err">Sun times unavailable.</div>'}
-  try{renderColor()}catch(e){console.error(e);$("#sunsetq").innerHTML='<div class="err">Color forecast unavailable.</div>'}
   try{renderStars()}catch(e){console.error(e);$("#stars").innerHTML='<div class="err">Stargazing outlook unavailable.</div>'}}
 function renderSunPanel(){const el=$("#sunp");if(!el||!W)return;
   const lat=place.lat,lon=place.lon,now=nowWall(),d0=dayStart(now),U0=d0-off*1000,ft=u=>u?fTime(u+off*1000):"—",
@@ -1830,6 +1829,7 @@ function renderSunPanel(){const el=$("#sunp");if(!el||!W)return;
   const row=(k,v)=>`<div class="srow"><span>${k}</span><b>${v}</b></div>`;
   el.innerHTML=`<div class="sunhero"><div><div class="k">${nextIsSet?"Sunset":"Sunrise"}${dayLbl(nx+off*1000)==="Today"?"":" "+dayLbl(nx+off*1000).toLowerCase()}</div><div class="big">${ft(nx)}</div><div class="in">in ${dur(nx-nowU)}</div></div>
     <div class="side">${nextIsSet?"Sunrise":"Sunset"} <b>${ft(other)}</b><br>${up?"Sun is up":"Sun is down"} · ${Math.round(sunAlt(lat,lon,nowU))}°</div></div>
+    ${(()=>{try{const t=colorSentence();return t?`<p class="suntalk">${t}</p>`:""}catch(e){return""}})()}
     <div class="lband">${band}<span class="lnow" style="left:${pc(nowM)}"></span></div>
     <div class="lticks">${[[0,"12a"],[360,"6a"],[720,"noon"],[1080,"6p"],[1440,"12a"]].map(([m,t])=>`<span style="left:${pc(m)}">${t}</span>`).join("")}</div>
     <div class="lkey"><span><i style="background:${SKYC.day}"></i>Day</span><span><i style="background:${SKYC.gold}"></i>Golden hour</span><span><i style="background:${SKYC.civil}"></i>Blue hour</span><span><i style="background:${SKYC.naut}"></i>Twilight</span><span><i style="background:${SKYC.night};border:1px solid #23324a"></i>Dark</span></div>
@@ -1849,14 +1849,17 @@ function colorScore(tU){const t=tU+off*1000,h=W.hourly,hi=hAt(h.cloud_cover_high
   const why=pr>.2||pp>=70?"Rain likely, little or no color":lo>=70?"Low clouds will likely hide the sun at the horizon":hi+mid<10&&lo<20?"Clear sky: a clean glow, nothing to light up":
     before>.1&&pr<.05&&lo<55?"Clearing after rain, often the best shows":canvas>=.25&&lo<40?"High clouds to catch the color, a clear view under them":canvas>.85?"Thick cloud may mute the color":"A few clouds to catch the color";
   return{score,lab,col,why,hi,mid,lo}}
-function renderColor(){const el=$("#sunsetq");if(!el||!W)return;const lat=place.lat,lon=place.lon,nowU=nowWall()-off*1000;
-  const nS=sunCross(lat,lon,nowU-20*6e4,-.833,-1,30),nR=sunCross(lat,lon,nowU-20*6e4,-.833,1,30),ev=[[nS,"Sunset"],[nR,"Sunrise"]].filter(x=>x[0]).sort((a,b)=>a[0]-b[0]);
-  if(!ev.length){el.innerHTML='<div class="err">The sun doesn\'t rise or set here today.</div>';return}
-  el.innerHTML=`<div class="ssq">${ev.map(([u,n])=>{const c=colorScore(u),t=u+off*1000,d=dayLbl(t);
-    const bar=(k,v)=>`<span>${k}</span><i><u style="width:${Math.round(v)}%"></u></i>`;
-    return `<div class="ssc"><div class="k">${n} ${d==="Today"?(n==="Sunset"?"tonight":"today"):d.toLowerCase()}</div><div class="tm">${fTime(t)}</div>
-      <div class="sc"><b style="color:${c.col}">${c.score}</b><span style="color:${c.col}">${c.lab}</span></div><p>${c.why}.</p>
-      <div class="cbars">${bar("High",c.hi)}${bar("Mid",c.mid)}${bar("Low",c.lo)}</div></div>`}).join("")}</div>`}
+// the next sunset and sunrise in one forecaster's sentence: "Tonight's sunset should bring some nice color as high
+// clouds catch the light, while tomorrow's sunrise will likely be hidden behind low clouds."
+function colorSentence(){const lat=place.lat,lon=place.lon,nowU=nowWall()-off*1000;
+  const nS=sunCross(lat,lon,nowU-20*6e4,-.833,-1,30),nR=sunCross(lat,lon,nowU-20*6e4,-.833,1,30),ev=[[nS,"sunset"],[nR,"sunrise"]].filter(x=>x[0]).sort((a,b)=>a[0]-b[0]);if(!ev.length)return"";
+  const name=(u,n)=>{const d=dayLbl(u+off*1000),h=new Date(u+off*1000).getUTCHours();return d==="Today"?(n==="sunset"?(h>=17?"tonight's":"this evening's"):"this morning's"):d==="Tomorrow"?"tomorrow's":d+"'s"};
+  const say=c=>{if(c.why.startsWith("Rain"))return"looks washed out by rain";if(c.why.startsWith("Low clouds"))return"will likely be hidden behind low clouds";if(c.why.startsWith("Clear sky"))return"should be clean but plain, with no clouds to catch the light";
+    if(c.why.startsWith("Thick"))return"looks muted under thick cloud";const pre=c.score>=8?"could light up with vivid color":c.score>=6?"should bring some nice color":c.score>=4?"may show a little color":"doesn't look like much";
+    return pre+(c.why.startsWith("Clearing")?" as the rain clears out":c.why.startsWith("High")&&c.score>=4?" as high clouds catch the light":"")};
+  const[a,b]=ev.map(([u,n])=>({c:colorScore(u),n:name(u,n)+" "+n}));
+  const good=x=>x.c.score>=6;
+  return cap(a.n)+" "+say(a.c)+(b?(good(a)===good(b)?", and ":", while ")+b.n+" "+say(b.c):"")+"."}
 /* Stargazing: hour by hour from dusk to dawn. What spoils it, in order: cloud, the moon when it is up (by how full
    it is and how high), and twilight before the sky is fully dark. */
 function renderStars(){const el=$("#stars");if(!el||!W)return;const lat=place.lat,lon=place.lon,h=W.hourly,now=nowWall(),nowU=now-off*1000;
@@ -1879,9 +1882,12 @@ function renderStars(){const el=$("#stars");if(!el||!W)return;const lat=place.la
   const mUpNow=moonAlt(nowU,lat,lon)>0,nextSet=evs.find(x=>x[0]==="s"&&x[1]>now),nextRise=evs.find(x=>x[0]==="r"&&x[1]>now),setAfter=nextRise&&evs.find(x=>x[0]==="s"&&x[1]>nextRise[1]);
   const dl=t=>{const d=dayLbl(t);return fTime(t)+(d==="Today"?"":d==="Tomorrow"?" tomorrow":" "+d)};
   const moonRow=mUpNow?["Moon is up now",nextSet?"sets "+dl(nextSet[1]):"—"]:["Moon next up",nextRise?`${dl(nextRise[1])} – ${setAfter?fTime(setAfter[1]):"—"}`:"—"];
-  const why=best<.3?(cAvg>=70?"Cloudy most of the night":M.fraction>.6&&mUp>hrs.length*.6?"A bright moon washes out the stars":"Clouds and moonlight get in the way"):
-    [b>=0?`Best <b>${fClock(hrs[a].t)} – ${fClock(hrs[b].t+36e5)}</b>`:"",hrs.slice(a,b+1).every(x=>x.ma<=0)?"moon down":M.fraction<.25?"faint moon":"moon up",
-     cAvg<20?"clear":cAvg<50?"some cloud":"cloudy at times"].filter(Boolean).join(" · ");
+  const win=b>=0?`between <b>${fClock(hrs[a].t).replace(/ (AM|PM)$/,hrs[a].t%864e5<43200000===(hrs[b].t+36e5)%864e5<43200000?"":" $1")} and ${fClock(hrs[b].t+36e5)}</b>`:"",
+    moonDown=b>=0&&hrs.slice(a,b+1).every(x=>x.ma<=0),moonSet=moonDown&&hrs.slice(0,a).some(x=>x.ma>0),moonFaint=M.fraction<.25;
+  const why=best<.3?(cAvg>=70?"Clouds will likely hide the stars for most of the night":M.fraction>.6&&mUp>hrs.length*.6?"A bright moon washes out all but the brightest stars tonight":"Between the clouds and the moonlight, it's not a great night for stars"):
+    `${best>=.7?"It's a great night for stars":best>=.5?"Conditions look good for stargazing":"Stargazing is possible"}, best ${win}`+
+    (moonSet?", after the moon sets":moonDown?", with no moon in the sky":moonFaint?", with only a thin moon":", though the moon will be up")+
+    (cAvg<20?" and skies stay clear":cAvg<50?", though a few clouds may drift by":". Expect clouds at times");
   $("#starNote").textContent=fDay(t0)==fDay(now)?"tonight":fDay(t0).toLowerCase();
   const strip=`<div class="nstrip" style="grid-template-columns:repeat(${hrs.length},minmax(0,1fr))">${hrs.map((x,k)=>`<div><i style="background:${col(x.v)}${k>=a&&k<=b&&a>=0?";outline:1.5px solid #fff;outline-offset:-1.5px":""}" title="${Math.round(x.cc)}% cloud">${x.ma>0?`<em style="opacity:${(.35+.65*x.ill).toFixed(2)}"></em>`:""}</i>${k%2===0?`<span>${fClock(x.t).replace(" AM","a").replace(" PM","p").replace("midnight","12a")}</span>`:"<span>&nbsp;</span>"}</div>`).join("")}</div>`;
   el.innerHTML=`<div class="sthero">${moonSVG(M.phase,M.fraction,lat<0)}<div><div class="lab" style="color:${lc}">${lab}</div><small>${why}.</small></div></div>${strip}
@@ -2006,70 +2012,95 @@ const pKind=c=>c>=95?"storms":(c>=71&&c<=77)||c===85||c===86?"snow":c===66||c===
 const skyWord=c=>c<20?"sunny":c<45?"mostly sunny":c<70?"partly cloudy":c<88?"mostly cloudy":"cloudy";
 const joinAnd=a=>a.length<2?a.join(""):a.slice(0,-1).join(", ")+" and "+a[a.length-1];
 const cap=t=>t.charAt(0).toUpperCase()+t.slice(1),fClock=w=>{const d=new Date(w),h=d.getUTCHours();return h===0?"midnight":h===12?"noon":(h%12)+(h<12?" AM":" PM")};
-// one day in a few sentences: sky through the day, how the high compares, when it rains and how much, and wind/UV/frost only when they matter
+/* ---- forecast wording, the way a TV forecaster would say it ---- */
+const DIRW={N:"north",NNE:"north-northeast",NE:"northeast",ENE:"east-northeast",E:"east",ESE:"east-southeast",SE:"southeast",SSE:"south-southeast",S:"south",SSW:"south-southwest",SW:"southwest",WSW:"west-southwest",W:"west",WNW:"west-northwest",NW:"northwest",NNW:"north-northwest"};
+const windFrom=d=>d==null?"":DIRW[dirName(d)];
+// "the low 60s" / "the upper 40s" (Fahrenheit); "around 16°" in Celsius
+const tRange=v=>{const t=Math.round(S.temp==="F"?v:v);if(S.temp!=="F")return`around ${t}°`;const d=Math.floor(t/10)*10,r=t-d;return`the ${r<=3?"low":r<=6?"mid":"upper"} ${d}s`};
+// rain amounts in words
+const rainWords=v=>{if(S.rain!=="in")return v<1?"less than a millimeter":`around ${Math.round(v)} mm`;   // v is already in the units the user picked
+  return v<.04?"just a few hundredths of an inch":v<.08?"less than a tenth of an inch":v<.15?"around a tenth of an inch":v<.21?"a couple of tenths of an inch":v<.32?"about a quarter of an inch":v<.42?"about a third of an inch":v<.62?"about half an inch":v<.85?"about three-quarters of an inch":v<1.2?"close to an inch":`around ${v.toFixed(1)} inches`};
+const hrWord=t=>{const h=new Date(t).getUTCHours();return h<5?"overnight":h<11?"in the morning":h<14?"around midday":h<17?"in the afternoon":h<21?"in the evening":"late at night"};
+const peakWord=t=>{const h=new Date(t).getUTCHours();return h<12?"by late morning":h<14?"by early afternoon":h<17?"by mid-afternoon":"late in the afternoon"};
+const skyNoun=c=>c<20?"sunshine":c<45?"mostly sunny skies":c<70?"a mix of sun and clouds":c<88?"mostly cloudy skies":"cloudy skies";
 function daySummary(j){
   const d=W.daily,h=W.hourly,date=d.time[j],ti=todayIndex(),idx=[];h.time.forEach((t,k)=>{if(t.slice(0,10)===date)idx.push(k)});if(!idx.length)return wxText(d.weather_code[j])+".";
   const hr=i=>+h.time[i].slice(11,13),avg=a=>{a=a.filter(v=>v!=null);return a.length?a.reduce((x,y)=>x+y,0)/a.length:null},F=S.temp==="F",out=[],code=d.weather_code[j],kind=pKind(code);
+  const isToday=j===ti,isTmr=j===ti+1,dname=isToday?"today":isTmr?"tomorrow":dayLong(date+"T12:00");
   // sky, by part of the day
-  const part=(a,b)=>avg(idx.filter(i=>hr(i)>=a&&hr(i)<b).map(i=>(h.cloud_cover||[])[i])),am=part(7,12),pm=part(12,18),ev=part(18,23);
-  if(code===45||code===48)out.push("Fog at times"+(pm!=null&&pm<45?", then sun in the afternoon":""));
-  else if(am!=null&&pm!=null){const a=skyWord(am),b=skyWord(pm),rank=c=>c<20?0:c<45?1:c<70?2:c<88?3:4,df=rank(pm)-rank(am);
-    if(Math.abs(df)<2){const all=skyWord((am+pm)/2);out.push(cap(all)+(ev!=null&&Math.abs(rank(ev)-rank((am+pm)/2))>=2?`, turning ${skyWord(ev).replace("sunny","clear")} in the evening`:all==="sunny"||all==="cloudy"?" all day":""))}
-    else out.push(df<0?`${cap(a)} morning, ${b==="sunny"?"clearing to sun":"brightening to "+b} in the afternoon`:`${cap(a)} morning, clouds build to ${b} by afternoon`)}
+  const part=(a,b)=>avg(idx.filter(i=>hr(i)>=a&&hr(i)<b).map(i=>(h.cloud_cover||[])[i])),am=part(7,12),pm=part(12,18),ev=part(18,23),rank=c=>c<20?0:c<45?1:c<70?2:c<88?3:4;
+  if(code===45||code===48)out.push(pm!=null&&pm<45?"Morning fog burns off to give way to "+skyNoun(pm)+" in the afternoon":"Fog hangs around for much of the day");
+  else if(am!=null&&pm!=null){const df=rank(pm)-rank(am),mid=(am+pm)/2;let sky;
+    const evChg=ev!=null&&Math.abs(rank(ev)-rank(pm))>=2;
+    if(Math.abs(df)<2)sky=evChg?`Expect ${skyNoun(mid)} through the afternoon`:rank(mid)===0?"Expect sunshine from start to finish":rank(mid)===4?"Expect a gray, cloudy day":`Expect ${skyNoun(mid)}`;
+    else if(df<0)sky=`Clouds in the morning give way to ${skyNoun(pm)} by the afternoon`;
+    else sky=`The day starts ${rank(am)===0?"sunny":rank(am)===1?"mostly sunny":"with a mix of sun and clouds"}, but clouds build in by the afternoon`;
+    if(evChg)sky+=rank(ev)<rank(pm)?", then skies clear out in the evening":", with clouds thickening in the evening";
+    out.push(sky)}
   else out.push(wxText(code));
-  // temperature against the day before
-  const hi=d.temperature_2m_max[j],lo=d.temperature_2m_min[j],T=idx.map(i=>h.temperature_2m[i]),kx=T.indexOf(Math.max(...T.filter(v=>v!=null)));let ts=`High <b>${U.t(hi)}</b>${kx>=0?` around ${fClock(wall(h.time[idx[kx]]))}`:""}`;
-  if(j>0&&d.temperature_2m_max[j-1]!=null){const df=Math.round(hi-d.temperature_2m_max[j-1]),thr=F?4:2,prev=j===ti?"yesterday":j===ti+1?"today":dayLong(d.time[j-1]);
-    if(Math.abs(df)>=thr)ts+=`, <b>${Math.abs(df)}° ${df>0?"warmer":"cooler"}</b> than ${prev}`;else if(j!==ti)ts+=`, about the same as ${prev}`}
-  out.push(ts+`; low ${U.t(lo)}`);
+  // temperature: the high and when it comes, how it compares, and the low
+  const hi=d.temperature_2m_max[j],lo=d.temperature_2m_min[j],T=idx.map(i=>h.temperature_2m[i]),kx=T.indexOf(Math.max(...T.filter(v=>v!=null))),kn=T.indexOf(Math.min(...T.filter(v=>v!=null)));
+  let ts=j<=ti+1?`Highs reach <b>${U.t(hi)}</b>${kx>=0?" "+peakWord(wall(h.time[idx[kx]])):""}`:`Look for highs near <b>${U.t(hi)}</b>`;
+  if(j>0&&d.temperature_2m_max[j-1]!=null){const df=Math.round(hi-d.temperature_2m_max[j-1]),u=F?1:1.8,a=Math.abs(df)*u,prev=isToday?"yesterday":isTmr?"today":dayLong(d.time[j-1]+"T12:00"),w=df>0?"warmer":"cooler";
+    ts+=a>=12?`, much ${w} than ${prev}`:a>=7?`, noticeably ${w} than ${prev}`:a>=3?`, a few degrees ${w} than ${prev}`:isToday?"":`, close to ${prev}`}
+  ts+=kn>=0&&hr(idx[kn])>=18?`, before dropping to around <b>${U.t(lo)}</b> late at night`:`, after a morning low near <b>${U.t(lo)}</b>`;
+  out.push(ts);
   // rain: when, how much, how sure
-  const sumP=d.precipitation_sum[j]||0,ch=d.precipitation_probability_max[j]??0,P=idx.map(i=>h.precipitation[i]||0),PP=idx.map(i=>h.precipitation_probability[i]||0);
-  if(sumP>=wet()||ch>=30){let wk=[];P.forEach((v,k)=>{if(v>=wet()||PP[k]>=Math.max(40,ch-15))wk.push(k)});const K=cap(kind),hadAny=wk.length>0;
-    if(j===ti){const nw=nowWall()-36e5;wk=wk.filter(k=>wall(h.time[idx[k]])>=nw)}
-    if(hadAny&&!wk.length)out.push(`${K} has moved on; dry for the rest of the day`);
-    else if(wk.length){const a=wk[0],b=wk[wk.length-1],span=b-a+1,tm=k=>fClock(wall(h.time[idx[k]])),when=span>=18?"on and off all day":wk.length===1?`around ${tm(a)}`:`${tm(a)} to ${b+1<idx.length?tm(b+1):"midnight"}`;
-      let r=`${ch>=70?K+" likely":ch>=40?K+" possible":"A chance of "+kind} <b>${when}</b>`;if(sumP>=wet())r+=`, about <b>${U.r(sumP)} ${U.rl()}</b>`;
-      const kp=P.indexOf(Math.max(...P));if(sumP>=(S.rain==="in"?.25:6)&&span>=4&&P[kp]>0)r+=`, heaviest near ${tm(kp)}`;out.push(r)}
-    else out.push(`${ch}% chance of ${kind}${sumP>=wet()?`, about <b>${U.r(sumP)} ${U.rl()}</b>`:""}`)}
-  else if(ch>=15)out.push(`Slight chance of a ${kind==="snow"?"flurry":"shower"} (${ch}%)`);
-  else out.push("Dry");
+  const sumP=d.precipitation_sum[j]||0,ch=d.precipitation_probability_max[j]??0,P=idx.map(i=>h.precipitation[i]||0),PP=idx.map(i=>h.precipitation_probability[i]||0),noun=kind==="storms"?"thunderstorms":kind;
+  const ofN=noun==="rain"?"rain":noun==="snow"?"snow":noun==="storms"||noun==="thunderstorms"?"storms":noun;
+  if(sumP>=wet()||ch>=30){let wk=[];P.forEach((v,k)=>{if(v>=wet()||PP[k]>=Math.max(40,ch-15))wk.push(k)});const hadAny=wk.length>0;
+    if(isToday){const nw=nowWall()-36e5;wk=wk.filter(k=>wall(h.time[idx[k]])>=nw)}
+    const amt=sumP>=wet()?`, adding up to ${rainWords(sumP)}`:"",tm=k=>fClock(wall(h.time[idx[k]]));
+    if(hadAny&&!wk.length)out.push(`The ${ofN} has moved on, so the rest of the day stays dry`);
+    else if(wk.length){const a=wk[0],b=wk[wk.length-1],span=b-a+1,sure=ch>=70?"likely":ch>=40?"possible":"can't be ruled out",cap1=cap(noun==="storms"?"thunderstorms":noun);
+      const when=span>=18?"on and off through the day":wk.length===1?hrWord(wall(h.time[idx[a]])):`between ${tm(a)} and ${b+1<idx.length?tm(b+1):"midnight"}`;
+      let r=ch>=40?`${cap1} ${noun==="thunderstorms"||noun==="showers"?"are":"is"} ${sure} ${when}${amt}`:`A passing ${noun==="snow"?"snow shower":"shower"} can't be ruled out ${when}`;
+      const kp=P.indexOf(Math.max(...P));if(sumP>=(S.rain==="in"?.25:6)&&span>=4&&P[kp]>0)r+=`, heaviest ${hrWord(wall(h.time[idx[kp]]))==="overnight"?"in the early hours":"around "+tm(kp)}`;out.push(r)}
+    else out.push(`There's a ${ch}% chance of ${ofN}${amt}`)}
+  else if(ch>=15)out.push(`It stays mostly dry, with just a slight chance of a ${kind==="snow"?"flurry":"stray shower"}`);
+  else out.push("It stays dry");
   // wind only when you'd notice it
-  const g=d.wind_gusts_10m_max[j],gm=mphOf(g),wd=d.wind_direction_10m_dominant?d.wind_direction_10m_dominant[j]:null;
-  if(gm>=25){const G=idx.map(i=>(h.wind_gusts_10m||[])[i]??0),kg=G.indexOf(Math.max(...G));out.push(`${gm>=40?"Very windy":gm>=32?"Windy":"Breezy"}, gusts to <b>${U.w(g)} ${U.wl()}</b>${wd!=null?` from the ${dirName(wd)}`:""}${kg>=0&&!(j===ti&&wall(h.time[idx[kg]])<nowWall())?`, strongest near ${fClock(wall(h.time[idx[kg]]))}`:""}`)}
-  else if(gm&&gm<12)out.push("Light wind");
-  const uv=d.uv_index_max[j];if(uv>=8)out.push(`UV ${uv>=11?"extreme":"very high"} (${Math.round(uv)}) around midday`);
-  const loF=F?lo:lo*9/5+32;if(loF<=32)out.push(loF<=28?"Hard freeze overnight":"Frost likely by morning");else if(loF<=36)out.push("Patchy frost possible");
+  const g=d.wind_gusts_10m_max[j],gm=mphOf(g),wd=d.wind_direction_10m_dominant?d.wind_direction_10m_dominant[j]:null,wf=windFrom(wd);
+  if(gm>=25){const G=idx.map(i=>(h.wind_gusts_10m||[])[i]??0),kg=G.indexOf(Math.max(...G)),pk=kg>=0&&!(isToday&&wall(h.time[idx[kg]])<nowWall())?", "+hrWord(wall(h.time[idx[kg]])).replace("in the ","especially in the ").replace("around midday","especially around midday").replace(/^overnight$/,"especially overnight").replace("late at night","especially late at night"):"";
+    out.push(`${gm>=40?"A strong":gm>=32?"A gusty":"A breezy"} ${wf?wf+" ":""}wind gusts to <b>${U.w(g)} ${U.wl()}</b>${pk}`)}
+  else if(gm&&gm<12)out.push("Winds stay light");
+  const uv=d.uv_index_max[j];if(uv>=8)out.push(`The UV index climbs to ${uv>=11?"an extreme":"a very high"} ${Math.round(uv)} around midday, so cover up if you're outside`);
+  const loF=F?lo:lo*9/5+32;if(loF<=32)out.push(loF<=28?"A hard freeze is likely by morning, so protect pipes and plants":"Watch for frost by morning");else if(loF<=36)out.push("Patchy frost is possible early");
   return out.join(". ")+"."}
 // the whole stretch at a glance: when it rains, how temperatures move, the windiest day and the pick of the bunch
 function outlookHtml(){
   const d=W.daily,ti=todayIndex(),n=Math.min(10,d.time.length-ti),F=S.temp==="F";if(n<3)return"";
-  const js=[...Array(n)].map((_,k)=>ti+k),nm=j=>j===ti?"today":j===ti+1?"tomorrow":dayLong(d.time[j]),out=[];
+  const js=[...Array(n)].map((_,k)=>ti+k),nm=j=>j===ti?"today":j===ti+1?"tomorrow":dayLong(d.time[j]+"T12:00"),out=[];
   const isWet=j=>(d.precipitation_sum[j]||0)>=wet()*4&&(d.precipitation_probability_max[j]??0)>=35;
   // rain, as stretches of consecutive wet days
   const runs=[];js.forEach(j=>{if(!isWet(j))return;const r=runs[runs.length-1];if(r&&r.b===j-1)r.b=j;else runs.push({a:j,b:j})});
-  if(!runs.length){const mxp=Math.max(...js.map(j=>d.precipitation_probability_max[j]??0));out.push(`<b>Dry for the next ${n} days</b>${mxp>=20?`; the best chance of a shower is ${nm(js.find(j=>(d.precipitation_probability_max[j]??0)===mxp))} (${mxp}%)`:""}.`)}
+  if(!runs.length){const mxp=Math.max(...js.map(j=>d.precipitation_probability_max[j]??0));
+    out.push(`<b>Expect a dry stretch over the next ${n} days</b>.${mxp>=20?` The best chance of a stray shower is ${nm(js.find(j=>(d.precipitation_probability_max[j]??0)===mxp))}, at ${mxp}%.`:""}`)}
   else{const tot=r=>{let t=0;for(let j=r.a;j<=r.b;j++)t+=d.precipitation_sum[j]||0;return t},kinds=r=>{let k="rain";for(let j=r.a;j<=r.b;j++){const q=pKind(d.weather_code[j]);if(q==="snow")k="snow";else if(q==="storms"&&k!=="snow")k="storms"}return k};
-    const txt=runs.slice(0,3).map((r,q)=>{const k=kinds(r),len=r.b-r.a+1,amt=`about ${U.r(tot(r))} ${U.rl()}`;let wettest="";
-      if(len>=3){let m=r.a;for(let j=r.a;j<=r.b;j++)if((d.precipitation_sum[j]||0)>(d.precipitation_sum[m]||0))m=j;wettest=`, wettest ${nm(m)}`}
-      const when=len===1?nm(r.a):len===2?`${nm(r.a)} and ${nm(r.b)}`:`${nm(r.a)} through ${nm(r.b)}`;
-      return q?`${k==="rain"?"more rain":k} ${when} (${amt}${wettest})`:`<b>${cap(k)} ${when}</b> (${amt}${wettest})`});
-    let r=joinAnd(txt)+".";const first=runs[0],dryLead=first.a-ti,last=runs[runs.length-1];
-    if(dryLead>=2)r=`Dry through ${nm(first.a-1)}, then `+r.replace(/^<b>(\w)/,(m,c)=>"<b>"+c.toLowerCase());
-    if(ti+n-1-last.b>=2&&runs.length<=3)r+=` Dry again from ${nm(last.b+1)}.`;out.push(r)}
+    const noun=k=>k==="storms"?"stormy weather":k,when=r=>{const len=r.b-r.a+1;return len===1?nm(r.a):len===2?`${nm(r.a)} into ${nm(r.b)}`:`${nm(r.a)} through ${nm(r.b)}`};
+    const parts=runs.slice(0,3).map((r,q)=>{const k=kinds(r),len=r.b-r.a+1;let wettest="";
+      if(len>=3){let m=r.a;for(let j=r.a;j<=r.b;j++)if((d.precipitation_sum[j]||0)>(d.precipitation_sum[m]||0))m=j;wettest=`, with ${nm(m)} the wettest day`}
+      return q===0?(r.a===ti?`<b>${cap(noun(k))} continues ${len===1?"today":"through "+nm(r.b)}</b>, adding up to ${rainWords(tot(r))}${wettest}.`:`<b>${cap(noun(k))} moves in ${when(r)}</b>, adding up to ${rainWords(tot(r))}${wettest}.`)
+        :`${q===1?"More":"Another round of"} ${noun(k)} follows ${when(r)}, with ${rainWords(tot(r))}.`});
+    let r=parts.join(" ");const first=runs[0],last=runs[runs.length-1];
+    if(first.a-ti>=2)r=`It stays dry through ${nm(first.a-1)}. `+r;
+    if(ti+n-1-last.b>=2&&runs.length<=3)r+=` Drier weather returns ${nm(last.b+1)}.`;out.push(r)}
   // temperatures: range, extremes and the trend
   const hi=js.map(j=>d.temperature_2m_max[j]),lo=js.map(j=>d.temperature_2m_min[j]),kw=hi.indexOf(Math.max(...hi)),kc=hi.indexOf(Math.min(...hi)),m3=a=>a.reduce((x,y)=>x+y,0)/a.length;
   const spread=hi[kw]-hi[kc],thr=F?6:3.5;
-  if(spread<thr)out.push(`Steady temperatures, highs near <b>${U.t(m3(hi))}</b> and lows around ${U.t(m3(lo))}.`);
-  else{const early=m3(hi.slice(0,3)),late=m3(hi.slice(-3)),tr=late-early,trend=Math.abs(tr)>=thr?(tr>0?"Warming up":"Cooling off")+" through the period: ":"";
-    out.push(`${trend}${trend?"w":"W"}armest ${nm(js[kw])} at <b>${U.t(hi[kw])}</b>, coolest ${nm(js[kc])} at <b>${U.t(hi[kc])}</b>.`)}
-  const cold=js.filter(j=>(F?d.temperature_2m_min[j]:d.temperature_2m_min[j]*9/5+32)<=32);if(cold.length)out.push(`Freezing ${cold.length>1?"nights":"night"}: ${cold.length>4?cold.length+" of the "+n:joinAnd(cold.slice(0,4).map(j=>j===ti?"tonight":dayLong(d.time[j])))}.`);
+  if(spread<thr)out.push(`Temperatures hold steady, with highs in ${tRange(m3(hi))} and lows near <b>${U.t(m3(lo))}</b>.`);
+  else{const early=m3(hi.slice(0,3)),late=m3(hi.slice(-3)),tr=late-early;
+    out.push(Math.abs(tr)>=thr?(tr>0?`A warming trend sets in, with highs climbing from ${tRange(early)} into ${tRange(late)}. ${cap(nm(js[kw]))} looks warmest at <b>${U.t(hi[kw])}</b>.`:`A cooling trend takes hold, with highs slipping from ${tRange(early)} into ${tRange(late)}. ${cap(nm(js[kc]))} looks coolest at <b>${U.t(hi[kc])}</b>.`)
+      :`Highs range from <b>${U.t(hi[kc])}</b> ${nm(js[kc])} to <b>${U.t(hi[kw])}</b> ${nm(js[kw])}.`)}
+  const cold=js.filter(j=>(F?d.temperature_2m_min[j]:d.temperature_2m_min[j]*9/5+32)<=32);
+  if(cold.length)out.push(`Bundle up: ${cold.length>4?`${cold.length} of the next ${n} nights drop below freezing`:`freezing temperatures are likely ${joinAnd(cold.slice(0,4).map(j=>j===ti?"tonight":dayLong(d.time[j]+"T12:00")+" morning"))}`}.`);
   // wind
-  const g=js.map(j=>d.wind_gusts_10m_max[j]||0),kg=g.indexOf(Math.max(...g));if(mphOf(g[kg])>=30)out.push(`Windiest ${nm(js[kg])}, gusts to <b>${U.w(g[kg])} ${U.wl()}</b>.`);
+  const g=js.map(j=>d.wind_gusts_10m_max[j]||0),kg=g.indexOf(Math.max(...g));if(mphOf(g[kg])>=30)out.push(`${cap(nm(js[kg]))} looks windiest, with gusts up to <b>${U.w(g[kg])} ${U.wl()}</b>.`);
   // pick of the bunch: dry, bright, mild and calm
   const score=j=>{const sunF=d.sunshine_duration&&d.daylight_duration&&d.daylight_duration[j]?d.sunshine_duration[j]/d.daylight_duration[j]:.5,tF=F?d.temperature_2m_max[j]:d.temperature_2m_max[j]*9/5+32;
     return sunF*4-(d.precipitation_probability_max[j]??0)/20-(isWet(j)?4:0)-Math.abs(tF-72)/9-Math.max(0,mphOf(d.wind_gusts_10m_max[j])-18)/8};
   let best=js[0];js.forEach(j=>{if(score(j)>score(best))best=j});const sunB=d.sunshine_duration&&d.daylight_duration?d.sunshine_duration[best]/d.daylight_duration[best]:null;
-  if(!isWet(best)&&(d.precipitation_probability_max[best]??0)<30)out.push(`Pick of the bunch: <b>${cap(nm(best))}</b>, ${sunB==null?wxText(d.weather_code[best]).toLowerCase():sunB>.75?"sunny":sunB>.45?"a mix of sun and cloud":"dry but cloudy"} and ${U.t(d.temperature_2m_max[best])}.`);
+  if(!isWet(best)&&(d.precipitation_probability_max[best]??0)<30)out.push(`<b>${cap(nm(best))}</b> looks like the pick of the bunch, with ${sunB==null?wxText(d.weather_code[best]).toLowerCase():sunB>.75?"plenty of sunshine":sunB>.45?"a mix of sun and clouds":"dry but cloudy skies"} and a high of ${U.t(d.temperature_2m_max[best])}.`);
   return out.map(t=>`<p>${t}</p>`).join("")+(n>=8?`<small>Days 8–10 are a rough guide; details firm up closer in.</small>`:"")}
 function renderDaily(){
   const d=W.daily,ti=todayIndex(),n=Math.min(10,d.time.length-ti),lo=Math.min(...d.temperature_2m_min.slice(ti,ti+n)),hi=Math.max(...d.temperature_2m_max.slice(ti,ti+n)),sp=hi-lo||1,cur=W.current.temperature_2m;
