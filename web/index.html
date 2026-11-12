@@ -593,7 +593,6 @@ details.afd[open]>summary::after{content:"–"}
   <div class="panel"><div class="ph">10-day<span class="r">tap a day</span></div><div class="pb"><div id="daily"></div></div></div>
   </section>
   <section class="tab" data-tab="sky">
-  <div class="panel"><div class="ph">Sun<span class="r" id="sunNote"></span></div><div class="pb" id="sunp"><div class="err">Loading…</div></div></div>
   <div class="panel"><div class="ph">Stargazing<span class="r" id="starNote"></span></div><div class="pb" id="stars"><div class="err">Loading…</div></div></div>
   <div class="panel"><div class="ph">Clouds overhead<span class="r" id="skyNote">now · height above ground</span></div>
     <div class="pb"><div class="skywrap"><canvas id="skyCv"></canvas></div><div id="skyInfo"><div class="err">Loading the sky…</div></div></div></div>
@@ -1829,7 +1828,7 @@ function renderSunPanel(){const el=$("#sunp");if(!el||!W)return;
   const g1=sunCross(lat,lon,U0,-4,1,14),g2=sunCross(lat,lon,U0,6,1,14),e1=sunCross(lat,lon,U0+12*36e5,6,-1,12),e2=sunCross(lat,lon,U0+12*36e5,-4,-1,12),b2=sunCross(lat,lon,U0+12*36e5,-6,-1,12),
     dk=sunCross(lat,lon,U0+12*36e5,-18,-1,12),dkE=sunCross(lat,lon,(dk||U0+20*36e5),-18,1,14);
   const len=rise&&set?set-rise:0,yR=sunCross(lat,lon,U0-864e5,-.833,1,24),yS=sunCross(lat,lon,U0-864e5,-.833,-1,24),dd=yR&&yS&&len?Math.round((len-(yS-yR))/6e4):null;
-  $("#sunNote").textContent=len?`${Math.floor(len/36e5)} h ${Math.round(len%36e5/6e4)} min of daylight`+(dd!=null?` · ${dd>=0?"+":"−"}${Math.abs(dd)} min`:""):"";
+  if($("#sunNote"))$("#sunNote").textContent=len?`${Math.floor(len/36e5)} h ${Math.round(len%36e5/6e4)} min of daylight`+(dd!=null?` · ${dd>=0?"+":"−"}${Math.abs(dd)} min`:""):"";
   const row=(k,v)=>`<div class="srow"><span>${k}</span><b>${v}</b></div>`;
   el.innerHTML=`<div class="sunhero"><div><div class="k">${nextIsSet?"Sunset":"Sunrise"}${dayLbl(nx+off*1000)==="Today"?"":" "+dayLbl(nx+off*1000).toLowerCase()}</div><div class="big">${ft(nx)}</div><div class="in">in ${dur(nx-nowU)}</div></div>
     <div class="side">${nextIsSet?"Sunrise":"Sunset"} <b>${ft(other)}</b><br>${up?"Sun is up":"Sun is down"} · ${Math.round(sunAlt(lat,lon,nowU))}°</div></div>
