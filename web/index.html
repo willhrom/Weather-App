@@ -461,12 +461,17 @@ details.afd[open]>summary::after{content:"–"}
 .dstrip .ks{border:1px solid var(--line);border-radius:10px;background:rgba(255,255,255,.035);padding:8px 9px}
 .dsum{font-size:12.5px;color:var(--muted);line-height:1.45;margin:12px 0 8px}
 .dsum b{color:var(--text);font-weight:600}
+.tenday .hzline{color:#ffc49a}
 .tenday p{margin:0 0 8px;font-size:14px;line-height:1.5;color:#b4c3d4}.tenday p:last-of-type{margin-bottom:0}.tenday b{color:var(--text);font-weight:600}.tenday small{display:block;margin-top:10px;font-size:11.5px;color:var(--muted)}
 .dsum{font-size:13.5px;color:#b4c3d4;line-height:1.5}
 .ks{min-width:0}
 .ks small{display:block;font-size:10.5px;font-weight:600;letter-spacing:.11em;text-transform:uppercase;color:var(--faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .ks b{display:block;font-family:var(--mono);font-size:17px;color:var(--text);font-weight:600;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .ks span{display:block;font-size:11.5px;color:var(--faint);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dmore{margin-top:12px;border-top:1px solid var(--line)}
+.dmore summary{list-style:none;cursor:pointer;padding:12px 0 2px;font-size:13px;font-weight:600;color:var(--accent);display:flex;align-items:center;gap:6px}
+.dmore summary::-webkit-details-marker{display:none}.dmore summary::after{content:"";width:7px;height:7px;border-right:1.6px solid currentColor;border-bottom:1.6px solid currentColor;transform:rotate(45deg) translateY(-2px);transition:transform .2s}
+.dmore[open] summary::after{transform:rotate(225deg) translate(-2px,0)}
 .dsec{border-top:1px solid var(--line);margin-top:14px;padding-top:12px}
 .dsec h5{margin:0 0 10px;font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--faint)}
 .kg{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 16px}
@@ -586,7 +591,7 @@ details.afd[open]>summary::after{content:"–"}
   <section class="tab" data-tab="days">
   <div class="panel" id="afdPanel" style="display:none"><div class="ph">From the forecasters<span class="r" id="afdNote"></span></div><div class="pb" id="afd"></div></div>
   <div class="panel"><div class="ph">The next 10 days</div><div class="pb"><div id="outlook" class="tenday"></div></div></div>
-  <div class="panel"><div class="ph">10-day<span class="r">tap a day for details</span></div><div class="pb"><div id="daily"></div></div></div>
+  <div class="panel"><div class="ph">10-day<span class="r">tap a day</span></div><div class="pb"><div id="daily"></div></div></div>
   </section>
   <section class="tab" data-tab="sky">
   <div class="panel"><div class="ph">Sun<span class="r" id="sunNote"></span></div><div class="pb" id="sunp"><div class="err">Loading…</div></div></div>
@@ -2101,16 +2106,20 @@ function outlookHtml(){
     return sunF*4-(d.precipitation_probability_max[j]??0)/20-(isWet(j)?4:0)-Math.abs(tF-72)/9-Math.max(0,mphOf(d.wind_gusts_10m_max[j])-18)/8};
   let best=js[0];js.forEach(j=>{if(score(j)>score(best))best=j});const sunB=d.sunshine_duration&&d.daylight_duration?d.sunshine_duration[best]/d.daylight_duration[best]:null;
   if(!isWet(best)&&(d.precipitation_probability_max[best]??0)<30)out.push(`<b>${cap(nm(best))}</b> looks like the pick of the bunch, with ${sunB==null?wxText(d.weather_code[best]).toLowerCase():sunB>.75?"plenty of sunshine":sunB>.45?"a mix of sun and clouds":"dry but cloudy skies"} and a high of ${U.t(d.temperature_2m_max[best])}.`);
+  // what NWS forecasters flag, once, instead of a tag on every day
+  try{if(AFD_NOTES&&AFD_NOTES.byDate){const hz={};js.forEach(j=>{(AFD_NOTES.byDate[d.time[j]]||[]).forEach(q=>{if(!q.hz)return;const t=shortLbl(q.label);(hz[t]=hz[t]||[]).push(j)})});
+    const items=Object.entries(hz).slice(0,3).map(([t,a])=>{const lo=Math.min(...a),hi=Math.max(...a);return`${t.toLowerCase()} ${lo===hi?nm(lo):lo===ti?"through "+nm(hi):nm(lo)+" through "+nm(hi)}`});
+    if(items.length)out.push(`<span class="hzline">NWS forecasters flag ${joinAnd(items)}.</span>`)}}catch(e){}
   return out.map(t=>`<p>${t}</p>`).join("")+(n>=8?`<small>Days 8–10 are a rough guide; details firm up closer in.</small>`:"")}
 function renderDaily(){
   const d=W.daily,ti=todayIndex(),n=Math.min(10,d.time.length-ti),lo=Math.min(...d.temperature_2m_min.slice(ti,ti+n)),hi=Math.max(...d.temperature_2m_max.slice(ti,ti+n)),sp=hi-lo||1,cur=W.current.temperature_2m;
   if(openDay&&!d.time.slice(ti,ti+n).includes(openDay))openDay=null;
-  let s=`<div class="dgrid dhead"><span></span><span></span><span>rain</span><span>low</span><span>range</span><span>high</span><span></span></div>`;
+  let s="";
   for(let j=ti;j<ti+n;j++){const a=(d.temperature_2m_min[j]-lo)/sp*100,b=(d.temperature_2m_max[j]-lo)/sp*100,p=d.precipitation_probability_max[j],open=openDay===d.time[j];
     s+=`<div class="day${open?" open":""}" data-date="${d.time[j]}"><button class="drow dgrid" aria-expanded="${open}">
       <span class="d">${j===ti?"Today":fDay(wall(d.time[j]))}<small>${fMD(wall(d.time[j]))}</small></span>
-      <span class="c">${wxText(d.weather_code[j])}${d.precipitation_sum[j]>=wet()?`<small>${U.r(d.precipitation_sum[j])} ${U.rl()}</small>`:""}${dayNoteLine(d.time[j])}</span>
-      <span class="p${p?"":" z"}">${p==null?"--":p+"%"}</span><span class="lo">${Math.round(d.temperature_2m_min[j])}</span>
+      <span class="c">${wxText(d.weather_code[j])}</span>
+      <span class="p">${p!=null&&p>=20?p+"%":""}</span><span class="lo">${Math.round(d.temperature_2m_min[j])}</span>
       <span class="rc"><span class="rng"><i style="left:${a}%;right:${100-b}%"></i>${j===ti?`<b style="left:${Math.min(100,Math.max(0,(cur-lo)/sp*100))}%"></b>`:""}</span></span>
       <span class="hi">${Math.round(d.temperature_2m_max[j])}</span><span class="chev">${CHEV}</span></button>
       <div class="ddet"><div class="ddin">${open?dayDetail(j):""}</div></div></div>`}
@@ -2172,14 +2181,14 @@ function dayDetail(j){
   const sec=(t,body)=>`<div class="dsec"><h5>${t}</h5>${body}</div>`;
   return `<div class="dbox">
     <div class="dstrip">${st("High",U.t(d.temperature_2m_max[j]),`low ${U.t(d.temperature_2m_min[j])}`)}${st("Rain",`${chance}%`,wetDay?`${U.r(d.precipitation_sum[j])} ${U.rl()}`:"dry")}${st("Wind",`${U.w(mx(ws))}<em style="font-style:normal;font-size:11px;color:var(--muted);margin-left:2px">${U.wl()}</em>`,`gust ${U.w(mx(wg))}`)}${st("Clouds",ct==null?"--":Math.round(ct)+"%","avg cover")}</div>
-    <div class="dsum">${sum}</div>${dayForecasterBox(date)}
-    <svg class="chart" viewBox="0 0 ${Wd} ${H}">${g}</svg>
-    ${sec("Clouds by altitude",`${lay("High",F?"above 20k ft":"above 6 km",ch)}${lay("Mid",F?"6.5k – 20k ft":"2 – 6 km",cm)}${lay("Low",F?"below 6.5k ft":"below 2 km",cl)}
-      <div class="kg" style="margin-top:10px">${st("Cloud base","~"+fmtAlt(base)+" AGL","afternoon estimate")}${st("Freezing level",fmtAlt(fzv)+" MSL","lowest today")}</div>`)}
-    ${sec("Wind",`<div class="kg">${st("Max sustained",`${U.w(mx(ws))} ${U.wl()}`)}${st("Peak gust",`${U.w(mx(wg))} ${U.wl()}`,gustAt?"around "+gustAt:"")}${st("Direction",wd!=null?`${dirName(wd)} ${String(Math.round(wd)).padStart(3,"0")}°`:"--","prevailing")}${st("Average",`${U.w(avg(ws))} ${U.wl()}`)}</div>`)}
-    ${sec("Rain",`<div class="kg">${st("Total",`${U.r(d.precipitation_sum[j])} ${U.rl()}`)}${st("Chance",chance+"%")}${st("Hours of rain",rainHrs==null?"--":Math.round(rainHrs)+" h")}${st("Heaviest",wetDay?fT(wall(h.time[idx[kP]])):"—")}</div>`)}
-    ${sec("Comfort",`<div class="kg">${st("Feels like",`${U.t(mx(fl))} / ${U.t(mn(fl))}`,"high / low")}${st("Humidity",`${mn(rh)==null?"--":Math.round(mn(rh))}–${mx(rh)==null?"--":Math.round(mx(rh))}%`)}${st("Dew point",U.t(avg(dp)),"average")}${st("Visibility",visT==="--"?"--":visT,"lowest")}</div>`)}
-    ${sec("Sun &amp; air",`<div class="kg">${st("Sunrise",fTime(wall(d.sunrise[j])))}${st("Sunset",fTime(wall(d.sunset[j])))}${st("Daylight",`${Math.floor(dl)}h ${Math.round((dl%1)*60)}m`,sun==null?"":`${sun.toFixed(1)} h of sun`)}${st("UV max",uv==null?"--":Math.round(uv))}${st("Pressure",`${pv(mn(pr))}–${pv(mx(pr))}`,pu)}</div>`)}
+    <div class="dsum">${sum}</div>
+    <svg class="chart" viewBox="0 0 ${Wd} ${H}">${g}</svg>${dayForecasterBox(date)}
+    <details class="dmore"><summary>More details</summary>
+    ${sec("Wind &amp; rain",`<div class="kg">${st("Peak gust",`${U.w(mx(wg))} ${U.wl()}`,gustAt?"around "+gustAt:"")}${st("Wind from",wd!=null?DIRW[dirName(wd)]:"--",`average ${U.w(avg(ws))} ${U.wl()}`)}${st("Hours of rain",rainHrs==null?"--":Math.round(rainHrs)+" h",wetDay?"heaviest "+fT(wall(h.time[idx[kP]])):"")}${st("Total",`${U.r(d.precipitation_sum[j])} ${U.rl()}`)}</div>`)}
+    ${sec("Comfort",`<div class="kg">${st("Feels like",`${U.t(mx(fl))} / ${U.t(mn(fl))}`,"high / low")}${st("Humidity",`${mn(rh)==null?"--":Math.round(mn(rh))}–${mx(rh)==null?"--":Math.round(mx(rh))}%`,`dew point ${U.t(avg(dp))}`)}${st("UV max",uv==null?"--":Math.round(uv))}${st("Visibility",visT,"lowest")}</div>`)}
+    ${sec("Clouds &amp; sun",`${lay("High",F?"above 20k ft":"above 6 km",ch)}${lay("Mid",F?"6.5k – 20k ft":"2 – 6 km",cm)}${lay("Low",F?"below 6.5k ft":"below 2 km",cl)}
+      <div class="kg" style="margin-top:10px">${st("Sunrise",fTime(wall(d.sunrise[j])))}${st("Sunset",fTime(wall(d.sunset[j])),sun==null?"":`${sun.toFixed(1)} h of sun`)}${st("Cloud base","~"+fmtAlt(base),"afternoon, above ground")}${st("Freezing level",fmtAlt(fzv),"lowest, above sea level")}</div>`)}
+    </details>
   </div>`;
 }
 
