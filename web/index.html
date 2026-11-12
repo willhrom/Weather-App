@@ -590,7 +590,6 @@ details.afd[open]>summary::after{content:"–"}
   </section>
   <section class="tab" data-tab="days">
   <div class="panel" id="afdPanel" style="display:none"><div class="ph">From the forecasters<span class="r" id="afdNote"></span></div><div class="pb" id="afd"></div></div>
-  <div class="panel"><div class="ph">The next 10 days</div><div class="pb"><div id="outlook" class="tenday"></div></div></div>
   <div class="panel"><div class="ph">10-day<span class="r">tap a day</span></div><div class="pb"><div id="daily"></div></div></div>
   </section>
   <section class="tab" data-tab="sky">
@@ -2124,7 +2123,6 @@ function renderDaily(){
       <span class="hi">${Math.round(d.temperature_2m_max[j])}</span><span class="chev">${CHEV}</span></button>
       <div class="ddet"><div class="ddin">${open?dayDetail(j):""}</div></div></div>`}
   $("#daily").innerHTML=s;
-  try{$("#outlook").innerHTML=outlookHtml()}catch(e){$("#outlook").innerHTML=""}
 }
 $("#daily").onclick=e=>{const row=e.target.closest(".drow");if(!row)return;const day=row.parentNode,date=day.dataset.date,was=day.classList.contains("open");
   document.querySelectorAll("#daily .day.open").forEach(x=>{x.classList.remove("open");x.querySelector(".drow").setAttribute("aria-expanded","false")});
