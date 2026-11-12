@@ -2042,11 +2042,9 @@ function daySummary(j){
     if(evChg)sky+=rank(ev)<rank(pm)?", then skies clear out in the evening":", with clouds thickening in the evening";
     out.push(sky)}
   else out.push(wxText(code));
-  // temperature: the high and when it comes, how it compares, and the low
+  // temperature: the high and when it comes, and the low (each day stands on its own, no comparison with the day before)
   const hi=d.temperature_2m_max[j],lo=d.temperature_2m_min[j],T=idx.map(i=>h.temperature_2m[i]),kx=T.indexOf(Math.max(...T.filter(v=>v!=null))),kn=T.indexOf(Math.min(...T.filter(v=>v!=null)));
   let ts=j<=ti+1?`Highs reach <b>${U.t(hi)}</b>${kx>=0?" "+peakWord(wall(h.time[idx[kx]])):""}`:`Look for highs near <b>${U.t(hi)}</b>`;
-  if(j>0&&d.temperature_2m_max[j-1]!=null){const df=Math.round(hi-d.temperature_2m_max[j-1]),u=F?1:1.8,a=Math.abs(df)*u,prev=isToday?"yesterday":isTmr?"today":dayLong(d.time[j-1]+"T12:00"),w=df>0?"warmer":"cooler";
-    ts+=a>=12?`, much ${w} than ${prev}`:a>=7?`, noticeably ${w} than ${prev}`:a>=3?`, a few degrees ${w} than ${prev}`:isToday?"":`, close to ${prev}`}
   ts+=kn>=0&&hr(idx[kn])>=18?`, before dropping to around <b>${U.t(lo)}</b> late at night`:`, after a morning low near <b>${U.t(lo)}</b>`;
   out.push(ts);
   // rain: when, how much, how sure
