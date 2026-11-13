@@ -568,6 +568,17 @@ b,strong{font-weight:600}
 .trow{font-size:12.5px}
 .bigt{font-variant-numeric:proportional-nums;letter-spacing:-.06em}
 .readouts .ro b{font-size:14px}
+
+/* one Rain card: three figures, the week chart, the season bar, the rest folded away */
+#rainCard .raineta{padding:2px 22px 4px}
+.rstats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.rstats>div{padding:10px 10px 10px 12px;border-radius:14px;background:rgba(255,255,255,.04);border:1px solid rgba(160,200,255,.08);min-width:0}
+.rstats small{display:block;font-size:12.5px;color:var(--faint);font-weight:500;white-space:nowrap}
+.rstats b{display:block;font-size:22px;font-weight:500;margin:3px 0 1px;letter-spacing:-.01em}
+.rstats span{display:block;font-size:11.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sbar{margin-top:14px}.sbt{display:flex;justify-content:space-between;font-size:12.5px;color:var(--muted)}
+.sbtrack{height:8px;border-radius:5px;background:rgba(255,255,255,.07);margin:6px 0;overflow:hidden}.sbtrack i{display:block;height:100%;border-radius:5px;background:linear-gradient(90deg,#3aa8d8,#4cc9f0)}
+#rainCard .dmore{margin-top:14px}
 </style>
 </head>
 <body>
@@ -593,11 +604,11 @@ b,strong{font-weight:600}
   </div>
   <div id="fire" class="firecard" style="display:none"></div>
   <div class="panel"><div class="ph">Next 12 hours<span class="r" id="n12r"></span></div><div class="pb" id="next12"></div></div>
+  <div class="panel" id="rainCard"><div class="ph">Rain<span class="r" id="rainUnit"></span></div><div class="raineta" id="rainEta" style="display:none"></div><div class="pb" id="rain"><div class="err">Loading…</div></div></div>
   <div class="panel"><div class="pb readouts" id="readouts"></div></div>
   <div class="panel"><div class="ph">Best time<span class="r" id="bestNote">next 3 days</span><button class="binfob" id="bestInfoBtn" aria-label="Why this time">i</button></div><div class="pb" id="best"><div class="err">Loading…</div></div></div>
   <div class="panel" id="mapPanel">
     <div class="ph">Radar &amp; layers<span class="r" id="mapSrc"></span></div>
-    <div class="raineta" id="rainEta" style="display:none"></div>
     <div class="mapwrap" id="mapHome">
       <div id="map"></div>
       <div class="tap" id="mapTap"></div>
@@ -613,8 +624,6 @@ b,strong{font-weight:600}
     </div>
   </div>
   <div class="panel"><div class="ph">Next 24 hours<span class="r" id="hrsNote"></span></div><div class="pb" id="hours"></div></div>
-  <div class="panel"><div class="ph">Rainfall<span class="r" id="rainUnit"></span></div><div class="pb" id="rain"><div class="err">Loading…</div></div></div>
-  <div class="panel"><div class="ph">Rain season<span class="r">since Oct 1</span></div><div class="pb" id="season"><div class="err">Loading…</div></div></div>
   <div class="panel"><div class="ph">Wind</div><div class="pb" id="wind"><div class="err">Loading…</div></div></div>
   <div class="panel"><div class="ph">Moon &amp; sun</div><div class="pb" id="moon"></div></div>
   </section>
@@ -1074,7 +1083,6 @@ function renderNow(){
     ro("Visibility",esc(vv),vu,"")+
     ro("Sky cover",cv,"",cu)+
     ro("UV",uv==null?"--":Math.round(uv),"",uv==null?"":uvT(uv)+` · max ${Math.round(d.uv_index_max[ti]||0)}`)+
-    ro("Rain",(rainP??"--")+"%","",`${U.r(today)} ${U.rl()} so far`)+
     `<div class="ro" id="roAir">${airTile()}</div>`;loadAir();
   $("#obsTime").textContent=ob?`measured at ${ob.id} · ${Math.max(1,Math.round((Date.now()-ob.t)/6e4))} min ago`:"as of "+fTime(nowWall());
 }
@@ -1298,9 +1306,17 @@ function renderRain(){
     g+=`<text x="${(x+w/2).toFixed(1)}" y="${H-4}" fill="${isT?"#e9eef3":"#8597b3"}" font-size="10.5" text-anchor="middle">${isT?"today":fDay(wall(d.time[j]))[0]}</text>`});
   const tx=4+(ti-from)*bw;g+=`<line x1="${tx}" y1="4" x2="${tx}" y2="${H-18}" stroke="#2a3f5c" stroke-dasharray="2 3"/>`;
   const tr=(l,v,f)=>`<div class="tr"><span>${l}</span><b class="${f?"fcv":""}">${U.r(v)}</b></div>`;
-  $("#rain").innerHTML=`<svg class="chart fade" viewBox="0 0 ${Wd} ${H}">${g}</svg><div class="legendrow"><span><i style="background:#4cc9f0"></i>Observed (7 days)</span><span><i style="background:rgba(76,201,240,.4)"></i>Forecast</span></div>
-    <div class="tbl" style="margin-top:6px">${tr("Last hour",P[i]||0)}${tr("Today so far",today)}${tr("Last 24 hours",l24)}${tr("Last 7 days",l7)}
-    ${tr("Next 24 hours",n24,1)}${tr("Next 7 days",n7,1)}${tr("Next 10 days",n10,1)}</div>`;
+  // when the next 24 hours' rain is heaviest, and the chance right now
+  let pk=-1,pv=0;for(let k=i+1;k<=Math.min(i+24,P.length-1);k++)if((P[k]||0)>pv){pv=P[k];pk=k}
+  const chNow=h.precipitation_probability?h.precipitation_probability[i]:null,pkTxt=pk>=0&&pv>=wet()?`heaviest ${fClock(wall(h.time[pk])).replace(":00","")}`:"dry";
+  const SS=SEASON_H&&SEASON_H.pid===place.id?SEASON_H:null;
+  $("#rain").innerHTML=`<div class="rstats fade">
+      <div><small>Today so far</small><b>${U.r(today)}</b><span>${chNow!=null?chNow+"% chance":"&nbsp;"}</span></div>
+      <div><small>Next 24 hours</small><b class="fcv">${U.r(n24)}</b><span>${pkTxt}</span></div>
+      <div id="rsSeason">${SS?SS.stat:`<small>This season</small><b>--</b><span>&nbsp;</span>`}</div></div>
+    <svg class="chart fade" viewBox="0 0 ${Wd} ${H}" style="margin-top:14px">${g}</svg><div class="legendrow"><span><i style="background:#4cc9f0"></i>Past week</span><span><i style="background:rgba(76,201,240,.4)"></i>Forecast</span></div>
+    <div id="season">${SS?SS.bar:""}</div>
+    <details class="dmore"><summary>More rain numbers</summary><div class="tbl">${tr("Last hour",P[i]||0)}${tr("Last 24 hours",l24)}${tr("Last 7 days",l7)}${tr("Next 7 days",n7,1)}${tr("Next 10 days",n10,1)}</div><div id="seasonMore">${SS?SS.more:""}</div></details>`;
 }
 
 /* ---------- wind ---------- */
@@ -1563,9 +1579,10 @@ async function seasonSeries(){ // this season's daily rain (mm) up to 8 days ago
   const ws=waterYearStart(),end=dayStart(nowWall())-8*864e5,key=place.lat+","+place.lon+","+ymd(end);if(end<ws)return[];if(seasonSer[key])return seasonSer[key];
   const j=await getJSON(`https://archive-api.open-meteo.com/v1/archive?latitude=${place.lat}&longitude=${place.lon}&start_date=${ymd(ws)}&end_date=${ymd(end)}&daily=precipitation_sum&timezone=auto`);
   return seasonSer[key]=j.daily.time.map((t,i)=>[wall(t),j.daily.precipitation_sum[i]||0])}
+let SEASON_H=null;
 async function renderSeason(){
   const el=$("#season");if(!el)return;const pid=place.id,mmU=v=>S.rain==="in"?v/25.4:v;
-  let norm,ser;try{[norm,ser]=await Promise.all([seasonNormal(),seasonSeries()])}catch(e){if(place.id===pid)el.innerHTML='<div class="err">Season totals unavailable right now.</div>';return}
+  let norm,ser;try{[norm,ser]=await Promise.all([seasonNormal(),seasonSeries()])}catch(e){if(place.id===pid)el.innerHTML="";return}
   if(place.id!==pid)return;
   // stitch: archive up to 8 days ago, then the forecast model's recent days (observed) through today
   const d=W.daily,ws=waterYearStart(),ti=todayIndex(),last=ser.length?ser[ser.length-1][0]:ws-864e5,days=[...ser];
@@ -1580,10 +1597,14 @@ async function renderSeason(){
   g+=`<line x1="0" y1="${bot}" x2="${Wd}" y2="${bot}" stroke="#1c2d44"/>`;
   ["Oct","Dec","Feb","Apr","Jun","Aug"].forEach((m,k)=>{const x=X([0,61,123,182,243,304][k]);g+=`<text x="${x}" y="${H-3}" fill="#8597b3" font-size="10.5">${m}</text>`});
   const tone=pct==null?"":pct>=115?"Wetter than normal":pct>=85?"About normal":pct>=50?"Drier than normal":"Much drier than normal";
-  el.innerHTML=`<div class="split fade"><div class="v">${U.r(mmU(total))}<em>${U.rl()}</em></div><span>${pct!=null?`<b style="color:var(--text)">${pct}%</b> of normal · ${tone.toLowerCase()}`:""}</span></div>
-    <svg class="chart" viewBox="0 0 ${Wd} ${H}" style="margin-top:8px">${g}</svg>
+  const stat=`<small>This season</small><b>${U.r(mmU(total))}</b><span>${pct!=null?`${pct}% of normal`:"since Oct 1"}</span>`;
+  const fill=normTo>0?Math.min(100,total/normTo*100):0;
+  const bar=`<div class="sbar fade"><div class="sbt"><span>Season since Oct 1</span><span>${pct!=null?tone:""}</span></div><div class="sbtrack"><i style="width:${fill.toFixed(1)}%"></i></div><div class="sbt"><span>${U.r(mmU(total))} ${U.rl()} so far</span><span>normal by today ${U.r(mmU(normTo))}</span></div></div>`;
+  const more=`<svg class="chart" viewBox="0 0 ${Wd} ${H}" style="margin-top:12px">${g}</svg>
     <div class="legendrow"><span><i style="background:#4cc9f0"></i>This season</span><span><i style="background:#64799a"></i>Normal (1991–2020)</span></div>
     <div class="tbl" style="margin-top:6px"><div class="tr"><span>Normal by today</span><b>${U.r(mmU(normTo))}</b></div><div class="tr"><span>${total>=normTo?"Ahead of normal":"Behind normal"}</span><b>${U.r(mmU(Math.abs(total-normTo)))}</b></div><div class="tr"><span>Normal full season (Oct–Sep)</span><b>${U.r(mmU(normAll))}</b></div><div class="tr"><span>Season so far vs full-season normal</span><b>${normAll>0?Math.round(total/normAll*100)+"%":"--"}</b></div></div>`;
+  SEASON_H={pid,stat,bar,more};
+  const st=$("#rsSeason"),sm=$("#seasonMore");if(st)st.innerHTML=stat;el.innerHTML=bar;if(sm)sm.innerHTML=more;
 }
 
 /* ---------- air quality (Now card tile) ---------- */
