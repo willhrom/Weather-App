@@ -473,6 +473,7 @@ details.afd[open]>summary::after{content:"–"}
 .dmore summary::-webkit-details-marker{display:none}.dmore summary::after{content:"";width:7px;height:7px;border-right:1.6px solid currentColor;border-bottom:1.6px solid currentColor;transform:rotate(45deg) translateY(-2px);transition:transform .2s}
 .dmore[open] summary::after{transform:rotate(225deg) translate(-2px,0)}
 .dfcw+.dmore{margin-top:0}
+.dstrip .ks small{font-size:12.5px;text-overflow:clip}
 .dsum.nws p{margin:0 0 6px}.dsum.nws p b{color:var(--text);font-weight:600;margin-right:4px}.nwsby{display:block;font-size:11.5px;color:var(--faint);margin-top:2px}
 .dsec{border-top:1px solid var(--line);margin-top:14px;padding-top:12px}
 .dsec h5{margin:0 0 10px;font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--faint)}
@@ -619,10 +620,10 @@ b,strong{font-weight:600}
   </section>
   <section class="tab" data-tab="days">
   <div class="panel" id="afdPanel" style="display:none"><div class="ph">From the forecasters<span class="r" id="afdNote"></span></div><div class="pb" id="afd"></div></div>
-  <div class="panel"><div class="ph">10-day<span class="r">tap a day</span></div><div class="pb"><div id="daily"></div></div></div>
+  <div class="panel"><div class="ph">10-day</div><div class="pb"><div id="daily"></div></div></div>
   </section>
   <section class="tab" data-tab="sky">
-  <div class="panel"><div class="ph">Clouds overhead<span class="r" id="skyNote">now · height above ground</span></div>
+  <div class="panel"><div class="ph">Clouds overhead<span class="r" id="skyNote"></span></div>
     <div class="pb"><div class="skywrap"><canvas id="skyCv"></canvas></div><div id="skyInfo"><div class="err">Loading the sky…</div></div></div></div>
   <div class="panel" id="aptPanel" style="display:none"><div class="ph">Nearest airport<span class="r" id="aptDist"></span></div><div class="pb" id="apt"></div></div>
   <div class="panel afdx" id="afdAvn" style="display:none"></div>
@@ -1042,7 +1043,7 @@ function visText(){
 function ceilingText(){
   if(false&&METAR&&Array.isArray(METAR.clouds)){const c=METAR.clouds.filter(x=>x&&x.cover);if(!c.length||/CLR|SKC|CAVOK/.test(c[0].cover))return["CLR","no clouds below 12k"];
     const ceil=c.find(x=>/BKN|OVC|OVX/.test(x.cover)),k=ceil||c[0],b=k.base;return[esc(k.cover)+(b!=null?" "+(b>=10000?Math.round(b/1000)+"k":(b/1000).toFixed(1).replace(".0","")+"k"):""),ceil?"ceiling":"lowest layer"]}
-  return[Math.round(W.current.cloud_cover)+"%","cloud cover"];
+  return[Math.round(W.current.cloud_cover)+"%",""];
 }
 function renderNow(){
   const ob=applyObs();loadObs();
@@ -1070,8 +1071,8 @@ function renderNow(){
     ro("Wind",U.w(c.wind_speed_10m),U.wl(),`gust ${U.w(c.wind_gusts_10m)} · ${dirName(c.wind_direction_10m)} ${String(Math.round(c.wind_direction_10m)).padStart(3,"0")}°`)+
     ro("Humidity",Math.round(c.relative_humidity_2m)+"%","",`dew pt ${U.t(c.dew_point_2m)}`)+
     ro("Pressure",press,S.temp==="F"?"inHg":"hPa",`${arrow} ${tr}`)+
-    ro("Visibility",esc(vv),vu,"forecast")+
-    ro("Clouds",cv,"",cu)+
+    ro("Visibility",esc(vv),vu,"")+
+    ro("Sky cover",cv,"",cu)+
     ro("UV",uv==null?"--":Math.round(uv),"",uv==null?"":uvT(uv)+` · max ${Math.round(d.uv_index_max[ti]||0)}`)+
     ro("Rain",(rainP??"--")+"%","",`${U.r(today)} ${U.rl()} so far`)+
     `<div class="ro" id="roAir">${airTile()}</div>`;loadAir();
@@ -1318,7 +1319,7 @@ function renderWind(){
   for(let k=0;k<n;k+=3)g+=`<g transform="translate(${X(k).toFixed(1)} 9) rotate(${dr[k]+180})"><path d="M0 -5.5L3 3.5L0 2L-3 3.5Z" fill="#b4c3d4"/></g><text x="${X(k).toFixed(1)}" y="${H-2}" fill="#8597b3" font-size="10.5" text-anchor="middle">${k===0?"now":fHour(wall(h.time[i+k]))}</text>`;
   $("#wind").innerHTML=`<div class="wind fade">${vane(c.wind_direction_10m)}<div class="wv"><div class="big">${U.w(c.wind_speed_10m)}<em>${U.wl()}</em></div>
     <p>From <b>${dirName(c.wind_direction_10m)} ${String(Math.round(c.wind_direction_10m)).padStart(3,"0")}°</b></p><p>Gusts <b>${U.w(c.wind_gusts_10m)}</b> · peak today <b>${U.w(W.daily.wind_gusts_10m_max[todayIndex()])}</b></p><p>${beaufort(c.wind_speed_10m)}</p></div></div>
-    <svg class="chart" viewBox="0 0 ${Wd} ${H}" style="margin-top:10px">${g}</svg><div class="legendrow"><span><i style="background:#7cc4ff"></i>Speed</span><span><i style="background:#c792ea"></i>Gusts</span><span style="margin-left:auto">arrows show heading</span></div>`;
+    <svg class="chart" viewBox="0 0 ${Wd} ${H}" style="margin-top:10px">${g}</svg><div class="legendrow"><span><i style="background:#7cc4ff"></i>Speed</span><span><i style="background:#c792ea"></i>Gusts</span></div>`;
 }
 
 /* ---------- NWS alerts ---------- */
@@ -1328,7 +1329,7 @@ async function renderAlerts(){
     ALERTS=(j.features||[]).filter(f=>f.properties&&f.properties.status==="Actual");setTimeout(renderFire,0);
     el.innerHTML=ALERTS.map((f,k)=>{const p=f.properties,sev=/Extreme|Severe/.test(p.severity),until=p.ends||p.expires;
       const smoky=/smoke|air quality|air stagnation/i.test(p.event+" "+(p.headline||""));
-      return `<button class="alert${sev?" sev":""}"${smoky?` data-smoke="${k}"`:""}><b>${esc(p.event)}</b>${smoky?`<em class="asrc">Finding the smoke source…</em>`:""}<span>${until?"Until "+esc(new Date(until).toLocaleString([],{weekday:"short",hour:"numeric",minute:"2-digit"}))+" · ":""}tap for details</span><p>${esc((p.headline?p.headline+"\n\n":"")+(p.description||"")+(p.instruction?"\n\n"+p.instruction:""))}</p></button>`}).join("");
+      return `<button class="alert${sev?" sev":""}"${smoky?` data-smoke="${k}"`:""}><b>${esc(p.event)}</b>${smoky?`<em class="asrc">Finding the smoke source…</em>`:""}<span>${until?"Until "+esc(new Date(until).toLocaleString([],{weekday:"short",hour:"numeric",minute:"2-digit"})):""}</span><p>${esc((p.headline?p.headline+"\n\n":"")+(p.description||"")+(p.instruction?"\n\n"+p.instruction:""))}</p></button>`}).join("");
     updateAlertLayer();
     el.querySelectorAll("[data-smoke]").forEach(b=>smokeSource(ALERTS[+b.dataset.smoke]).then(t=>{if(place.id!==pid)return;const s=b.querySelector(".asrc");if(s){if(t)s.textContent=t;else s.remove()}}));
   }catch(e){console.warn("alerts",e);renderFire()}
@@ -1578,8 +1579,7 @@ async function renderSeason(){
   el.innerHTML=`<div class="split fade"><div class="v">${U.r(mmU(total))}<em>${U.rl()}</em></div><span>${pct!=null?`<b style="color:var(--text)">${pct}%</b> of normal · ${tone.toLowerCase()}`:""}</span></div>
     <svg class="chart" viewBox="0 0 ${Wd} ${H}" style="margin-top:8px">${g}</svg>
     <div class="legendrow"><span><i style="background:#4cc9f0"></i>This season</span><span><i style="background:#64799a"></i>Normal (1991–2020)</span></div>
-    <div class="tbl" style="margin-top:6px"><div class="tr"><span>Normal by today</span><b>${U.r(mmU(normTo))}</b></div><div class="tr"><span>${total>=normTo?"Ahead of normal":"Behind normal"}</span><b>${U.r(mmU(Math.abs(total-normTo)))}</b></div><div class="tr"><span>Normal full season (Oct–Sep)</span><b>${U.r(mmU(normAll))}</b></div><div class="tr"><span>Season so far vs full-season normal</span><b>${normAll>0?Math.round(total/normAll*100)+"%":"--"}</b></div></div>
-    <div class="foot">Water year starts Oct 1 · ERA5 reanalysis via Open-Meteo, this season's last week from the forecast model</div>`;
+    <div class="tbl" style="margin-top:6px"><div class="tr"><span>Normal by today</span><b>${U.r(mmU(normTo))}</b></div><div class="tr"><span>${total>=normTo?"Ahead of normal":"Behind normal"}</span><b>${U.r(mmU(Math.abs(total-normTo)))}</b></div><div class="tr"><span>Normal full season (Oct–Sep)</span><b>${U.r(mmU(normAll))}</b></div><div class="tr"><span>Season so far vs full-season normal</span><b>${normAll>0?Math.round(total/normAll*100)+"%":"--"}</b></div></div>`;
 }
 
 /* ---------- air quality (Now card tile) ---------- */
@@ -2199,9 +2199,9 @@ function dayDetail(j){
   const F=S.temp==="F",units=W.hourly_units||{};
   // chart: three tracks — temperature line, cloud-cover strip, rain-chance bars
   const T=col("temperature_2m"),CC=idx.map(i=>(h.cloud_cover||[])[i]??null),PP=idx.map(i=>h.precipitation_probability[i]||0),n=idx.length;
-  const tl=mn(T),th=mx(T),Wd=340,L0=44,Rr=8,X=k=>L0+(k+.5)*(Wd-L0-Rr)/n,cw=(Wd-L0-Rr)/n,tTop=24,tBot=60,Y=v=>tBot-(v-tl)/((th-tl)||1)*(tBot-tTop);
+  const tl=mn(T),th=mx(T),Wd=340,L0=58,Rr=8,X=k=>L0+(k+.5)*(Wd-L0-Rr)/n,cw=(Wd-L0-Rr)/n,tTop=24,tBot=60,Y=v=>tBot-(v-tl)/((th-tl)||1)*(tBot-tTop);
   const lab=(y,t)=>`<text x="0" y="${y}" fill="#8597b3" font-size="11" font-family="Figtree" font-weight="500">${t}</text>`;
-  let g=lab(40,"Temp")+lab(90,"Clouds")+lab(126,"Rain");
+  let g=lab(40,"Temp")+lab(90,"Sky cover")+lab(126,"Rain");
   for(let k=0;k<n;k+=6)g+=`<line x1="${X(k)-cw/2}" y1="8" x2="${X(k)-cw/2}" y2="132" stroke="#1c2d44"/>`;
   {let dp=`M${X(0).toFixed(1)} ${Y(T[0]).toFixed(1)}`;for(let k=1;k<T.length;k++){const mx=((X(k-1)+X(k))/2).toFixed(1);dp+=` C${mx} ${Y(T[k-1]).toFixed(1)} ${mx} ${Y(T[k]).toFixed(1)} ${X(k).toFixed(1)} ${Y(T[k]).toFixed(1)}`}
     g+=`<defs><linearGradient id="dtf${j}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffc94d" stop-opacity=".22"/><stop offset="1" stop-color="#7cc4ff" stop-opacity="0"/></linearGradient><linearGradient id="dts${j}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffd27a"/><stop offset="1" stop-color="#8fd0ff"/></linearGradient></defs>`;
@@ -2238,7 +2238,7 @@ function dayDetail(j){
   const nws=nwsDayText(date),sum=nws||daySummary(j);loadNwsForecast();
   const sec=(t,body)=>`<div class="dsec"><h5>${t}</h5>${body}</div>`;
   return `<div class="dbox">
-    <div class="dstrip">${st("High",U.t(d.temperature_2m_max[j]),`low ${U.t(d.temperature_2m_min[j])}`)}${st("Rain",`${chance}%`,wetDay?`${U.r(d.precipitation_sum[j])} ${U.rl()}`:"dry")}${st("Wind",`${U.w(mx(ws))}<em style="font-style:normal;font-size:11px;color:var(--muted);margin-left:2px">${U.wl()}</em>`,`gust ${U.w(mx(wg))}`)}${st("Clouds",ct==null?"--":Math.round(ct)+"%","avg cover")}</div>
+    <div class="dstrip">${st("High",U.t(d.temperature_2m_max[j]),`low ${U.t(d.temperature_2m_min[j])}`)}${st("Rain",`${chance}%`,wetDay?`${U.r(d.precipitation_sum[j])} ${U.rl()}`:"dry")}${st("Wind",`${U.w(mx(ws))}<em style="font-style:normal;font-size:11px;color:var(--muted);margin-left:2px">${U.wl()}</em>`,`gust ${U.w(mx(wg))}`)}${st("Sky cover",ct==null?"--":Math.round(ct)+"%")}</div>
     <div class="dsum${nws?" nws":""}">${sum}</div>
     <svg class="chart" viewBox="0 0 ${Wd} ${H}">${g}</svg>${dayForecasterBox(date)}
     <details class="dmore"><summary>More details</summary>
@@ -3524,11 +3524,11 @@ function skyInfo(){
   const what=wc>=95?"Thunderstorms":isSnowCode(wc)?"Snow":"Rain";
   let h=lay.length?"":`<div class="skyhead"><b>Clear above</b><span>no significant clouds</span></div>`;
   h+=lay.slice().reverse().map(l=>{const cat=coverCat(l.c),type=cloudType(l.base-SKY.elev,cat,l===src,wc>=95);
-    return `<div class="lyr"><span class="ci"><img src="${cloudIcon(type,l===src)}" alt=""></span><span class="rg"><b>${{FEW:"Few",SCT:"Scattered",BKN:"Broken",OVC:"Overcast"}[cat]}</b> ${CTYPE[type].toLowerCase()} at ${fmtAltM(l.base-SKY.elev)}${l.rep?` <small style="color:#ffc94d">· reported</small>`:""}</span><span class="pc">${l===src?`<em>${what} from here</em>`:""}</span></div>`}).join("");
+    return `<div class="lyr"><span class="ci"><img src="${cloudIcon(type,l===src)}" alt=""></span><span class="rg"><b>${{FEW:"Few",SCT:"Scattered",BKN:"Broken",OVC:"Overcast"}[cat]}</b> ${CTYPE[type].toLowerCase()} at ${fmtAltM(l.base-SKY.elev)}</span><span class="pc">${l===src?`<em>${what} from here</em>`:""}</span></div>`}).join("");
   if(wet&&!src)h+=`<div class="lyr"><span class="ci"></span><span class="rg">${what} expected</span><span class="pc"></span></div>`;
   const fzAGL=SKY.fz[k]!=null?SKY.fz[k]-SKY.elev:null;
   h+=`<div class="srows">`+
-    `<div class="srow"><span>Freezing level <small style="color:var(--faint)">(dashed line)</small></span><b>${fzAGL==null?"--":fzAGL<150?"at the ground":fmtAltM(fzAGL)}</b></div>`+
+    `<div class="srow"><span>Freezing level</span><b>${fzAGL==null?"--":fzAGL<150?"at the ground":fmtAltM(fzAGL)}</b></div>`+
     (skyMetar()?`<div class="srow"><span>Low clouds <small style="color:#ffc94d">▸</small> reported by</span><b>${esc(METAR.icaoId)}, ${Math.round(METAR.km*.621)} mi</b></div>`:`<div class="srow"><span>Puffy cloud bases form near</span><b>${base==null?"--":fmtAltM(base)}</b></div>`)+`</div>`;
   $("#skyInfo").innerHTML=h;
 }
