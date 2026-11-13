@@ -472,6 +472,7 @@ details.afd[open]>summary::after{content:"–"}
 .dmore summary{list-style:none;cursor:pointer;padding:12px 0 2px;font-size:13px;font-weight:600;color:var(--accent);display:flex;align-items:center;gap:6px}
 .dmore summary::-webkit-details-marker{display:none}.dmore summary::after{content:"";width:7px;height:7px;border-right:1.6px solid currentColor;border-bottom:1.6px solid currentColor;transform:rotate(45deg) translateY(-2px);transition:transform .2s}
 .dmore[open] summary::after{transform:rotate(225deg) translate(-2px,0)}
+.dfcw+.dmore{margin-top:0}
 .dsec{border-top:1px solid var(--line);margin-top:14px;padding-top:12px}
 .dsec h5{margin:0 0 10px;font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--faint)}
 .kg{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 16px}
@@ -2157,7 +2158,7 @@ $("#daily").onclick=e=>{const row=e.target.closest(".drow");if(!row)return;const
   requestAnimationFrame(()=>{day.classList.add("open");row.setAttribute("aria-expanded","true");setTimeout(()=>{const r=day.getBoundingClientRect();if(r.bottom>innerHeight)scrollBy({top:Math.min(r.bottom-innerHeight+16,r.top-80),behavior:"smooth"})},320)})};
 function dayForecasterBox(date){const ns=AFD_NOTES&&AFD_NOTES.byDate[date];if(!ns||!ns.length)return"";
   const seen=new Set(),items=ns.filter(n=>!seen.has(n.text)&&seen.add(n.text));
-  return `<div class="dfc"><small><i class="afdmark"></i>NWS forecasters${AFD&&AFD.when?` · ${esc(AFD.when.replace(/^Updated /,""))}`:""}</small>${items.map(n=>`<p>${esc(n.text)}</p>`).join("")}</div>`}
+  return `<details class="dmore dfcw"><summary>Forecaster notes</summary><div class="dfc"><small><i class="afdmark"></i>NWS forecasters${AFD&&AFD.when?` · ${esc(AFD.when.replace(/^Updated /,""))}`:""}</small>${items.map(n=>`<p>${esc(n.text)}</p>`).join("")}</div></details>`}
 function dayNoteLine(date){const ns=AFD_NOTES&&AFD_NOTES.byDate[date];if(!ns||!ns.length)return"";
   const u=[];ns.forEach(n=>{const t=shortLbl(n.label);if(!u.some(x=>x.t===t))u.push({t,hz:n.hz})});u.sort((a,b)=>b.hz-a.hz);
   return `<em class="dnote${u[0].hz?" hz":""}"><i class="afdmark"></i>${esc(u[0].t)}</em>`}
