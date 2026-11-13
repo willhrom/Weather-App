@@ -1599,10 +1599,10 @@ async function renderSeason(){
   const tone=pct==null?"":pct>=115?"Wetter than normal":pct>=85?"About normal":pct>=50?"Drier than normal":"Much drier than normal";
   const stat=`<small>This season</small><b>${U.r(mmU(total))}</b><span>${pct!=null?`${pct}% of normal`:"since Oct 1"}</span>`;
   const fill=normTo>0?Math.min(100,total/normTo*100):0;
-  const bar=`<div class="sbar fade"><div class="sbt"><span>Season since Oct 1</span><span>${pct!=null?tone:""}</span></div><div class="sbtrack"><i style="width:${fill.toFixed(1)}%"></i></div><div class="sbt"><span>${U.r(mmU(total))} ${U.rl()} so far</span><span>normal by today ${U.r(mmU(normTo))}</span></div></div>`;
-  const more=`<svg class="chart" viewBox="0 0 ${Wd} ${H}" style="margin-top:12px">${g}</svg>
-    <div class="legendrow"><span><i style="background:#4cc9f0"></i>This season</span><span><i style="background:#64799a"></i>Normal (1991–2020)</span></div>
-    <div class="tbl" style="margin-top:6px"><div class="tr"><span>Normal by today</span><b>${U.r(mmU(normTo))}</b></div><div class="tr"><span>${total>=normTo?"Ahead of normal":"Behind normal"}</span><b>${U.r(mmU(Math.abs(total-normTo)))}</b></div><div class="tr"><span>Normal full season (Oct–Sep)</span><b>${U.r(mmU(normAll))}</b></div><div class="tr"><span>Season so far vs full-season normal</span><b>${normAll>0?Math.round(total/normAll*100)+"%":"--"}</b></div></div>`;
+  const bar0=`<div class="sbar fade"><div class="sbt"><span>Season since Oct 1</span><span>${pct!=null?tone:""}</span></div><div class="sbtrack"><i style="width:${fill.toFixed(1)}%"></i></div><div class="sbt"><span>${U.r(mmU(total))} ${U.rl()} so far</span><span>normal by today ${U.r(mmU(normTo))}</span></div></div>`;
+  const bar=bar0+`<svg class="chart fade" viewBox="0 0 ${Wd} ${H}" style="margin-top:12px">${g}</svg>
+    <div class="legendrow"><span><i style="background:#4cc9f0"></i>This season</span><span><i style="background:#64799a"></i>Normal (1991–2020)</span></div>`;
+  const more=`<div class="tbl" style="margin-top:6px"><div class="tr"><span>Normal by today</span><b>${U.r(mmU(normTo))}</b></div><div class="tr"><span>${total>=normTo?"Ahead of normal":"Behind normal"}</span><b>${U.r(mmU(Math.abs(total-normTo)))}</b></div><div class="tr"><span>Normal full season (Oct–Sep)</span><b>${U.r(mmU(normAll))}</b></div><div class="tr"><span>Season so far vs full-season normal</span><b>${normAll>0?Math.round(total/normAll*100)+"%":"--"}</b></div></div>`;
   SEASON_H={pid,stat,bar,more};
   const st=$("#rsSeason"),sm=$("#seasonMore");if(st)st.innerHTML=stat;el.innerHTML=bar;if(sm)sm.innerHTML=more;
 }
@@ -3582,8 +3582,8 @@ function fxBuild(){
     FX.clouds.push({sp,x:R()*FX.w*1.4-FX.w*.2,y:FX.h*(-.1+R()*(k==="partly"||k==="partlyN"?.32:.62)),s,v:(8+R()*16)*(i%2?1:.6),a:.6+R()*.4})}
   if(k==="stars"||k==="partlyN")for(let i=0;i<Math.round(170*area);i++)FX.stars.push({x:R()*FX.w,y:R()*FX.h*.8,r:.5+R()*1.4,p:R()*6.3,s:.6+R()*1.8});
   if(k==="rain"||k==="storm"){
-    for(let i=0;i<Math.round((120+420*FX.I)*area);i++)FX.parts.push({x:R()*FX.w,y:R()*FX.h,l:16+R()*22*(.6+FX.I),v:900+R()*600,a:.26+R()*.34});
-    for(let i=0;i<Math.round((80+260*FX.I)*area);i++)FX.far.push({x:R()*FX.w,y:R()*FX.h,l:8+R()*10,v:520+R()*260,a:.12+R()*.14})}
+    for(let i=0;i<Math.round((60+200*FX.I)*area);i++)FX.parts.push({x:R()*FX.w,y:R()*FX.h,l:12+R()*16*(.6+FX.I),v:900+R()*600,a:.14+R()*.2});
+    for(let i=0;i<Math.round((40+130*FX.I)*area);i++)FX.far.push({x:R()*FX.w,y:R()*FX.h,l:7+R()*8,v:520+R()*260,a:.07+R()*.09})}
   if(k==="snow"){for(let i=0;i<Math.round((90+220*FX.I)*area);i++)FX.parts.push({x:R()*FX.w,y:R()*FX.h,r:1.1+R()*3.4,v:26+R()*60,p:R()*6.3,a:.5+R()*.45});
     for(let i=0;i<Math.round(14*area);i++)FX.far.push({x:R()*FX.w,y:R()*FX.h,r:5+R()*5,v:70+R()*50,p:R()*6.3,a:.2+R()*.2})}
   if(k==="sun"||k==="partly")for(let i=0;i<Math.round(40*area);i++)FX.parts.push({x:R()*FX.w,y:R()*FX.h,r:.8+R()*2,v:5+R()*12,p:R()*6.3});
@@ -3633,7 +3633,7 @@ function fxDraw(dt,now){
   if(k==="fog")FX.parts.forEach(b=>{b.x+=b.v*dt;const gr=g.createLinearGradient(0,b.y-b.h/2,0,b.y+b.h/2),a=b.a*(.75+.25*Math.sin(t*.4+b.y));gr.addColorStop(0,"rgba(205,215,230,0)");gr.addColorStop(.5,`rgba(205,215,230,${a})`);gr.addColorStop(1,"rgba(205,215,230,0)");g.fillStyle=gr;g.fillRect(0,b.y-b.h/2,w,b.h)});
   if(k==="rain"||k==="storm"){g.lineCap="round";const sl=FX.slant,fall=(arr,lw,col)=>{g.lineWidth=lw;arr.forEach(p=>{p.y+=p.v*dt;p.x+=p.v*sl*dt;if(p.y>h+30){p.y=-30;p.x=Math.random()*(w+200)-100}if(p.x>w+30)p.x-=w+60;if(p.x<-30)p.x+=w+60;
       g.strokeStyle=`rgba(${col},${p.a})`;g.beginPath();g.moveTo(p.x,p.y);g.lineTo(p.x-p.l*sl,p.y-p.l);g.stroke()})};
-    fall(FX.far,1,"150,180,215");fall(FX.parts,1.6,"185,215,245")}
+    fall(FX.far,.9,"150,180,215");fall(FX.parts,1.2,"185,215,245")}
   if(k==="snow"){const drift=(arr,blur)=>arr.forEach(p=>{p.y+=p.v*dt;p.x+=Math.sin(t*.8+p.p)*.45+FX.slant*p.v*dt*.6;if(p.y>h+10){p.y=-10;p.x=Math.random()*w}if(p.x>w+10)p.x=-10;if(p.x<-10)p.x=w+10;
       if(blur){const gr=g.createRadialGradient(p.x,p.y,0,p.x,p.y,p.r);gr.addColorStop(0,`rgba(255,255,255,${p.a})`);gr.addColorStop(1,"rgba(255,255,255,0)");g.fillStyle=gr}else g.fillStyle=`rgba(255,255,255,${p.a})`;
       g.beginPath();g.arc(p.x,p.y,p.r,0,7);g.fill()});drift(FX.parts,0);drift(FX.far,1)}
