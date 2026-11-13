@@ -1167,7 +1167,7 @@ function renderToday(){
   const gm=max(WG),gThresh=S.wind==="kmh"?40:S.wind==="kn"?22:25,gust=gm>=gThresh?`, with gusts up to ${U.w(gm)} ${U.wl()}`:"";
   // the overnight low only looks at the night (until 7 AM); a colder reading later in the morning, e.g. under rain, is told separately
   if(tonight){const nk=T.map((_,k)=>k).filter(k=>at(k)<=mid+7*36e5),NT=nk.map(k=>T[k]),nLo=min(NT),lowK=nk[NT.indexOf(nLo)];
-    ol+=` The overnight low is <b>${U.t(nLo)}</b>${lowK>0?` around ${hTxt(at(lowK))}`:""}.`;
+    ol+=` The overnight low is <b>${U.t(nLo)}</b>.`;
     if(min(T)<nLo-1)ol+=` Temperatures stay cool after sunrise, dipping to ${U.t(min(T))} by ${hTxt(at(loK))}.`;
     if(gust){const gk=WG.indexOf(gm);ol+=` Winds gust up to ${U.w(gm)} ${U.wl()}${gk>0?` around ${hTxt(at(gk))}`:""}.`}}
   else if(max(T)>tNow+1&&hiK>0){const rest=T.slice(hiK),lo=min(rest),loT=at(hiK+rest.indexOf(lo));
