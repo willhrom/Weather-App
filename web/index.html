@@ -1157,37 +1157,42 @@ function renderToday(){
   // a sky that lasts a while "holds" first: "Cloudy skies hold through this evening, then clear overnight."
   const holdV={foggy:"linger",rainy:"continue",drizzly:"continue",showery:"continue",stormy:"continue",snowy:"continue"};
   const first=ms.length>1&&toks(ms[0].p).length>1?`${SUBJ[ms[0].k][0]} ${vb(holdV[ms[0].k]||"hold",SUBJ[ms[0].k][1])} through ${toks(ms[0].p).slice(-1)[0]}, then ${change(ms[0],ms[1])}`:null;
-  let ol=ms.length===1?single(ms[0])+".":(first||`${SUBJ[ms[0].k][0]} ${change(ms[0],ms[1])}`)+"."+(ms[2]?` ${later(ms[1],ms[2])}.`:"");
+  // every sentence carries the time it's about, and they're read out in time order
+  const E=[],add=(t,s)=>E.push({t,s:s.trim()});
+  const pStart=ps=>{for(let k=0;k<idx.length;k++){const t=at(k);if(ps.includes(per(new Date(t).getUTCHours(),t>=mid)))return t}return end};
+  add(now-1,ms.length===1?single(ms[0])+".":(first||`${SUBJ[ms[0].k][0]} ${change(ms[0],ms[1])}`)+".");
+  if(ms[2])add(pStart(ms[2].p),`${later(ms[1],ms[2])}.`);
   // fog / marine layer timing, when the sky story above doesn't already cover it
-  {const fs=fogSentence();if(fs&&!/fog|marine/i.test(ol))ol+=" "+fs}
+  {const fs=fogSentence();if(fs&&!E.some(x=>/fog|marine/i.test(x.s)))add(fogSentence.t||now,fs)}
   const hTxt=t=>{const h=new Date(Math.round(t/36e5)*36e5).getUTCHours();return h===0?"midnight":h===12?"noon":`${h%12} ${h<12?"AM":"PM"}`};
   const isNight=t=>{const hr=new Date(t).getUTCHours();return hr>=20||hr<4};
   if(pmax>=30){const pk=PP.indexOf(pmax),a=amt>=wet()?Math.round(amt*(S.rain==="in"?10:1))/(S.rain==="in"?10:1):0,amtTxt=a>0?`, with about ${a} ${S.rain==="in"?(a===1?"inch":"inches"):"mm"} expected`:"";
-    ol+=pk===0?` Rain chances are highest now at <b>${pmax}%</b>${amtTxt}.`:` Rain chances peak at <b>${pmax}%</b> around ${hTxt(at(pk))}${amtTxt}.`}
+    add(at(pk),pk===0?`Rain chances are highest now at <b>${pmax}%</b>${amtTxt}.`:`Rain chances peak at <b>${pmax}%</b> around ${hTxt(at(pk))}${amtTxt}.`)}
   const gm=max(WG),gThresh=S.wind==="kmh"?40:S.wind==="kn"?22:25,gust=gm>=gThresh?`, with gusts up to ${U.w(gm)} ${U.wl()}`:"";
   // the overnight low only looks at the night (until 7 AM); a colder reading later in the morning, e.g. under rain, is told separately
   if(tonight){const nk=T.map((_,k)=>k).filter(k=>at(k)<=mid+7*36e5),NT=nk.map(k=>T[k]),nLo=min(NT),lowK=nk[NT.indexOf(nLo)];
-    ol+=` The overnight low is <b>${U.t(nLo)}</b>.`;
-    if(min(T)<nLo-1)ol+=` Temperatures stay cool after sunrise, dipping to ${U.t(min(T))} by ${hTxt(at(loK))}.`;
-    if(gust){const gk=WG.indexOf(gm);ol+=` Winds gust up to ${U.w(gm)} ${U.wl()}${gk>0?` around ${hTxt(at(gk))}`:""}.`}}
+    add(at(lowK),`The overnight low is <b>${U.t(nLo)}</b>.`);
+    if(min(T)<nLo-1)add(at(loK),`Temperatures stay cool after sunrise, dipping to ${U.t(min(T))} by ${hTxt(at(loK))}.`);
+    if(gust){const gk=WG.indexOf(gm);add(at(gk)+1,`Winds gust up to ${U.w(gm)} ${U.wl()}${gk>0?` around ${hTxt(at(gk))}`:""}.`)}}
   else if(max(T)>tNow+1&&hiK>0){const rest=T.slice(hiK),lo=min(rest),loT=at(hiK+rest.indexOf(lo));
-    ol+=` Temperatures peak at <b>${U.t(max(T))}</b> around ${hTxt(at(hiK))}${lo<max(T)-2?` before falling to ${U.t(lo)} ${isNight(loT)?"tonight":"by "+hTxt(loT)}`:""}${gust}.`}
-  else ol+=` Temperatures fall to <b>${U.t(min(T))}</b> ${isNight(at(loK))?"tonight":"by "+hTxt(at(loK))}${gust}.`;
+    add(at(hiK),`Temperatures peak at <b>${U.t(max(T))}</b> around ${hTxt(at(hiK))}${lo<max(T)-2?` before falling to ${U.t(lo)} ${isNight(loT)?"tonight":"by "+hTxt(loT)}`:""}${gust}.`)}
+  else add(at(loK),`Temperatures fall to <b>${U.t(min(T))}</b> ${isNight(at(loK))?"tonight":"by "+hTxt(at(loK))}${gust}.`);
   const row=(k,v)=>`<div class="trow"><small>${k}</small><span>${v}</span></div>`;
   // how today compares with yesterday
   {const ti=todayIndex();if(!tonight&&ti>0){const dT=d.temperature_2m_max[ti]-d.temperature_2m_max[ti-1],th=S.temp==="C"?2:4;
-    if(Math.abs(dT)>=th)ol+=` That's about ${Math.round(Math.abs(dT))}° ${dT>0?"warmer":"cooler"} than yesterday.`}}
+    if(Math.abs(dT)>=th)add(now,`That's about ${Math.round(Math.abs(dT))}° ${dT>0?"warmer":"cooler"} than yesterday.`)}}
   const DIRW={N:"north",NNE:"north",NE:"northeast",ENE:"east",E:"east",ESE:"east",SE:"southeast",SSE:"south",S:"south",SSW:"south",SW:"southwest",WSW:"west",W:"west",WNW:"west",NW:"northwest",NNW:"north"};
   // breezy spells, when the gust clause above hasn't already covered the wind
   const wsMax=max(WS),breezy=S.wind==="kmh"?22:S.wind==="kn"?12:14;
   if(!gust&&wsMax>=breezy){const wk=WS.indexOf(wsMax),wd=DIRW[dirName(h.wind_direction_10m[idx[wk]])]||"";
-    ol+=` ${wk<=1?"Winds are breezy now":`Winds pick up ${per(new Date(at(wk)).getUTCHours(),at(wk)>=mid)}`}, ${wd?`from the ${wd} `:""}at up to ${U.w(wsMax)} ${U.wl()}.`}
+    add(at(wk),`${wk<=1?"Winds are breezy now":`Winds pick up ${per(new Date(at(wk)).getUTCHours(),at(wk)>=mid)}`}, ${wd?`from the ${wd} `:""}at up to ${U.w(wsMax)} ${U.wl()}.`)}
   // strong sun
-  const uvm=max(UV);if(!tonight&&uvm>=6){const uk=UV.indexOf(uvm);ol+=` The UV index peaks at <b>${Math.round(uvm)}</b>${uk>0?` around ${hTxt(at(uk))}`:" now"}.`}
+  const uvm=max(UV);if(!tonight&&uvm>=6){const uk=UV.indexOf(uvm);add(at(uk),`The UV index peaks at <b>${Math.round(uvm)}</b>${uk>0?` around ${hTxt(at(uk))}`:" now"}.`)}
   // in the evening, a look at tomorrow
   if(tonight){const tj=todayIndex()+(new Date(now).getUTCHours()>=4?1:0);if(d.time[tj]){const c=d.weather_code[tj],pp=d.precipitation_probability_max?d.precipitation_probability_max[tj]:null,k=kind(c,1);
     const sky2=WET(k)?`${NOUN[k]}${pp!=null?` (${pp}% chance)`:""}`:ADJ[k]?`${ADJ[k]} skies`:NOUN[k]||"mixed skies";
-    ol+=` Tomorrow brings ${sky2} with a high of <b>${U.t(d.temperature_2m_max[tj])}</b>.`}}
+    add(end+1,`Tomorrow brings ${sky2} with a high of <b>${U.t(d.temperature_2m_max[tj])}</b>.`)}}
+  const ol=E.map((x,n)=>[x,n]).sort((p,q)=>p[0].t-q[0].t||p[1]-q[1]).map(p=>p[0].s).join(" ");
   $("#today").innerHTML=`<h4>${label}<b class="${pmax<15?"dry":""}">${pmax}% rain</b></h4><p class="ol">${ol}</p>`;
 }
 
@@ -1799,13 +1804,13 @@ function sunCross(lat,lon,from,alt,dir,hours=20){let prev=sunAlt(lat,lon,from);f
 function grayHour(i){const h=W.hourly,c=h.weather_code[i];if(c===45||c===48)return 2;
   const lo=h.cloud_cover_low[i]||0,mid=h.cloud_cover_mid[i]||0,vis=h.visibility?h.visibility[i]:null,rh=h.relative_humidity_2m[i]||0,wet=(h.precipitation[i]||0)>0.02;
   if(wet)return 0;if(vis!=null&&vis<1600&&rh>=90)return 2;return lo>=70&&mid<60?1:0}
-function fogSentence(){try{const i0=hourIndex(),n=Math.min(W.hourly.time.length,i0+24),g=[];for(let i=i0;i<n;i++)g.push(grayHour(i));
+function fogSentence(){fogSentence.t=null;try{const i0=hourIndex(),n=Math.min(W.hourly.time.length,i0+24),g=[];for(let i=i0;i<n;i++)g.push(grayHour(i));
     const at=k=>hTxt12(wall(W.hourly.time[i0+k])),name=seg=>seg.some(v=>v===2)?"Fog":"The marine layer";
     // a stretch only counts once it lasts two hours
     const end=k0=>{for(let k=k0;k<g.length-1;k++)if(!g[k]&&!g[k+1])return k;return -1},start=k0=>{for(let k=k0;k<g.length-1;k++)if(g[k]&&g[k+1])return k;return -1};
-    if(g[0]){const e=end(0);if(e===0)return "";const w=name(g.slice(0,Math.max(1,e)));if(e<0)return `${w} lingers through tomorrow.`;const r=start(e);
+    fogSentence.t=nowWall();if(g[0]){const e=end(0);if(e===0)return "";const w=name(g.slice(0,Math.max(1,e)));if(e<0)return `${w} lingers through tomorrow.`;const r=start(e);
       return `${w} clears around ${at(e)}${r>0&&r<20?` and returns around ${at(r)}`:""}.`}
-    const s0=start(1);if(s0<0||s0>18)return "";const e=end(s0),w=name(g.slice(s0,e>0?e:g.length));
+    const s0=start(1);if(s0<0||s0>18)return "";fogSentence.t=wall(W.hourly.time[i0+s0]);const e=end(s0),w=name(g.slice(s0,e>0?e:g.length));
     return `${w==="Fog"?"Fog":"The marine layer"} moves in around ${at(s0)}${e>0?` and clears around ${at(e)}`:""}.`}catch(e){return ""}}
 
 /* ---------- sky tab: sun, sunset/sunrise color, stargazing ----------
