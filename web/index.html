@@ -473,6 +473,7 @@ details.afd[open]>summary::after{content:"–"}
 .dmore summary::-webkit-details-marker{display:none}.dmore summary::after{content:"";width:7px;height:7px;border-right:1.6px solid currentColor;border-bottom:1.6px solid currentColor;transform:rotate(45deg) translateY(-2px);transition:transform .2s}
 .dmore[open] summary::after{transform:rotate(225deg) translate(-2px,0)}
 .dfcw+.dmore{margin-top:0}
+.dsum.nws p{margin:0 0 6px}.dsum.nws p b{color:var(--text);font-weight:600;margin-right:4px}.nwsby{display:block;font-size:11.5px;color:var(--faint);margin-top:2px}
 .dsec{border-top:1px solid var(--line);margin-top:14px;padding-top:12px}
 .dsec h5{margin:0 0 10px;font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--faint)}
 .kg{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 16px}
@@ -1014,7 +1015,7 @@ async function load(){
 }
 /* Each tab's data loads when that tab is first opened (per place/refresh); the visible tab goes first,
    light extras for the others are fetched once the app is idle. Keeps start-up fast on a phone. */
-const TABJOBS={now:[renderNow,renderHours,renderBest,renderRain,renderWind,renderMoon,renderMap,renderAlerts,renderAirport],days:[renderDaily,renderAFD],sky:[renderSunsetQ,renderAirport,renderAFD],
+const TABJOBS={now:[renderNow,renderHours,renderBest,renderRain,renderWind,renderMoon,renderMap,renderAlerts,renderAirport],days:[loadNwsForecast,renderDaily,renderAFD],sky:[renderSunsetQ,renderAirport,renderAFD],
   tides:[renderTide,renderCurrents,renderWaves,renderWater,renderAFD]},IDLEJOBS=[renderSeason,renderDaily,renderAFD,renderAirport,renderTide];
 let jobsDone=new Set(),jobGen=0;
 function runJob(f){if(jobsDone.has(f))return;jobsDone.add(f);const t0=performance.now(),rec=[Math.round(t0),f.name,0,null];DIAG.jobs.push(rec);DIAG.cur=f.name;
@@ -1044,6 +1045,7 @@ function ceilingText(){
   return[Math.round(W.current.cloud_cover)+"%","cloud cover"];
 }
 function renderNow(){
+  const ob=applyObs();loadObs();
   const c=W.current,d=W.daily,ti=todayIndex(),h=W.hourly,i=hourIndex(),P=h.precipitation;
   tint(c.weather_code,c.is_day);
   $("#temp").innerHTML=Math.round(c.temperature_2m)+"<sup>°</sup>";
@@ -1073,8 +1075,43 @@ function renderNow(){
     ro("UV",uv==null?"--":Math.round(uv),"",uv==null?"":uvT(uv)+` · max ${Math.round(d.uv_index_max[ti]||0)}`)+
     ro("Rain",(rainP??"--")+"%","",`${U.r(today)} ${U.rl()} so far`)+
     `<div class="ro" id="roAir">${airTile()}</div>`;loadAir();
-  $("#obsTime").textContent="as of "+fTime(nowWall());
+  $("#obsTime").textContent=ob?`measured at ${ob.id} · ${Math.max(1,Math.round((Date.now()-ob.t)/6e4))} min ago`:"as of "+fTime(nowWall());
 }
+
+/* ---------- NWS: the official point forecast (written text per day) and live station readings ---------- */
+const NWSP={};  // place key -> points properties
+async function nwsPoint(){const k=place.lat.toFixed(4)+","+place.lon.toFixed(4);if(NWSP[k])return NWSP[k];
+  const p=await getJSON(`https://api.weather.gov/points/${k}`);return NWSP[k]=p.properties||{}}
+let NWSFC=null,nwsFcReq=0;
+async function loadNwsForecast(){if(!isUS(place))return;const pid=place.id;
+  if(NWSFC&&NWSFC.pid===pid&&Date.now()-NWSFC.t<30*60e3)return;const my=++nwsFcReq;
+  try{const pt=await nwsPoint();if(!pt.forecast)return;const j=await getJSON(pt.forecast,12000);if(my!==nwsFcReq||place.id!==pid)return;
+    const by={};((j.properties||{}).periods||[]).forEach(p=>{const d=String(p.startTime).slice(0,10);(by[d]=by[d]||{})[p.isDaytime?"day":"night"]=p.detailedForecast});
+    NWSFC={pid,t:Date.now(),by};if(openDay&&typeof renderDaily==="function")renderDaily()}catch(e){console.warn("nws forecast",e)}}
+// the NWS forecasters' own words for a day (°F/mph only, since the text is written that way)
+function nwsDayText(date){if(S.temp!=="F"||!NWSFC||NWSFC.pid!==place.id)return"";const x=NWSFC.by[date];if(!x)return"";
+  const r=[];if(x.day)r.push(`<p>${esc(x.day)}</p>`);if(x.night)r.push(`<p><b>Tonight</b> ${esc(x.night)}</p>`);
+  return r.join("")+`<small class="nwsby">National Weather Service forecast</small>`}
+let OBS=null,obsReq=0;
+async function loadObs(){if(!isUS(place))return;const pid=place.id;
+  if(OBS&&OBS.pid===pid&&Date.now()-OBS.got<10*60e3)return;const my=++obsReq;
+  try{const pt=await nwsPoint();if(!pt.observationStations)return;const st=await getJSON(pt.observationStations,12000);
+    const fs=((st.features||[]).map(f=>({id:f.properties.stationIdentifier,name:f.properties.name,km:km(place.lat,place.lon,f.geometry.coordinates[1],f.geometry.coordinates[0])})).filter(f=>f.km<=25)).slice(0,3);
+    for(const f of fs){const o=await getJSON(`https://api.weather.gov/stations/${f.id}/observations/latest`,10000).catch(()=>null),q=o&&o.properties;
+      if(!q||!q.temperature||q.temperature.value==null)continue;const t=Date.parse(q.timestamp);if(!(Date.now()-t<90*60e3))continue;
+      if(my!==obsReq||place.id!==pid)return;
+      const v=k=>q[k]&&q[k].value!=null?q[k].value:null,kmh=k=>{const x=q[k];if(!x||x.value==null)return null;return /m_s-1/.test(x.unitCode)?x.value*3.6:x.value};
+      OBS={pid,got:Date.now(),t,id:f.id,name:f.name,km:f.km,tc:v("temperature"),dc:v("dewpoint"),rh:v("relativeHumidity"),ws:kmh("windSpeed"),wg:kmh("windGust"),wd:v("windDirection"),pa:v("seaLevelPressure")??v("barometricPressure")};
+      if(W)renderNow();return}
+    OBS={pid,got:Date.now(),none:1}}catch(e){console.warn("nws obs",e)}}
+// lay the station's measured values over the model's "now" (the model's originals are kept, so this can run any number of times)
+function applyObs(){const c=W&&W.current;if(!c)return null;if(!W._m)W._m={...c};const m=W._m;Object.assign(c,m);
+  const o=OBS;if(!o||o.none||o.pid!==place.id||Date.now()-o.t>90*60e3)return null;
+  const T=x=>S.temp==="F"?x*9/5+32:x,Wn=x=>S.wind==="mph"?x/1.609:S.wind==="kn"?x/1.852:S.wind==="ms"?x/3.6:x;
+  const tt=T(o.tc);c.apparent_temperature=m.apparent_temperature+(tt-m.temperature_2m);c.temperature_2m=tt;
+  if(o.rh!=null)c.relative_humidity_2m=o.rh;if(o.dc!=null&&"dew_point_2m"in c)c.dew_point_2m=T(o.dc);
+  if(o.ws!=null){c.wind_speed_10m=Wn(o.ws);if(o.wd!=null)c.wind_direction_10m=o.wd;if(o.wg!=null)c.wind_gusts_10m=Wn(o.wg)}
+  if(o.pa!=null&&o.pa>80000)c.pressure_msl=o.pa/100;return o}
 /* the next 12 hours as one smooth temperature line, labelled every two hours */
 function renderNext12(){const el=$("#next12");if(!el)return;const h=W.hourly,i=hourIndex(),n=Math.min(13,h.time.length-i);if(n<3){el.innerHTML="";return}
   const t=[];for(let k=0;k<n;k++)t.push(h.temperature_2m[i+k]);t[0]=W.current.temperature_2m;
@@ -2198,11 +2235,11 @@ function dayDetail(j){
   const sun=d.sunshine_duration?d.sunshine_duration[j]/3600:null,dl=d.daylight_duration?d.daylight_duration[j]/3600:(wall(d.sunset[j])-wall(d.sunrise[j]))/36e5;
   const st=(k,v,sub)=>`<div class="ks"><small>${k}</small><b>${v}</b>${sub?`<span>${sub}</span>`:""}</div>`;
   const wetDay=d.precipitation_sum[j]>=wet(),chance=d.precipitation_probability_max[j]??0;
-  const sum=daySummary(j);
+  const nws=nwsDayText(date),sum=nws||daySummary(j);loadNwsForecast();
   const sec=(t,body)=>`<div class="dsec"><h5>${t}</h5>${body}</div>`;
   return `<div class="dbox">
     <div class="dstrip">${st("High",U.t(d.temperature_2m_max[j]),`low ${U.t(d.temperature_2m_min[j])}`)}${st("Rain",`${chance}%`,wetDay?`${U.r(d.precipitation_sum[j])} ${U.rl()}`:"dry")}${st("Wind",`${U.w(mx(ws))}<em style="font-style:normal;font-size:11px;color:var(--muted);margin-left:2px">${U.wl()}</em>`,`gust ${U.w(mx(wg))}`)}${st("Clouds",ct==null?"--":Math.round(ct)+"%","avg cover")}</div>
-    <div class="dsum">${sum}</div>
+    <div class="dsum${nws?" nws":""}">${sum}</div>
     <svg class="chart" viewBox="0 0 ${Wd} ${H}">${g}</svg>${dayForecasterBox(date)}
     <details class="dmore"><summary>More details</summary>
     ${sec("Wind &amp; rain",`<div class="kg">${st("Peak gust",`${U.w(mx(wg))} ${U.wl()}`,gustAt?"around "+gustAt:"")}${st("Wind from",wd!=null?DIRW[dirName(wd)]:"--",`average ${U.w(avg(ws))} ${U.wl()}`)}${st("Hours of rain",rainHrs==null?"--":Math.round(rainHrs)+" h",wetDay?"heaviest "+fT(wall(h.time[idx[kP]])):"")}${st("Total",`${U.r(d.precipitation_sum[j])} ${U.rl()}`)}</div>`)}
