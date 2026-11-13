@@ -527,7 +527,7 @@ details.afd[open]>summary::after{content:"–"}
 .nowcard .today p.ol{font-size:15px;line-height:1.5;color:#d3deea;margin:0}
 .nowcard #alerts .alert{margin-top:14px;border-radius:12px}
 .nowcard .obst{position:absolute;top:22px;right:20px;display:none}
-.n12{display:block;width:100%;height:64px;margin-top:10px}
+.n12{display:block;width:100%;height:76px;margin-top:12px}
 .n12l{display:grid;margin-top:6px}.n12l div{text-align:center}
 .n12l b{display:block;font-size:14px;font-weight:600}.n12l span{display:block;font-size:11.5px;color:var(--faint);margin-top:1px}
 .readouts{display:block;padding:2px 16px}
@@ -551,6 +551,20 @@ body{letter-spacing:-.003em}
 .tabbar button{font-weight:500;letter-spacing:0;font-size:11.5px}
 b,strong{font-weight:600}
 .bok{font-weight:700}
+
+/* softer cards, slightly smaller body text */
+.panel{background:rgba(18,36,60,.42);border-color:rgba(160,200,255,.07);border-radius:26px;box-shadow:0 10px 30px rgba(0,0,0,.18);margin-top:14px}
+.panel.nowcard{border-radius:30px}
+.ro,.dstrip .ks,.dfc{border-color:rgba(160,200,255,.08)}
+.dstrip .ks{border-radius:14px;background:rgba(255,255,255,.04)}
+.dfc{border-radius:14px}
+.nowcard .today p.ol{font-size:14px;line-height:1.55}
+.today p.ol{font-size:13.5px}
+.dsum{font-size:13px;line-height:1.55}
+.afd p,.dfc{font-size:13px}
+.trow{font-size:12.5px}
+.bigt{font-variant-numeric:proportional-nums;letter-spacing:-.06em}
+.readouts .ro b{font-size:14px}
 </style>
 </head>
 <body>
@@ -1063,12 +1077,12 @@ function renderNow(){
 /* the next 12 hours as one smooth temperature line, labelled every two hours */
 function renderNext12(){const el=$("#next12");if(!el)return;const h=W.hourly,i=hourIndex(),n=Math.min(13,h.time.length-i);if(n<3){el.innerHTML="";return}
   const t=[];for(let k=0;k<n;k++)t.push(h.temperature_2m[i+k]);t[0]=W.current.temperature_2m;
-  const lo=Math.min(...t),hi=Math.max(...t),pad=Math.max(2,(hi-lo)*.15),W0=320,H=64,y=v=>6+(hi+pad-v)/(hi-lo+2*pad)*(H-12),x=k=>4+k*(W0-8)/(n-1);
+  const lo=Math.min(...t),hi=Math.max(...t),pad=Math.max(2,(hi-lo)*.15),W0=320,H=76,y=v=>6+(hi+pad-v)/(hi-lo+2*pad)*(H-12),x=k=>4+k*(W0-8)/(n-1);
   let line=`M${x(0).toFixed(1)} ${y(t[0]).toFixed(1)}`;for(let k=1;k<n;k++){const mx=(x(k-1)+x(k))/2;line+=` C${mx.toFixed(1)} ${y(t[k-1]).toFixed(1)} ${mx.toFixed(1)} ${y(t[k]).toFixed(1)} ${x(k).toFixed(1)} ${y(t[k]).toFixed(1)}`}
-  const pr=h.precipitation_probability,rain=[];for(let k=0;k<n;k++){const p=pr[i+k]||0;if(p>=20)rain.push(`<rect x="${(x(k)-3).toFixed(1)}" y="${(H-p/100*18).toFixed(1)}" width="6" height="${(p/100*18).toFixed(1)}" rx="2" fill="var(--water)" opacity=".55"/>`)}
+  const pr=h.precipitation_probability,rain=[];for(let k=0;k<n;k++){const p=pr[i+k]||0;if(p>=20)rain.push(`<rect x="${(x(k)-3).toFixed(1)}" y="${(H-p/100*22).toFixed(1)}" width="8" height="${(p/100*22).toFixed(1)}" rx="2.5" fill="var(--water)" opacity=".8"/>`)}
   const lbl=[];for(let k=0;k<n;k+=2)lbl.push(`<div><b>${U.t(t[k])}</b><span>${k===0?"Now":hTxt12(wall(h.time[i+k])).replace(":00","").replace(" ","").toLowerCase().replace("am","a").replace("pm","p")}</span></div>`);
   $("#n12r").textContent=`${U.t(lo)} – ${U.t(hi)}`;
-  el.innerHTML=`<svg class="n12" viewBox="0 0 ${W0} ${H}" preserveAspectRatio="none" aria-hidden="true">${rain.join("")}<path d="${line} L${x(n-1).toFixed(1)} ${H} L${x(0).toFixed(1)} ${H} Z" fill="var(--accent)" opacity=".1"/><path d="${line}" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linecap="round" vector-effect="non-scaling-stroke"/></svg><div class="n12l" style="grid-template-columns:repeat(${lbl.length},minmax(0,1fr))">${lbl.join("")}</div>`}
+  el.innerHTML=`<svg class="n12" viewBox="0 0 ${W0} ${H}" preserveAspectRatio="none" aria-hidden="true">${rain.join("")}<path d="${line} L${x(n-1).toFixed(1)} ${H} L${x(0).toFixed(1)} ${H} Z" fill="var(--accent)" opacity=".18"/><path d="${line}" fill="none" stroke="var(--accent)" stroke-width="3.5" stroke-linecap="round" vector-effect="non-scaling-stroke"/></svg><div class="n12l" style="grid-template-columns:repeat(${lbl.length},minmax(0,1fr))">${lbl.join("")}</div>`}
 
 /* ---------- rest of today (typed summary) ---------- */
 /* What the sky is doing right now, from the most reliable source available:
@@ -2153,18 +2167,20 @@ function dayDetail(j){
   const F=S.temp==="F",units=W.hourly_units||{};
   // chart: three tracks — temperature line, cloud-cover strip, rain-chance bars
   const T=col("temperature_2m"),CC=idx.map(i=>(h.cloud_cover||[])[i]??null),PP=idx.map(i=>h.precipitation_probability[i]||0),n=idx.length;
-  const tl=mn(T),th=mx(T),Wd=340,L0=44,Rr=8,X=k=>L0+(k+.5)*(Wd-L0-Rr)/n,cw=(Wd-L0-Rr)/n,tTop=16,tBot=60,Y=v=>tBot-(v-tl)/((th-tl)||1)*(tBot-tTop);
+  const tl=mn(T),th=mx(T),Wd=340,L0=44,Rr=8,X=k=>L0+(k+.5)*(Wd-L0-Rr)/n,cw=(Wd-L0-Rr)/n,tTop=24,tBot=60,Y=v=>tBot-(v-tl)/((th-tl)||1)*(tBot-tTop);
   const lab=(y,t)=>`<text x="0" y="${y}" fill="#8597b3" font-size="11" font-family="Figtree" font-weight="500">${t}</text>`;
-  let g=lab(40,"Temp")+lab(91,"Clouds")+lab(126,"Rain");
+  let g=lab(40,"Temp")+lab(90,"Clouds")+lab(126,"Rain");
   for(let k=0;k<n;k+=6)g+=`<line x1="${X(k)-cw/2}" y1="8" x2="${X(k)-cw/2}" y2="132" stroke="#1c2d44"/>`;
-  g+=`<path d="${T.map((v,k)=>(k?"L":"M")+X(k).toFixed(1)+" "+Y(v).toFixed(1)).join("")}" fill="none" stroke="#f0f5fb" stroke-width="1.8" stroke-linejoin="round"/>`;
+  {let dp=`M${X(0).toFixed(1)} ${Y(T[0]).toFixed(1)}`;for(let k=1;k<T.length;k++){const mx=((X(k-1)+X(k))/2).toFixed(1);dp+=` C${mx} ${Y(T[k-1]).toFixed(1)} ${mx} ${Y(T[k]).toFixed(1)} ${X(k).toFixed(1)} ${Y(T[k]).toFixed(1)}`}
+    g+=`<defs><linearGradient id="dtf${j}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffc94d" stop-opacity=".22"/><stop offset="1" stop-color="#7cc4ff" stop-opacity="0"/></linearGradient><linearGradient id="dts${j}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffd27a"/><stop offset="1" stop-color="#8fd0ff"/></linearGradient></defs>`;
+    g+=`<path d="${dp} L${X(T.length-1).toFixed(1)} 66 L${X(0).toFixed(1)} 66 Z" fill="url(#dtf${j})"/><path d="${dp}" fill="none" stroke="url(#dts${j})" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>`}
   const kmax=T.indexOf(th),kmin=T.indexOf(tl);
-  if(kmax>=0)g+=`<circle cx="${X(kmax)}" cy="${Y(th)}" r="3" fill="#ffc94d"/><text x="${X(kmax)}" y="${Y(th)-6}" fill="#f0f5fb" font-size="11" text-anchor="middle">${Math.round(th)}°</text>`;
-  if(kmin>=0)g+=`<circle cx="${X(kmin)}" cy="${Y(tl)}" r="3" fill="#6fd3ff"/><text x="${X(kmin)}" y="${Y(tl)+13}" fill="#b4c3d4" font-size="11" text-anchor="middle">${Math.round(tl)}°</text>`;
-  CC.forEach((v,k)=>{g+=`<rect x="${(X(k)-cw/2+.5).toFixed(1)}" y="83" width="${(cw-1).toFixed(1)}" height="9" rx="1.5" fill="#dfe8f3" opacity="${v==null?0:(.06+v/100*.7).toFixed(2)}"/>`});
+  if(kmax>=0)g+=`<circle cx="${X(kmax)}" cy="${Y(th)}" r="5" fill="#ffc94d" stroke="#0b1a2c" stroke-width="2"/><text x="${X(kmax)}" y="${Y(th)-9}" fill="#f0f5fb" font-size="12" font-weight="600" text-anchor="middle">${Math.round(th)}°</text>`;
+  if(kmin>=0)g+=`<circle cx="${X(kmin)}" cy="${Y(tl)}" r="5" fill="#6fd3ff" stroke="#0b1a2c" stroke-width="2"/><text x="${X(kmin)}" y="${Y(tl)+16}" fill="#b4c3d4" font-size="11" text-anchor="middle">${Math.round(tl)}°</text>`;
+  CC.forEach((v,k)=>{g+=`<rect x="${(X(k)-cw/2+.5).toFixed(1)}" y="80" width="${(cw-1.5).toFixed(1)}" height="12" rx="3" fill="#dfe8f3" opacity="${v==null?0:(.08+v/100*.8).toFixed(2)}"/>`});
   g+=`<line x1="${L0}" y1="132" x2="${Wd-Rr}" y2="132" stroke="#2a3f5c"/>`;
-  let pk=-1;PP.forEach((p,k)=>{if(p>0){const bh=Math.max(1.5,p/100*20);g+=`<rect x="${(X(k)-cw*.32).toFixed(1)}" y="${132-bh}" width="${(cw*.64).toFixed(1)}" height="${bh}" rx="1" fill="#4cc9f0" opacity="${(.35+p/160).toFixed(2)}"/>`}if(pk<0||p>PP[pk])pk=k});
-  if(pk>=0&&PP[pk]>=10)g+=`<text x="${X(pk)}" y="${132-PP[pk]/100*20-5}" fill="#4cc9f0" font-size="10.5" text-anchor="middle">${PP[pk]}%</text>`;
+  let pk=-1;PP.forEach((p,k)=>{if(p>0){const bh=Math.max(2,p/100*24);g+=`<rect x="${(X(k)-cw*.4).toFixed(1)}" y="${132-bh}" width="${(cw*.8).toFixed(1)}" height="${bh}" rx="2" fill="#4cc9f0" opacity="${(.45+p/180).toFixed(2)}"/>`}if(pk<0||p>PP[pk])pk=k});
+  if(pk>=0&&PP[pk]>=10)g+=`<text x="${X(pk)}" y="${132-PP[pk]/100*24-5}" fill="#4cc9f0" font-size="11" font-weight="600" text-anchor="middle">${PP[pk]}%</text>`;
   [0,6,12,18].forEach(k=>{if(k<n)g+=`<text x="${X(k)-cw/2+2}" y="148" fill="#8597b3" font-size="10.5">${fHour(wall(h.time[idx[k]]))}</text>`});
   const H=152;
   // clouds by altitude
