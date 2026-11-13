@@ -1087,11 +1087,15 @@ let NWSFC=null,nwsFcReq=0;
 async function loadNwsForecast(){if(!isUS(place))return;const pid=place.id;
   if(NWSFC&&NWSFC.pid===pid&&Date.now()-NWSFC.t<30*60e3)return;const my=++nwsFcReq;
   try{const pt=await nwsPoint();if(!pt.forecast)return;const j=await getJSON(pt.forecast,12000);if(my!==nwsFcReq||place.id!==pid)return;
-    const by={};((j.properties||{}).periods||[]).forEach(p=>{const d=String(p.startTime).slice(0,10);(by[d]=by[d]||{})[p.isDaytime?"day":"night"]=p.detailedForecast});
-    NWSFC={pid,t:Date.now(),by};if(openDay&&typeof renderDaily==="function")renderDaily()}catch(e){console.warn("nws forecast",e)}}
+    const by={};((j.properties||{}).periods||[]).forEach(p=>{const d=String(p.startTime).slice(0,10),x=by[d]=by[d]||{},pop=p.probabilityOfPrecipitation&&p.probabilityOfPrecipitation.value;
+      if(p.isDaytime){x.day=p.detailedForecast;x.dpop=pop}else{x.night=p.detailedForecast;x.nname=p.name;x.npop=pop}});
+    NWSFC={pid,t:Date.now(),by};if(typeof renderDaily==="function"&&W)renderDaily()}catch(e){console.warn("nws forecast",e)}}
 // the NWS forecasters' own words for a day (°F/mph only, since the text is written that way)
+// the NWS chance of rain for a day (highest of its day and night periods), so the numbers match the NWS text
+function nwsPop(date){if(!NWSFC||NWSFC.pid!==place.id)return null;const x=NWSFC.by[date];if(!x)return null;const v=[x.dpop,x.npop].filter(v=>v!=null);return v.length?Math.max(...v):null}
+function dayPop(j){const d=W.daily,np=S.temp==="F"?nwsPop(d.time[j]):null;return np??d.precipitation_probability_max[j]}
 function nwsDayText(date){if(S.temp!=="F"||!NWSFC||NWSFC.pid!==place.id)return"";const x=NWSFC.by[date];if(!x)return"";
-  const r=[];if(x.day)r.push(`<p>${esc(x.day)}</p>`);if(x.night)r.push(`<p><b>Tonight</b> ${esc(x.night)}</p>`);
+  const r=[];if(x.day)r.push(`<p>${esc(x.day)}</p>`);if(x.night)r.push(`<p><b>${esc((x.nname||"Night").replace(/ Night$/," night"))}</b> ${esc(x.night)}</p>`);
   return r.join("")+`<small class="nwsby">National Weather Service forecast</small>`}
 let OBS=null,obsReq=0;
 async function loadObs(){if(!isUS(place))return;const pid=place.id;
@@ -2172,7 +2176,7 @@ function renderDaily(){
   const d=W.daily,ti=todayIndex(),n=Math.min(10,d.time.length-ti),lo=Math.min(...d.temperature_2m_min.slice(ti,ti+n)),hi=Math.max(...d.temperature_2m_max.slice(ti,ti+n)),sp=hi-lo||1,cur=W.current.temperature_2m;
   if(openDay&&!d.time.slice(ti,ti+n).includes(openDay))openDay=null;
   let s="";
-  for(let j=ti;j<ti+n;j++){const a=(d.temperature_2m_min[j]-lo)/sp*100,b=(d.temperature_2m_max[j]-lo)/sp*100,p=d.precipitation_probability_max[j],open=openDay===d.time[j];
+  for(let j=ti;j<ti+n;j++){const a=(d.temperature_2m_min[j]-lo)/sp*100,b=(d.temperature_2m_max[j]-lo)/sp*100,p=dayPop(j),open=openDay===d.time[j];
     s+=`<div class="day${open?" open":""}" data-date="${d.time[j]}"><button class="drow dgrid" aria-expanded="${open}">
       <span class="d">${j===ti?"Today":fDay(wall(d.time[j]))}<small>${fMD(wall(d.time[j]))}</small></span>
       <span class="c">${wxText(d.weather_code[j])}</span>
@@ -2234,7 +2238,7 @@ function dayDetail(j){
   const visU=units.visibility||"m",visv=mn(vis),visT=visv==null?"--":(()=>{const m=/ft/.test(visU)?visv*.3048:visv;return F?Math.min(10,m/1609).toFixed(m<8000?1:0)+" mi":Math.min(20,m/1000).toFixed(m<10000?1:0)+" km"})();
   const sun=d.sunshine_duration?d.sunshine_duration[j]/3600:null,dl=d.daylight_duration?d.daylight_duration[j]/3600:(wall(d.sunset[j])-wall(d.sunrise[j]))/36e5;
   const st=(k,v,sub)=>`<div class="ks"><small>${k}</small><b>${v}</b>${sub?`<span>${sub}</span>`:""}</div>`;
-  const wetDay=d.precipitation_sum[j]>=wet(),chance=d.precipitation_probability_max[j]??0;
+  const wetDay=d.precipitation_sum[j]>=wet(),chance=dayPop(j)??0;
   const nws=nwsDayText(date),sum=nws||daySummary(j);loadNwsForecast();
   const sec=(t,body)=>`<div class="dsec"><h5>${t}</h5>${body}</div>`;
   return `<div class="dbox">
