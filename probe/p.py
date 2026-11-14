@@ -1,19 +1,11 @@
-import os,json
-from playwright.sync_api import sync_playwright
-os.makedirs("out",exist_ok=True);log=[]
-with sync_playwright() as p:
-    b=p.chromium.launch()
-    for name,(la,lo) in {"sanramon":(37.7799,-121.978),"sf":(37.7749,-122.4194)}.items():
-        ctx=b.new_context(viewport={"width":393,"height":852},device_scale_factor=2,geolocation={"latitude":la,"longitude":lo},permissions=["geolocation"])
-        pg=ctx.new_page();errs=[];reqs=[]
-        pg.on("console",lambda m,errs=errs:errs.append(f"{m.type}: {m.text}"[:400]) if m.type in("error","warning") else None)
-        pg.on("pageerror",lambda e,errs=errs:errs.append("PAGEERROR "+str(e)[:600]))
-        pg.on("requestfailed",lambda r,reqs=reqs:reqs.append("FAIL "+r.url[:200]+" "+str(r.failure)))
-        pg.on("response",lambda r,reqs=reqs:reqs.append(f"{r.status} {r.url[:200]}") if r.status>=400 else None)
-        pg.goto("https://willhrom-weather.pages.dev/?probe=1");pg.wait_for_timeout(9000)
-        pg.click("#tabbar [data-tab=sky]");pg.wait_for_timeout(9000)
-        pg.screenshot(path=f"out/{name}_sky.png",full_page=True)
-        html=pg.evaluate("(document.querySelector('#tab-sky')||document.querySelector('[data-pane=sky]')||document.body).innerText.slice(0,3000)")
-        log.append({"name":name,"errs":errs,"reqs":reqs,"text":html})
-        ctx.close()
-json.dump(log,open("out/log.json","w"),indent=1)
+import json,urllib.request,os
+os.makedirs("out",exist_ok=True);R={}
+def g(u):
+    try:
+        r=urllib.request.urlopen(urllib.request.Request(u,headers={"User-Agent":"weather-app probe (github.com/willhrom)"}),timeout=20);return r.read().decode()[:6000]
+    except Exception as e:return "ERR "+str(e)
+la,lo=37.7799,-121.978
+R["om"]=g(f"https://api.open-meteo.com/v1/forecast?latitude={la}&longitude={lo}&current=temperature_2m,weather_code,is_day,apparent_temperature,precipitation,cloud_cover&minutely_15=precipitation&forecast_minutely_15=8&past_minutely_15=4&temperature_unit=fahrenheit&precipitation_unit=inch&timezone=auto")
+R["metar"]=g("https://aviationweather.gov/api/data/metar?ids=KLVK,KCCR,KOAK,KHWD,KSFO&format=json&hours=2")
+R["rel"]=g("https://api.github.com/repos/willhrom/Weather-App/releases?per_page=3")
+json.dump(R,open("out/log.json","w"),indent=1)
