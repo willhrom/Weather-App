@@ -811,9 +811,13 @@ async function modelTile(F,d,ox,oy,f,g,bm,ST){const S=512,n=1<<d,sz=(F.w-2)/n,sx
         if(dens>0){const e=dens*dens*(3-2*dens),lit=Math.max(0,Math.min(1,.32+.5*e+rl+(nzv-.5)*.25));
           r=118+130*lit;gg=128+121*lit;b=146+107*lit;al=(.06+.6*Math.pow(e,1.3))*Math.min(1,dens*3)}}
       // rain on top in the radar colours, with ragged shower edges instead of smooth blobs
-      if(rain&&v>=4){const vv=v+(rnv-.5)*8*(1-.7*seen);   // less invented texture where there is real detail
+      // hand-over from radar: the model's rain reaches full strength over the first third of the band (about
+      // 150-200 km from the nearest radar) and eases in by intensity, not see-through alpha, so it reads like the
+      // radar's own echoes carrying on rather than a washed-out veil
+      const ho=Math.min(1,wt/.35),he=ho*ho*(3-2*ho);
+      if(rain&&v>=4){const vv=v+(rnv-.5)*8*(1-.7*seen)-12*(1-he);   // less invented texture where there is real detail
         if(vv>=9){const bb=BAND[Math.max(0,Math.min(320,Math.round((Math.max(vv,10))*4)))];
-        if(bb){const ra=bb[3]*Math.min(1,(vv-9)/2.5)*Math.min(1,wt*1.15),oa=ra+al*(1-ra);
+        if(bb){const ra=bb[3]*Math.min(1,(vv-9)/2.5)*Math.min(1,he*2.5),oa=ra+al*(1-ra);
           if(oa>0){r=(bb[0]*ra+r*al*(1-ra))/oa;gg=(bb[1]*ra+gg*al*(1-ra))/oa;b=(bb[2]*ra+b*al*(1-ra))/oa;al=oa}}}}
       if(al<.01)continue;const i=(yy*S+xx)*4;o[i]=r;o[i+1]=gg;o[i+2]=Math.min(255,b);o[i+3]=Math.round(255*al);any=true}}
   if(!any)return null;cx.putImageData(img,0,0);if(bm)return c.transferToImageBitmap();return(await c.convertToBlob({type:"image/png"})).arrayBuffer()}
