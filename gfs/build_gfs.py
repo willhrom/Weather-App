@@ -31,7 +31,11 @@ HOURS = list(range(0, 19))
 W, E, S_, N = -180.0, 180.0, -85.06, 85.06   # the whole Web Mercator world
 ZOOMS = range(2, 4)   # z3 at 256 px is already finer than the 0.25-degree grid; the phone smooths the rest
 FADE_KM = (150, 250)          # clouds: distance from the lower-48 coast
-RADAR_KM = (150, 300)         # rain: distance from the nearest lower-48 NEXRAD site (a wide, smooth hand-over)
+RADAR_KM = (160, 230)         # rain: distance from the nearest lower-48 NEXRAD site (a short hand-over; the app
+                              # eases the model in by intensity, so it reads as the radar carrying on)
+CAL_KM = (40, 160)            # where radar is trustworthy and the model can be checked against it
+CAL_MAX = 10.0                # largest intensity correction, dBZ
+MOSAIC = "https://mesonet.agron.iastate.edu/data/gis/images/4326/USCOMP/n0q_0"
 RADAR_BOX = (-126.0, 23.0, -66.0, 50.0)   # where the app's radar mosaic has data at all (W, S, E, N)
 EDGE_DEG = 1.8                # the model fades in over this band inside the box edge (the app fades the radar out
                               # over the outer 0.8 degrees of it), so the join is a gradual blend, not a line
@@ -116,7 +120,8 @@ def coast_weight(land):
 
 
 def radar_weight(lat0, lon0, shape):
-    """0 within reach of a lower-48 NEXRAD radar (what the app's radar mosaic covers), 1 beyond it."""
+    """0 within reach of a lower-48 NEXRAD radar (what the app's radar mosaic covers), 1 beyond it.
+    Also returns the distance to the nearest radar (km) for the calibration."""
     h, w = shape
     lats = lat0 - np.arange(h) * .25
     lons = lon0 + np.arange(w) * .25
@@ -126,7 +131,7 @@ def radar_weight(lat0, lon0, shape):
         sites = [(lo, la) for lo, la in sites if 24 <= la <= 50 and -126 <= lo <= -66]
     except Exception as e:
         print("NEXRAD site list unavailable:", e)
-        return None
+        return None, None
     print("NEXRAD sites:", len(sites))
     dist = np.full(shape, 1e9, np.float32)
     R = RADAR_KM[1] / 111 + .5
@@ -144,7 +149,68 @@ def radar_weight(lat0, lon0, shape):
     LA, LO = np.meshgrid(lats, lons, indexing="ij")
     bw, bs, be, bn = RADAR_BOX
     inside = np.minimum(np.minimum(LO - bw, be - LO), np.minimum(LA - bs, bn - LA)) / EDGE_DEG
-    return np.maximum(w, 1 - smooth(np.clip(inside, 0, 1))).astype(np.float32)
+    return np.maximum(w, 1 - smooth(np.clip(inside, 0, 1))).astype(np.float32), dist
+
+
+def radar_now(lat0, lon0, shape):
+    """The live US radar mosaic on the model's 0.25-degree grid (dBZ, NaN where it has no data), and its time.
+    Each cell takes the 80th percentile of its ~50x50 radar pixels, which is close to how a 28 km model
+    cell's reflectivity reads."""
+    try:
+        meta = S.get(MOSAIC + ".json", timeout=30).json()
+        valid = dt.datetime.strptime(meta["meta"]["valid"], "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=dt.timezone.utc)
+        wld = [float(x) for x in S.get(MOSAIC + ".wld", timeout=30).text.split()]
+        im = Image.open(__import__("io").BytesIO(S.get(MOSAIC + ".png", timeout=120).content))
+        a = np.asarray(im.convert("P") if im.mode != "P" else im, np.uint8)
+    except Exception as e:
+        print("radar mosaic unavailable:", e)
+        return None, None
+    dx, dy, x0, y0 = wld[0], wld[3], wld[4], wld[5]
+    dbz = np.where(a > 0, a.astype(np.float32) * .5 - 32.5, np.nan)
+    h, w = shape
+    out = np.full(shape, np.nan, np.float32)
+    lats = lat0 - np.arange(h) * .25
+    lons = lon0 + np.arange(w) * .25
+    rows = [(i, la) for i, la in enumerate(lats) if 23 <= la <= 50.5]
+    cols = [(j, lo) for j, lo in enumerate(lons) if -127 <= lo <= -65]
+    for i, la in rows:
+        r0, r1 = int((la + .125 - y0) / dy), int((la - .125 - y0) / dy)
+        if r1 <= 0 or r0 >= a.shape[0]: continue
+        band = dbz[max(0, r0):min(a.shape[0], r1)]
+        for j, lo in cols:
+            c0, c1 = int((lo - .125 - x0) / dx), int((lo + .125 - x0) / dx)
+            if c1 <= 0 or c0 >= a.shape[1]: continue
+            blk = band[:, max(0, c0):min(a.shape[1], c1)]
+            if blk.size and np.isfinite(blk).mean() > .5:
+                out[i, j] = np.nanpercentile(np.nan_to_num(blk, nan=-10), 80)
+    print("radar mosaic", valid.isoformat(), "cells:", int(np.isfinite(out).sum()))
+    return out, valid
+
+
+def radar_bias(model, radar, dist):
+    """How much to raise or lower the model's rain just beyond radar so it matches what radar sees just inside.
+    Compared where radar is trustworthy (CAL_KM from a site): the average strength of rain in each, separately,
+    so a storm the model has a little out of place still counts. Spread smoothly out to sea; 0 where there is
+    too little rain in either to judge."""
+    ok = np.isfinite(radar) & (dist >= CAL_KM[0]) & (dist <= CAL_KM[1])
+    rr = ok & (np.nan_to_num(radar, nan=-99) >= 15)
+    mm = ok & (model >= 15)
+    sg = 6   # ~1.5 degrees
+    def mean_of(v, m):
+        num = gaussian_filter(np.where(m, v, 0).astype(np.float32), sg, mode="constant")
+        den = gaussian_filter(m.astype(np.float32), sg, mode="constant")
+        return num / np.maximum(den, 1e-6), den
+    R, dr = mean_of(np.nan_to_num(radar), rr)
+    M, dm = mean_of(model, mm)
+    conf = np.clip(np.minimum(dr, dm) / .04, 0, 1)        # enough rain in both, nearby
+    b = np.clip(R - M, -CAL_MAX, CAL_MAX) * conf
+    # carry it out past the radar's reach: a wider, confidence-weighted blur
+    num = gaussian_filter(b, 10, mode="constant"); den = gaussian_filter(conf, 10, mode="constant")
+    far = np.where(den > .02, num / np.maximum(den, 1e-6), 0) * np.clip(den / .1, 0, 1)
+    out = np.where(conf > .5, b, far).astype(np.float32)
+    n = int((conf > .5).sum())
+    print(f"calibration: {n} cells judged, bias range {float(out.min()):+.1f}..{float(out.max()):+.1f} dBZ")
+    return out
 
 
 def tile_coords(z):
@@ -187,9 +253,21 @@ def main():
 
     land = grab(fname(day, hh, 0), "LAND", "surface")
     cw, lat0, lon0 = coast_weight(land), *subset(land)[1:]
-    rw = radar_weight(lat0, lon0, cw.shape)
+    rw, rdist = radar_weight(lat0, lon0, cw.shape)
     if rw is None:   # no site list: fall back to the coast for rain too
         rw = cw
+    # calibrate the model's rain against live radar where both see it, at the forecast hour nearest the radar's time
+    bias, f_now = None, None
+    if rdist is not None:
+        radar, valid = radar_now(lat0, lon0, cw.shape)
+        if radar is not None:
+            f_now = int(round((valid - cyc).total_seconds() / 3600))
+            if HOURS[0] <= f_now <= HOURS[-1]:
+                try:
+                    m_now = subset(grab(fname(day, hh, f_now), "REFC", "entire atmosphere"))[0]
+                    bias = radar_bias(gaussian_filter(np.maximum(m_now, -20), .6, mode="nearest"), radar, rdist)
+                except Exception as e:
+                    print("calibration skipped:", e)
     print("clouds shown cells:", int((cw > 0).sum()), "rain shown cells:", int((rw > 0).sum()), "of", cw.size)
 
     def one(f):
@@ -204,6 +282,9 @@ def main():
             return None
         # a light blur takes the blockiness out of the 28 km grid before it's scaled up
         refc = gaussian_filter(np.maximum(refc, -20), .6, mode="nearest")
+        if bias is not None:   # strongest near now, fading over the next half day as the weather moves on
+            k = math.exp(-max(0, f - f_now) / 12)
+            refc = np.where(refc > 0, refc + bias * k, refc)
         tcdc = gaussian_filter(tcdc, .6, mode="nearest") * cw
         for z in ZOOMS:
             xs, ys = tile_coords(z)
@@ -218,7 +299,7 @@ def main():
         done = sorted(h for h in ex.map(one, HOURS) if h is not None)
     if len(done) < 6:
         raise SystemExit(f"only {len(done)} hours built")
-    man = {"cycle": cid, "run": cyc.strftime("%Y-%m-%dT%H:%MZ"), "hours": done,
+    man = {"cycle": cid, "calibrated": bias is not None, "run": cyc.strftime("%Y-%m-%dT%H:%MZ"), "hours": done,
            "bounds": [W, S_, E, N], "maxzoom": max(ZOOMS), "v": 4,
            "enc": {"r": "(dBZ+20)*3", "g": "cloud%*2.55", "b": "show 0..255"},
            "generated": dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")}
