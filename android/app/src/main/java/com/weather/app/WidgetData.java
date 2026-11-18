@@ -98,14 +98,18 @@ final class WidgetData {
 
     // forecast: now, next hours, next days
     JSONObject j = new JSONObject(WeatherJob.get(String.format(Locale.US,
-        "https://api.open-meteo.com/v1/forecast?latitude=%.4f&longitude=%.4f&current=temperature_2m,weather_code,is_day,apparent_temperature"
+        "https://api.open-meteo.com/v1/forecast?latitude=%.4f&longitude=%.4f&current=temperature_2m,weather_code,is_day,apparent_temperature,precipitation"
             + "&hourly=temperature_2m,weather_code,precipitation_probability,precipitation,is_day&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max"
             + "&temperature_unit=%s&precipitation_unit=%s&forecast_hours=14&forecast_days=7&timezone=auto",
         lat, lon, F ? "fahrenheit" : "celsius", english ? "inch" : "mm")));
     JSONObject cur = j.getJSONObject("current"), h = j.getJSONObject("hourly"), dd = j.getJSONObject("daily");
     JSONObject now = new JSONObject();
     now.put("temp", cur.getDouble("temperature_2m"));
-    now.put("code", cur.getInt("weather_code"));
+    int code0 = cur.getInt("weather_code");
+    // the model can miss rain that is falling now: if it is measuring rain this quarter-hour, say so
+    double pNow = cur.optDouble("precipitation", 0);
+    if (code0 < 51 && pNow >= (english ? 0.004 : 0.1)) code0 = pNow >= (english ? 0.04 : 1.0) ? 63 : 61;
+    now.put("code", code0);
     now.put("day", cur.optInt("is_day", 1) == 1);
     now.put("feels", cur.optDouble("apparent_temperature"));
     now.put("time", cur.optString("time"));
@@ -149,6 +153,8 @@ final class WidgetData {
     final String wid = ws != null && ws.optString("id").matches("[A-Za-z0-9]{4,12}") ? ws.optString("id") : st != null ? st.optString("id") : "";
     java.util.concurrent.ExecutorService pool = java.util.concurrent.Executors.newFixedThreadPool(4);
     java.util.concurrent.Future<Object> fM = null, fT = null, fW = null, fV = null;
+    final double fLat = lat, fLon = lon;
+    java.util.concurrent.Future<Object> fN = pool.submit(() -> nearCond(fLat, fLon));
     if (apt != null && apt.optString("id").matches("[A-Z0-9]{3,5}")) fM = pool.submit(() -> metar(apt.getString("id"), apt.optString("name"), fF));
     else out.put("noApt", true);
     if (st != null && st.optString("id").matches("[A-Za-z0-9]{4,12}")) fT = pool.submit(() -> tide(st.getString("id"), st.optString("name"), fEng, localNow));
@@ -161,6 +167,20 @@ final class WidgetData {
     });
     pool.shutdown();
     putWhenDone(out, "metar", fM);
+    // what the nearest airport is reporting right now beats the model (same rule as the app's Today tab)
+    try {
+      JSONObject m = null;
+      try { Object n = fN.get(15, java.util.concurrent.TimeUnit.SECONDS); if (n instanceof JSONObject) m = (JSONObject) n; } catch (Exception ignored) {}
+      if (m == null) m = out.optJSONObject("metar");
+      if (m != null && System.currentTimeMillis() - m.optLong("obs", 0) < 90 * 60_000L) {
+        int c = now.getInt("code"), wx = m.optInt("wxc", -1);
+        double cov = m.optDouble("cov", -1);
+        boolean clr = m.optBoolean("clr", false);
+        if (wx >= 0) c = wx;
+        else if (cov >= 0) c = (c >= 51 && !clr) ? c : (cov == 2.5 ? 3 : (int) cov);
+        now.put("code", c);
+      }
+    } catch (Exception ignored) {}
     putWhenDone(out, "tide", fT);
     putWhenDone(out, "water", fW);
     putWhenDone(out, "waves", fV);
@@ -198,6 +218,54 @@ final class WidgetData {
     } catch (Exception e) { return ""; }
   }
 
+
+  // weather now, read from a METAR: precipitation code (or -1), how much of the sky is covered, and whether it says clear
+  static void condFrom(JSONObject m, JSONObject o) throws Exception {
+    // weather now, read from the report: precipitation code (or -1) and how much of the sky is covered
+    String raw = " " + m.optString("rawOb", "").replaceAll("\\sRMK\\s.*$", "") + " ";
+    int wx = -1;
+    if (raw.matches("(?s).*\\s[-+]?(VC)?TS.*")) wx = 95;
+    else if (raw.matches("(?s).*\\s[-+]?(SH)?SN.*")) wx = 73;
+    else if (raw.matches("(?s).*\\s[-+]?(FZ)?DZ.*")) wx = 53;
+    else if (raw.matches("(?s).*\\s[-+]?(SH|FZ)?RA.*")) wx = raw.matches("(?s).*\\s\\+(SH)?RA.*") ? 65 : raw.matches("(?s).*\\s-(SH)?RA.*") ? 61 : 63;
+    else if (raw.matches("(?s).*\\sFG\\s.*")) wx = 45;
+    o.put("wxc", wx);
+    double cov = -1;
+    JSONArray cl = m.optJSONArray("clouds");
+    if (cl != null) for (int i = 0; i < cl.length(); i++) {
+      JSONObject c = cl.getJSONObject(i);
+      String cv = c.optString("cover");
+      int base = c.isNull("base") ? 0 : c.optInt("base");
+      if (base > 12000) continue;
+      double r = cv.matches("SKC|CLR|CAVOK") ? 0 : cv.equals("FEW") ? 1 : cv.equals("SCT") ? 2 : cv.equals("BKN") ? 2.5 : cv.matches("OVC|OVX|VV") ? 3 : -1;
+      cov = Math.max(cov, r);
+    }
+    o.put("cov", cov);
+    o.put("clr", raw.matches("(?s).*\\s(SKC|CLR)\\s.*"));
+  }
+
+  // the nearest airport report to the widget's own spot (within ~30 km, under 90 min old), so the widget's "now"
+  // never depends on which airport the app last showed
+  static JSONObject nearCond(double lat, double lon) throws Exception {
+    String bb = String.format(Locale.US, "%.3f,%.3f,%.3f,%.3f", lat - .3, lon - .4, lat + .3, lon + .4);
+    JSONArray a = new JSONArray(WeatherJob.get("https://aviationweather.gov/api/data/metar?bbox=" + bb + "&format=json"));
+    JSONObject best = null; double bd = 31;
+    long now = System.currentTimeMillis();
+    for (int i = 0; i < a.length(); i++) {
+      JSONObject m = a.getJSONObject(i);
+      if (now - m.optLong("obsTime", 0) * 1000 > 90 * 60_000L) continue;
+      double la = m.optDouble("lat", 0), lo = m.optDouble("lon", 0);
+      double dx = (lo - lon) * 111 * Math.cos(Math.toRadians(lat)), dy = (la - lat) * 111, d = Math.sqrt(dx * dx + dy * dy);
+      if (d < bd) { bd = d; best = m; }
+    }
+    if (best == null) return null;
+    JSONObject o = new JSONObject();
+    o.put("id", best.optString("icaoId"));
+    o.put("obs", best.optLong("obsTime", 0) * 1000);
+    condFrom(best, o);
+    return o;
+  }
+
   static JSONObject metar(String id, String name, boolean F) throws Exception {
     JSONArray a = new JSONArray(WeatherJob.get("https://aviationweather.gov/api/data/metar?ids=" + id + "&format=json"));
     JSONObject m = a.getJSONObject(0), o = new JSONObject();
@@ -225,6 +293,7 @@ final class WidgetData {
     o.put("vis", m.optString("visib", "").isEmpty() ? "--" : m.optString("visib") + " sm");
     if (!m.isNull("temp") && !m.isNull("dewp")) o.put("td", Math.round(m.getDouble("temp")) + "/" + Math.round(m.getDouble("dewp")) + "°C");
     o.put("obs", m.optLong("obsTime", 0) * 1000);
+    condFrom(m, o);
     return o;
   }
 
