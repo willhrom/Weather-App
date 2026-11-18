@@ -166,7 +166,8 @@ def radar_now(lat0, lon0, shape):
         print("radar mosaic unavailable:", e)
         return None, None
     dx, dy, x0, y0 = wld[0], wld[3], wld[4], wld[5]
-    dbz = np.where(a > 0, a.astype(np.float32) * .5 - 32.5, np.nan)
+    # index 0 is "no echo" as well as "no radar": both read as dry here; radar_bias only looks where radar reaches
+    dbz = np.where(a > 0, a.astype(np.float32) * .5 - 32.5, -10).astype(np.float32)
     h, w = shape
     out = np.full(shape, np.nan, np.float32)
     lats = lat0 - np.arange(h) * .25
@@ -181,8 +182,8 @@ def radar_now(lat0, lon0, shape):
             c0, c1 = int((lo - .125 - x0) / dx), int((lo + .125 - x0) / dx)
             if c1 <= 0 or c0 >= a.shape[1]: continue
             blk = band[:, max(0, c0):min(a.shape[1], c1)]
-            if blk.size and np.isfinite(blk).mean() > .5:
-                out[i, j] = np.nanpercentile(np.nan_to_num(blk, nan=-10), 80)
+            if blk.size:
+                out[i, j] = np.percentile(blk, 80)
     print("radar mosaic", valid.isoformat(), "cells:", int(np.isfinite(out).sum()))
     return out, valid
 
@@ -207,7 +208,7 @@ def radar_bias(model, radar, dist):
     # carry it out past the radar's reach: a wider, confidence-weighted blur
     num = gaussian_filter(b, 10, mode="constant"); den = gaussian_filter(conf, 10, mode="constant")
     far = np.where(den > .02, num / np.maximum(den, 1e-6), 0) * np.clip(den / .1, 0, 1)
-    out = np.where(conf > .5, b, far).astype(np.float32)
+    out = (b + (1 - conf) * far).astype(np.float32)   # b already carries conf: a smooth blend, no contour line
     n = int((conf > .5).sum())
     print(f"calibration: {n} cells judged, bias range {float(out.min()):+.1f}..{float(out.max()):+.1f} dBZ")
     return out
