@@ -289,6 +289,10 @@ body.mapopen .tabbar{display:none}
 .lrow .t small{display:block;font-size:11px;color:var(--faint);margin-top:1px}
 .lrow .sw{width:16px;height:16px;border-radius:4px;flex:none}
 .cardoff{display:none!important}
+.cb{width:22px;height:22px;border-radius:6px;border:1.5px solid var(--line2);background:transparent;position:relative;flex:none;transition:background .12s,border-color .12s}
+.cb.on{background:var(--accent);border-color:var(--accent)}
+.cb.on::after{content:"";position:absolute;left:6.5px;top:2.5px;width:5px;height:10px;border:solid #06121f;border-width:0 2.2px 2.2px 0;transform:rotate(45deg)}
+#cardSet .set{cursor:pointer}
 .tg{width:34px;height:20px;border-radius:10px;background:var(--line2);position:relative;flex:none;transition:background .15s}
 .tg::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#cfd6de;transition:transform .15s}
 .lrow.on .tg,.tg.on{background:var(--accent)}.lrow.on .tg::after,.tg.on::after{transform:translateX(14px);background:#06121f}
@@ -3746,8 +3750,9 @@ function applyCards(){
   document.querySelectorAll("[data-card]").forEach(el=>el.classList.toggle("cardoff",off(el.dataset.card)));
   if(off(TAB))showTab("now")}
 function cardSettings(){
-  $("#cardSet").innerHTML=CARDS.map(([k,n])=>`<div class="set">${esc(n)}<button class="tg${S.cards[k]===false?"":" on"}" data-ck="${k}" aria-label="Show ${esc(n)}"></button></div>`).join("");
-  $("#cardSet").querySelectorAll("[data-ck]").forEach(b=>b.onclick=()=>{const k=b.dataset.ck;S.cards[k]=S.cards[k]===false;b.classList.toggle("on",S.cards[k]!==false);savePlaces();applyCards()})}
+  $("#cardSet").innerHTML=CARDS.map(([k,n])=>`<div class="set">${esc(n)}<button class="cb${S.cards[k]===false?"":" on"}" data-ck="${k}" role="checkbox" aria-checked="${S.cards[k]!==false}" aria-label="Show ${esc(n)}"></button></div>`).join("");
+  $("#cardSet").querySelectorAll(".set").forEach(r=>r.onclick=e=>{if(e.target.closest("[data-ck]"))return;r.querySelector("[data-ck]").click()});
+  $("#cardSet").querySelectorAll("[data-ck]").forEach(b=>b.onclick=()=>{const k=b.dataset.ck;S.cards[k]=S.cards[k]===false;b.classList.toggle("on",S.cards[k]!==false);b.setAttribute("aria-checked",S.cards[k]!==false);savePlaces();applyCards()})}
 $(".cseg").onclick=e=>{const b=e.target.closest("button");if(!b)return;S.rainCard=b.dataset.v;savePlaces();syncSettings();applyCards()};
 function syncSettings(){notifUI();$("#fxSwitch").classList.toggle("on",FX.on);document.querySelectorAll(".seg").forEach(seg=>seg.querySelectorAll("button").forEach(b=>b.classList.toggle("on",S[seg.dataset.k]===b.dataset.v)));$("#gpsSwitch").classList.toggle("on",!!S.gps);if(!S.cards)S.cards={};cardSettings();applyCards()}
 function openSheet(){renderPlaceList();syncSettings();$("#sheet").classList.add("on");$("#scrim").classList.add("on")}
