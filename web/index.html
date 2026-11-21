@@ -690,8 +690,8 @@ b,strong{font-weight:600}
   <div id="notifSet" style="display:none">
   <h3>Notifications</h3>
   <div class="sgroup">
-  <div class="set">Rain starting soon<button class="tg" id="nRain" aria-label="Rain starting notifications"></button></div>
-  <div class="set">Severe weather warnings<button class="tg" id="nAlerts" aria-label="Severe weather notifications"></button></div>
+  <div class="set">Rain starting soon<div class="seg kseg" id="nRain"><button data-v="1">On</button><button data-v="0">Off</button></div></div>
+  <div class="set">Weather warnings<div class="seg kseg" id="nAlerts"><button data-v="1">On</button><button data-v="0">Off</button></div></div>
   </div>
   <div class="sfoot" id="notifNote">Checks every 15 minutes for the place you have open.</div>
   <button class="lnk" id="nTest" style="width:100%">Send a test notification</button></div>
@@ -3746,11 +3746,11 @@ document.querySelectorAll(".seg:not(.cseg):not(.kseg)").forEach(seg=>seg.onclick
 const NB=window.WxNative;
 function wxn(k,v){if(!place)return;if(WXN.pid!==place.id)WXN={pid:place.id};if(JSON.stringify(WXN[k])===JSON.stringify(v))return;WXN[k]=v;clearTimeout(wxnT);wxnT=setTimeout(pushWatch,1500)}
 function pushWatch(){if(!NB||!place)return;const x=WXN.pid===place.id?WXN:{};try{NB.setWatch(JSON.stringify({lat:place.lat,lon:place.lon,name:place.name,rain:!!S.nRain,alerts:!!S.nAlerts,unit:S.rain,temp:S.temp,wind:S.wind,apt:x.apt||null,tide:x.tide||null,water:x.water||null,wave:x.wave||null}))}catch(e){}}
-function notifUI(){if(!NB)return;$("#notifSet").style.display="";$("#nRain").classList.toggle("on",!!S.nRain);$("#nAlerts").classList.toggle("on",!!S.nAlerts);
+function notifUI(){if(!NB)return;$("#notifSet").style.display="";["nRain","nAlerts"].forEach(k=>$("#"+k).querySelectorAll("button").forEach(b=>b.classList.toggle("on",(b.dataset.v==="1")===!!S[k])));
   let ok=true;try{ok=NB.notificationsAllowed()}catch(e){}
   $("#notifNote").textContent=ok?`Checks about every 15 minutes for ${place?place.name:"the place you have open"}.`:"Notifications are blocked — allow them for Weather in Android settings.";}
 if(NB){
-  ["nRain","nAlerts"].forEach(k=>$("#"+k).onclick=()=>{S[k]=!S[k];savePlaces();if(S[k])try{NB.requestNotifications()}catch(e){}notifUI();pushWatch()});
+  ["nRain","nAlerts"].forEach(k=>$("#"+k).onclick=e=>{const b=e.target.closest("button");if(!b)return;S[k]=b.dataset.v==="1";savePlaces();if(S[k])try{NB.requestNotifications()}catch(e){}notifUI();pushWatch()});
   $("#nTest").onclick=()=>{try{NB.requestNotifications();NB.testNotification()}catch(e){}};
   if(!store.get("wx.askedNotif",false)&&(S.nRain||S.nAlerts)){store.set("wx.askedNotif",true);setTimeout(()=>{try{NB.requestNotifications()}catch(e){}},1500)}
 }
