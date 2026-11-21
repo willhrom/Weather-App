@@ -584,6 +584,17 @@ b,strong{font-weight:600}
 .sbar{margin-top:14px}.sbt{display:flex;justify-content:space-between;font-size:12.5px;color:var(--muted)}
 .sbtrack{height:8px;border-radius:5px;background:rgba(255,255,255,.07);margin:6px 0;overflow:hidden}.sbtrack i{display:block;height:100%;border-radius:5px;background:linear-gradient(90deg,#3aa8d8,#4cc9f0)}
 #rainCard .dmore{margin-top:14px}
+
+/* settings: rows grouped in soft boxes, even row heights, room between sections */
+.sheet h3{margin:28px 4px 8px}
+.sgroup{background:rgba(255,255,255,.035);border:1px solid var(--line);border-radius:14px;padding:0 14px}
+.sgroup .set{margin:0;min-height:52px;gap:12px;border-top:1px solid var(--line);color:var(--text)}
+.sgroup .set:first-child{border-top:0}
+.sgroup .seg{width:auto;flex:0 1 62%}
+.sfoot{font-size:12px;line-height:1.45;color:var(--faint);margin:8px 6px 0}
+.sfoot+.sgroup{margin-top:14px}
+.sheet .lnk{margin-top:22px}.sheet .lnk+.lnk{margin-top:10px}
+.sheet .credits{margin-top:22px}
 </style>
 </head>
 <body>
@@ -664,20 +675,24 @@ b,strong{font-weight:600}
   <h3>Your places<span class="h3r" id="reorderHint">hold to reorder</span></h3>
   <div id="placeList"></div>
   <h3>Settings</h3>
+  <div class="sgroup">
   <div class="set">Follow my location<button class="tg" id="gpsSwitch" aria-label="Follow my location"></button></div>
   <div class="set">Animated background<button class="tg" id="fxSwitch" aria-label="Animated background"></button></div>
   <div class="set">Temperature<div class="seg" data-k="temp"><button data-v="F">°F</button><button data-v="C">°C</button></div></div>
   <div class="set">Wind<div class="seg" data-k="wind"><button data-v="mph">mph</button><button data-v="kmh">km/h</button><button data-v="kn">kt</button></div></div>
   <div class="set">Rain &amp; tide<div class="seg" data-k="rain"><button data-v="in">in / ft</button><button data-v="mm">mm / m</button></div></div>
+  </div>
   <h3>Cards</h3>
-  <div class="set">Rain<div class="seg cseg" data-k="rainCard"><button data-v="on">Always</button><button data-v="auto">When due</button><button data-v="off">Off</button></div></div>
-  <div class="foot" style="margin:-2px 0 8px">"When due" shows the Rain card only when rain has fallen in the last 2 days or is likely in the next week.</div>
-  <div id="cardSet"></div>
+  <div class="sgroup"><div class="set">Rain card<div class="seg cseg" data-k="rainCard"><button data-v="on">Always</button><button data-v="auto">When due</button><button data-v="off">Off</button></div></div></div>
+  <div class="sfoot">"When due" shows it only when rain has fallen in the last 2 days or is likely in the next week.</div>
+  <div class="sgroup" id="cardSet"></div>
   <div id="notifSet" style="display:none">
   <h3>Notifications</h3>
+  <div class="sgroup">
   <div class="set">Rain starting soon<button class="tg" id="nRain" aria-label="Rain starting notifications"></button></div>
   <div class="set">Severe weather warnings<button class="tg" id="nAlerts" aria-label="Severe weather notifications"></button></div>
-  <div class="foot" id="notifNote">Checks every 15 minutes for the place you have open.</div>
+  </div>
+  <div class="sfoot" id="notifNote">Checks every 15 minutes for the place you have open.</div>
   <button class="lnk" id="nTest" style="width:100%">Send a test notification</button></div>
   <button class="lnk" id="diagBtn" style="width:100%">Startup diagnostics</button>
   <a class="lnk" id="updateLink" href="#" target="_blank" rel="noopener">Download the latest Android app</a>
