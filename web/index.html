@@ -512,7 +512,7 @@ details.afd[open]>summary::after{content:"–"}
 .row svg{width:16px;height:16px}
 .set{display:flex;align-items:center;justify-content:space-between;margin-top:10px;font-size:14px;color:var(--muted)}
 .seg{display:flex;width:62%;background:var(--panel2);border:1px solid var(--line);border-radius:9px;padding:2px}
-.seg button{flex:1;padding:8px 0;border-radius:7px;font-size:13px;color:var(--muted)}
+.seg button{flex:1 1 0;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:8px 4px;border-radius:7px;font-size:13px;color:var(--muted)}
 .seg button.on{background:var(--line2);color:var(--text);font-weight:500}
 .lnk{display:block;text-align:center;padding:12px;border-radius:10px;border:1px solid var(--line2);color:var(--accent);font-weight:500;margin-top:14px;text-decoration:none}
 .credits{font-size:11px;color:var(--faint);line-height:1.6;margin-top:16px}
@@ -591,6 +591,7 @@ b,strong{font-weight:600}
 .sgroup .set{margin:0;min-height:52px;gap:12px;border-top:1px solid var(--line);color:var(--text)}
 .sgroup .set:first-child{border-top:0}
 .sgroup .seg{width:auto;flex:0 1 62%}
+.sgroup .kseg{flex:0 0 44%}
 .sfoot{font-size:12px;line-height:1.45;color:var(--faint);margin:10px 6px 0}
 .sfoot+.sgroup{margin-top:24px}
 .sheet .lnk{margin-top:22px}.sheet .lnk+.lnk{margin-top:10px}
@@ -683,8 +684,8 @@ b,strong{font-weight:600}
   <div class="set">Rain &amp; tide<div class="seg" data-k="rain"><button data-v="in">in / ft</button><button data-v="mm">mm / m</button></div></div>
   </div>
   <h3>Cards</h3>
-  <div class="sgroup"><div class="set">Rain card<div class="seg cseg" data-k="rainCard"><button data-v="on">Always</button><button data-v="auto">When due</button><button data-v="off">Off</button></div></div></div>
-  <div class="sfoot">"When due" shows it only when rain has fallen in the last 2 days or is likely in the next week.</div>
+  <div class="sgroup"><div class="set">Rain card<div class="seg cseg" data-k="rainCard"><button data-v="on">Always</button><button data-v="auto">Auto</button><button data-v="off">Off</button></div></div></div>
+  <div class="sfoot">Auto shows the Rain card only when rain has fallen in the last 2 days or is likely in the next week.</div>
   <div class="sgroup" id="cardSet"></div>
   <div id="notifSet" style="display:none">
   <h3>Notifications</h3>
@@ -3740,7 +3741,7 @@ $("#q").oninput=e=>{clearTimeout(qT);const q=e.target.value.trim();if(q.length<2
   }catch(err){$("#results").innerHTML='<div class="err">Search failed — check your connection.</div>'}},300)};
 $("#results").onclick=e=>{const b=e.target.closest("[data-k]");if(!b)return;const p=lastResults[+b.dataset.k];if(!places.some(x=>x.id===p.id))places.push(p);$("#q").value="";$("#results").innerHTML="";choose(p.id)};
 $("#gpsSwitch").onclick=()=>{S.gps=!S.gps;sel=S.gps?"gps":(sel==="gps"?(places[0]?places[0].id:"sf"):sel);savePlaces();syncSettings();renderPlaceList();load()};
-document.querySelectorAll(".seg:not(.cseg)").forEach(seg=>seg.onclick=e=>{const b=e.target.closest("button");if(!b)return;S[seg.dataset.k]=b.dataset.v;savePlaces();syncSettings();seasonCache={};load()});
+document.querySelectorAll(".seg:not(.cseg):not(.kseg)").forEach(seg=>seg.onclick=e=>{const b=e.target.closest("button");if(!b)return;S[seg.dataset.k]=b.dataset.v;savePlaces();syncSettings();seasonCache={};load()});
 /* ---------- background notifications (Android app) ---------- */
 const NB=window.WxNative;
 function wxn(k,v){if(!place)return;if(WXN.pid!==place.id)WXN={pid:place.id};if(JSON.stringify(WXN[k])===JSON.stringify(v))return;WXN[k]=v;clearTimeout(wxnT);wxnT=setTimeout(pushWatch,1500)}
@@ -3755,7 +3756,7 @@ if(NB){
 }
 
 /* ---------- cards you can switch off (Settings › Cards) ---------- */
-const CARDS=[["radar","Radar & layers"],["next12","Next 12 hours"],["readings","Readings"],["best","Best time"],["hours","Next 24 hours"],["wind","Wind"],["moon","Moon & sun"],["afd","Forecaster notes (10-Day)"],["sky","Sky tab"],["tides","Tides tab"]];
+const CARDS=[["radar","Radar & layers"],["next12","Next 12 hours"],["readings","Readings"],["best","Best time"],["hours","Next 24 hours"],["wind","Wind"],["moon","Moon & sun"],["afd","Forecaster notes"],["sky","Sky tab"],["tides","Tides tab"]];
 // rain "when due": rain in the last 2 days, or a decent chance in the next 7
 function rainDue(){try{const h=W.hourly,i=hourIndex(),P=h.precipitation||[],PP=h.precipitation_probability||[];
   for(let k=Math.max(0,i-48);k<i;k++)if((P[k]||0)>=wet())return true;
@@ -3765,11 +3766,11 @@ function applyCards(){
   document.querySelectorAll("[data-card]").forEach(el=>el.classList.toggle("cardoff",off(el.dataset.card)));
   if(off(TAB))showTab("now")}
 function cardSettings(){
-  $("#cardSet").innerHTML=CARDS.map(([k,n])=>`<div class="set">${esc(n)}<button class="cb${S.cards[k]===false?"":" on"}" data-ck="${k}" role="checkbox" aria-checked="${S.cards[k]!==false}" aria-label="Show ${esc(n)}"></button></div>`).join("");
-  $("#cardSet").querySelectorAll(".set").forEach(r=>r.onclick=e=>{if(e.target.closest("[data-ck]"))return;r.querySelector("[data-ck]").click()});
-  $("#cardSet").querySelectorAll("[data-ck]").forEach(b=>b.onclick=()=>{const k=b.dataset.ck;S.cards[k]=S.cards[k]===false;b.classList.toggle("on",S.cards[k]!==false);b.setAttribute("aria-checked",S.cards[k]!==false);savePlaces();applyCards()})}
+  $("#cardSet").innerHTML=CARDS.map(([k,n])=>`<div class="set">${esc(n)}<div class="seg kseg" data-ck="${k}"><button data-v="1" class="${S.cards[k]===false?"":"on"}">Show</button><button data-v="0" class="${S.cards[k]===false?"on":""}">Hide</button></div></div>`).join("");
+  $("#cardSet").querySelectorAll(".kseg").forEach(g=>g.onclick=e=>{const b=e.target.closest("button");if(!b)return;const k=g.dataset.ck;S.cards[k]=b.dataset.v==="1";
+    g.querySelectorAll("button").forEach(x=>x.classList.toggle("on",x===b));savePlaces();applyCards()})}
 $(".cseg").onclick=e=>{const b=e.target.closest("button");if(!b)return;S.rainCard=b.dataset.v;savePlaces();syncSettings();applyCards()};
-function syncSettings(){notifUI();$("#fxSwitch").classList.toggle("on",FX.on);document.querySelectorAll(".seg").forEach(seg=>seg.querySelectorAll("button").forEach(b=>b.classList.toggle("on",S[seg.dataset.k]===b.dataset.v)));$("#gpsSwitch").classList.toggle("on",!!S.gps);if(!S.cards)S.cards={};cardSettings();applyCards()}
+function syncSettings(){notifUI();$("#fxSwitch").classList.toggle("on",FX.on);document.querySelectorAll(".seg[data-k]").forEach(seg=>seg.querySelectorAll("button").forEach(b=>b.classList.toggle("on",S[seg.dataset.k]===b.dataset.v)));$("#gpsSwitch").classList.toggle("on",!!S.gps);if(!S.cards)S.cards={};cardSettings();applyCards()}
 function openSheet(){renderPlaceList();syncSettings();$("#sheet").classList.add("on");$("#scrim").classList.add("on")}
 /* ---------- startup diagnostics report ---------- */
 function diagReport(){
